@@ -1,0 +1,6 @@
+{
+  "name": "Portal Komando RRI Bandar Lampung",
+  "description": "Dashboard eksekutif interaktif untuk pengambilan keputusan pimpinan, dilengkapi dengan statistik pegawai, administrasi kepegawaian, dan pengaturan aplikasi.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
