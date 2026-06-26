@@ -9,6 +9,13 @@ import PemberitaanMediaBaruView from './components/PemberitaanMediaBaruView';
 import LoginView from './components/LoginView';
 import DashboardBidangView from './components/DashboardBidangView';
 import { 
+  fetchCollection, 
+  fetchDocument, 
+  saveDocument, 
+  saveCollectionList, 
+  deleteDocument 
+} from './lib/firebaseSync';
+import { 
   Radio, 
   LayoutDashboard, 
   Users, 
@@ -637,6 +644,7 @@ const recalculateCascade = (
 export default function App() {
   const [activeTab, setActiveTab] = useState<'dashboard' | 'kepegawaian' | 'aplikasi' | 'pk' | 'lpu' | 'pemberitaan'>('dashboard');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(true);
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [settings, setSettings] = useState<AppSettings>(INITIAL_SETTINGS);
   const [identity, setIdentity] = useState<InstitutionalIdentity>(INITIAL_IDENTITY);
@@ -668,116 +676,91 @@ export default function App() {
     localStorage.removeItem('swara_current_user');
   };
 
-  // Load from localStorage on initialization
+  // Load from Firestore on initialization
   useEffect(() => {
-    const localEmployees = localStorage.getItem('e_station_employees');
-    if (localEmployees) {
+    async function loadData() {
       try {
-        const parsed = JSON.parse(localEmployees);
-        const migrated = parsed.map((emp: any) => {
-          if (emp.divisi === 'Program Acara') emp.divisi = 'Konten Media Baru';
-          if (emp.divisi === 'Teknik') emp.divisi = 'Teknologi dan Media Baru';
-          if (emp.divisi === 'Layanan Publik') emp.divisi = 'Layanan Pengembangan Usaha';
+        const fireEmployees = await fetchCollection<Employee>('employees', INITIAL_EMPLOYEES);
+        const fireSettings = await fetchDocument<AppSettings>('settings', 'current', INITIAL_SETTINGS);
+        const fireIdentity = await fetchDocument<InstitutionalIdentity>('identity', 'current', INITIAL_IDENTITY);
+        const fireNotifications = await fetchCollection<CriticalNotification>('notifications', INITIAL_NOTIFICATIONS);
+        const fireContracts = await fetchCollection<CooperationContract>('contracts', INITIAL_CONTRACTS);
+        const fireTargets = await fetchCollection<ReporterTarget>('reporterTargets', INITIAL_REPORTER_TARGETS);
+        const fireReports = await fetchCollection<NewsReport>('newsReports', INITIAL_NEWS_REPORTS);
+        const fireAgreements = await fetchCollection<PerformanceAgreement>('agreements', INITIAL_AGREEMENTS);
+
+        // Perform initial cascade check
+        const initialCascaded = recalculateCascade(fireAgreements, fireContracts, fireReports, fireTargets);
+
+        // Migrate employee division field values if needed
+        const migratedEmployees = fireEmployees.map((emp) => {
+          if ((emp.divisi as any) === 'Program Acara') emp.divisi = 'Konten Media Baru';
+          if ((emp.divisi as any) === 'Teknik') emp.divisi = 'Teknologi dan Media Baru';
+          if ((emp.divisi as any) === 'Layanan Publik') emp.divisi = 'Layanan Pengembangan Usaha';
           return emp;
         });
-        setEmployees(migrated);
-        localStorage.setItem('e_station_employees', JSON.stringify(migrated));
+
+        setEmployees(migratedEmployees);
+        setSettings(fireSettings);
+        setIdentity(fireIdentity);
+        setNotifications(fireNotifications);
+        setContracts(fireContracts);
+        setReporterTargets(fireTargets);
+        setNewsReports(fireReports);
+        setAgreements(initialCascaded);
+
+        // Mirror locally for instant loading and reliability
+        localStorage.setItem('e_station_employees', JSON.stringify(migratedEmployees));
+        localStorage.setItem('e_station_settings', JSON.stringify(fireSettings));
+        localStorage.setItem('e_station_identity', JSON.stringify(fireIdentity));
+        localStorage.setItem('e_station_notifications', JSON.stringify(fireNotifications));
+        localStorage.setItem('e_station_contracts', JSON.stringify(fireContracts));
+        localStorage.setItem('e_station_reporter_targets', JSON.stringify(fireTargets));
+        localStorage.setItem('e_station_news_reports', JSON.stringify(fireReports));
+        localStorage.setItem('e_station_agreements', JSON.stringify(initialCascaded));
+
       } catch (err) {
-        setEmployees(INITIAL_EMPLOYEES);
+        console.error("Critical error during cloud sync:", err);
+      } finally {
+        setIsSyncing(false);
       }
-    } else {
-      setEmployees(INITIAL_EMPLOYEES);
-      localStorage.setItem('e_station_employees', JSON.stringify(INITIAL_EMPLOYEES));
     }
-
-    const localSettings = localStorage.getItem('e_station_settings');
-    if (localSettings) {
-      setSettings(JSON.parse(localSettings));
-    } else {
-      setSettings(INITIAL_SETTINGS);
-      localStorage.setItem('e_station_settings', JSON.stringify(INITIAL_SETTINGS));
-    }
-
-    const localIdentity = localStorage.getItem('e_station_identity');
-    if (localIdentity) {
-      try {
-        const parsed = JSON.parse(localIdentity);
-        setIdentity({ ...INITIAL_IDENTITY, ...parsed });
-      } catch (e) {
-        setIdentity(INITIAL_IDENTITY);
-      }
-    } else {
-      setIdentity(INITIAL_IDENTITY);
-      localStorage.setItem('e_station_identity', JSON.stringify(INITIAL_IDENTITY));
-    }
-
-    const localNotifications = localStorage.getItem('e_station_notifications');
-    if (localNotifications) {
-      setNotifications(JSON.parse(localNotifications));
-    } else {
-      setNotifications(INITIAL_NOTIFICATIONS);
-      localStorage.setItem('e_station_notifications', JSON.stringify(INITIAL_NOTIFICATIONS));
-    }
-
-    const localAgreements = localStorage.getItem('e_station_agreements');
-    const loadedAgs = localAgreements ? JSON.parse(localAgreements) : INITIAL_AGREEMENTS;
-
-    const localContracts = localStorage.getItem('e_station_contracts');
-    const loadedContracts = localContracts ? JSON.parse(localContracts) : INITIAL_CONTRACTS;
-    
-    setContracts(loadedContracts);
-    if (!localContracts) {
-      localStorage.setItem('e_station_contracts', JSON.stringify(INITIAL_CONTRACTS));
-    }
-
-    const localTargets = localStorage.getItem('e_station_reporter_targets');
-    const loadedTargets = localTargets ? JSON.parse(localTargets) : INITIAL_REPORTER_TARGETS;
-    setReporterTargets(loadedTargets);
-    if (!localTargets) {
-      localStorage.setItem('e_station_reporter_targets', JSON.stringify(INITIAL_REPORTER_TARGETS));
-    }
-
-    const localReports = localStorage.getItem('e_station_news_reports');
-    const loadedReports = localReports ? JSON.parse(localReports) : INITIAL_NEWS_REPORTS;
-    setNewsReports(loadedReports);
-    if (!localReports) {
-      localStorage.setItem('e_station_news_reports', JSON.stringify(INITIAL_NEWS_REPORTS));
-    }
-
-    // Always perform an initial cascade calculation to ensure synchronicity
-    const initialCascaded = recalculateCascade(loadedAgs, loadedContracts, loadedReports, loadedTargets);
-    setAgreements(initialCascaded);
-    localStorage.setItem('e_station_agreements', JSON.stringify(initialCascaded));
+    loadData();
   }, []);
 
   // Sync helpers
-  const handleUpdateEmployees = (newEmployees: Employee[]) => {
+  const handleUpdateEmployees = async (newEmployees: Employee[]) => {
     setEmployees(newEmployees);
     localStorage.setItem('e_station_employees', JSON.stringify(newEmployees));
+    await saveCollectionList('employees', newEmployees);
   };
 
-  const handleUpdateSettings = (newSettings: AppSettings) => {
+  const handleUpdateSettings = async (newSettings: AppSettings) => {
     setSettings(newSettings);
     localStorage.setItem('e_station_settings', JSON.stringify(newSettings));
+    await saveDocument('settings', 'current', newSettings);
   };
 
-  const handleUpdateIdentity = (newIdentity: InstitutionalIdentity) => {
+  const handleUpdateIdentity = async (newIdentity: InstitutionalIdentity) => {
     setIdentity(newIdentity);
     localStorage.setItem('e_station_identity', JSON.stringify(newIdentity));
+    await saveDocument('identity', 'current', newIdentity);
   };
 
-  const handleUpdateNotifications = (newNotifs: CriticalNotification[]) => {
+  const handleUpdateNotifications = async (newNotifs: CriticalNotification[]) => {
     setNotifications(newNotifs);
     localStorage.setItem('e_station_notifications', JSON.stringify(newNotifs));
+    await saveCollectionList('notifications', newNotifs);
   };
 
-  const handleUpdateAgreements = (newAgs: PerformanceAgreement[]) => {
+  const handleUpdateAgreements = async (newAgs: PerformanceAgreement[]) => {
     const cascaded = recalculateCascade(newAgs, contracts, newsReports, reporterTargets);
     setAgreements(cascaded);
     localStorage.setItem('e_station_agreements', JSON.stringify(cascaded));
+    await saveCollectionList('agreements', cascaded);
   };
 
-  const handleUpdateContracts = (newContracts: CooperationContract[]) => {
+  const handleUpdateContracts = async (newContracts: CooperationContract[]) => {
     setContracts(newContracts);
     localStorage.setItem('e_station_contracts', JSON.stringify(newContracts));
     
@@ -785,24 +768,33 @@ export default function App() {
     const cascaded = recalculateCascade(agreements, newContracts, newsReports, reporterTargets);
     setAgreements(cascaded);
     localStorage.setItem('e_station_agreements', JSON.stringify(cascaded));
+
+    await saveCollectionList('contracts', newContracts);
+    await saveCollectionList('agreements', cascaded);
   };
 
-  const handleUpdateReporterTargets = (newTargets: ReporterTarget[]) => {
+  const handleUpdateReporterTargets = async (newTargets: ReporterTarget[]) => {
     setReporterTargets(newTargets);
     localStorage.setItem('e_station_reporter_targets', JSON.stringify(newTargets));
     
     const cascaded = recalculateCascade(agreements, contracts, newsReports, newTargets);
     setAgreements(cascaded);
     localStorage.setItem('e_station_agreements', JSON.stringify(cascaded));
+
+    await saveCollectionList('reporterTargets', newTargets);
+    await saveCollectionList('agreements', cascaded);
   };
 
-  const handleUpdateNewsReports = (newReports: NewsReport[]) => {
+  const handleUpdateNewsReports = async (newReports: NewsReport[]) => {
     setNewsReports(newReports);
     localStorage.setItem('e_station_news_reports', JSON.stringify(newReports));
     
     const cascaded = recalculateCascade(agreements, contracts, newReports, reporterTargets);
     setAgreements(cascaded);
     localStorage.setItem('e_station_agreements', JSON.stringify(cascaded));
+
+    await saveCollectionList('newsReports', newReports);
+    await saveCollectionList('agreements', cascaded);
   };
 
   // CRUD Operations for Employees
@@ -816,10 +808,12 @@ export default function App() {
     handleUpdateEmployees(updated);
   };
 
-  const deleteEmployee = (id: string) => {
+  const deleteEmployee = async (id: string) => {
     if (window.confirm("Apakah Anda yakin ingin menghapus data pegawai ini?")) {
       const updated = employees.filter(e => e.id !== id);
-      handleUpdateEmployees(updated);
+      setEmployees(updated);
+      localStorage.setItem('e_station_employees', JSON.stringify(updated));
+      await deleteDocument('employees', id);
     }
   };
 
@@ -854,12 +848,37 @@ export default function App() {
 
   const unreadCount = notifications.filter(n => !n.isRead).length;
 
+  if (isSyncing) {
+    return (
+      <div className="min-h-screen bg-slate-950 flex flex-col justify-center items-center p-4">
+        <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-80 h-80 bg-indigo-600/10 rounded-full blur-3xl pointer-events-none" />
+        <div className="w-full max-w-sm text-center space-y-6 z-10 select-none">
+          <div className="flex justify-center">
+            <div className="p-4 bg-indigo-600/20 text-indigo-400 rounded-full border border-indigo-500/20 relative animate-pulse">
+              <Radio className="w-10 h-10 animate-bounce" />
+              <span className="absolute inset-0 rounded-full border-2 border-indigo-500/40 animate-ping" />
+            </div>
+          </div>
+          <div className="space-y-2">
+            <h2 className="text-sm font-black uppercase tracking-widest text-indigo-400 font-mono animate-pulse">Sinkronisasi Cloud</h2>
+            <h1 className="text-lg font-extrabold text-white">Menghubungkan Portal Komando...</h1>
+            <p className="text-xs text-slate-400">Sedang mengamankan data dan memperbarui jaringan operasional aktif.</p>
+          </div>
+          <div className="flex justify-center items-center gap-2 text-[10px] font-bold text-emerald-400 font-mono">
+            <ShieldCheck className="w-4 h-4 animate-pulse" />
+            <span>KONEKSI TERSERTIFIKASI AMAN</span>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   if (!currentUser) {
     return (
       <LoginView
         employees={employees}
         onLogin={handleLogin}
-        namaInstansi={identity.namaInstansi}
+        namaInstansi={identity.namaInstansi || settings.namaInstansi}
       />
     );
   }

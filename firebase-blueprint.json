@@ -1,0 +1,186 @@
+{
+  "entities": {
+    "Employee": {
+      "title": "Employee",
+      "description": "Represents an employee in the system",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "nik": { "type": "string" },
+        "nip": { "type": "string" },
+        "nama": { "type": "string" },
+        "gelarDepan": { "type": "string" },
+        "gelarBelakang": { "type": "string" },
+        "jenjangPendidikan": { "type": "string" },
+        "divisi": { "type": "string" },
+        "jenisKelamin": { "type": "string" },
+        "alamat": { "type": "string" },
+        "noHp": { "type": "string" },
+        "foto": { "type": "string" },
+        "ttdElektronik": { "type": "string" },
+        "createdAt": { "type": "string" },
+        "role": { "type": "string" },
+        "isEditor": { "type": "boolean" }
+      },
+      "required": ["id", "nik", "nip", "nama", "jenjangPendidikan", "divisi", "jenisKelamin", "alamat", "noHp", "foto", "ttdElektronik", "createdAt"]
+    },
+    "AppSettings": {
+      "title": "AppSettings",
+      "description": "Application settings configurations",
+      "type": "object",
+      "properties": {
+        "namaInstansi": { "type": "string" },
+        "alamat": { "type": "string" },
+        "noTelp": { "type": "string" }
+      },
+      "required": ["namaInstansi", "alamat", "noTelp"]
+    },
+    "InstitutionalIdentity": {
+      "title": "InstitutionalIdentity",
+      "description": "Organizational leaders and their signatures",
+      "type": "object",
+      "properties": {
+        "kepalaStasiunNama": { "type": "string" },
+        "kepalaStasiunTtd": { "type": "string" },
+        "kepalaBidangNama": { "type": "string" },
+        "kepalaBidangTtd": { "type": "string" },
+        "ketuaTimSiaranNama": { "type": "string" },
+        "ketuaTimSiaranTtd": { "type": "string" },
+        "ketuaTimPemberitaanNama": { "type": "string" },
+        "ketuaTimPemberitaanTtd": { "type": "string" },
+        "ketuaTimTeknikNama": { "type": "string" },
+        "ketuaTimTeknikTtd": { "type": "string" },
+        "ketuaTimKontenNama": { "type": "string" },
+        "ketuaTimKontenTtd": { "type": "string" },
+        "ketuaTimLayananNama": { "type": "string" },
+        "ketuaTimLayananTtd": { "type": "string" }
+      },
+      "required": [
+        "kepalaStasiunNama", "kepalaStasiunTtd",
+        "kepalaBidangNama", "kepalaBidangTtd",
+        "ketuaTimSiaranNama", "ketuaTimSiaranTtd",
+        "ketuaTimPemberitaanNama", "ketuaTimPemberitaanTtd",
+        "ketuaTimTeknikNama", "ketuaTimTeknikTtd",
+        "ketuaTimKontenNama", "ketuaTimKontenTtd",
+        "ketuaTimLayananNama", "ketuaTimLayananTtd"
+      ]
+    },
+    "CriticalNotification": {
+      "title": "CriticalNotification",
+      "description": "A notification alert in the portal",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "message": { "type": "string" },
+        "type": { "type": "string" },
+        "timestamp": { "type": "string" },
+        "isRead": { "type": "boolean" },
+        "metricValue": { "type": "string" },
+        "metricName": { "type": "string" }
+      },
+      "required": ["id", "title", "message", "type", "timestamp", "isRead"]
+    },
+    "PerformanceAgreement": {
+      "title": "PerformanceAgreement",
+      "description": "Employee performance agreement details",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "year": { "type": "number" },
+        "level": { "type": "string" },
+        "assignedToEmployeeId": { "type": "string" },
+        "assignedToName": { "type": "string" },
+        "status": { "type": "string" },
+        "signaturePembuat": { "type": "string" },
+        "signaturePenerima": { "type": "string" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["id", "year", "level", "assignedToName", "status", "createdAt"]
+    },
+    "CooperationContract": {
+      "title": "CooperationContract",
+      "description": "LPU Cooperation Contract details",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "partnerName": { "type": "string" },
+        "contractNo": { "type": "string" },
+        "activityName": { "type": "string" },
+        "cooperationType": { "type": "string" },
+        "value": { "type": "number" },
+        "realizedPnbp": { "type": "number" },
+        "paymentStatus": { "type": "string" },
+        "startDate": { "type": "string" },
+        "endDate": { "type": "string" },
+        "notes": { "type": "string" },
+        "linkedIndicatorId": { "type": "string" }
+      },
+      "required": ["id", "partnerName", "contractNo", "activityName", "cooperationType", "value", "realizedPnbp", "paymentStatus", "startDate", "endDate", "linkedIndicatorId"]
+    },
+    "ReporterTarget": {
+      "title": "ReporterTarget",
+      "description": "A target configured for news reporters",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "employeeId": { "type": "string" },
+        "dailyTarget": { "type": "number" },
+        "monthlyTarget": { "type": "number" },
+        "linkedIndicatorId": { "type": "string" },
+        "year": { "type": "number" },
+        "editorId": { "type": "string" }
+      },
+      "required": ["id", "employeeId", "dailyTarget", "monthlyTarget", "linkedIndicatorId", "year"]
+    },
+    "NewsReport": {
+      "title": "NewsReport",
+      "description": "A publication or news report created",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "employeeId": { "type": "string" },
+        "editorId": { "type": "string" },
+        "title": { "type": "string" },
+        "url": { "type": "string" },
+        "type": { "type": "string" },
+        "date": { "type": "string" }
+      },
+      "required": ["id", "employeeId", "title", "url", "type", "date"]
+    }
+  },
+  "firestore": {
+    "/employees/{employeeId}": {
+      "schema": { "$ref": "#/entities/Employee" },
+      "description": "Store individual employee accounts"
+    },
+    "/settings/{settingsId}": {
+      "schema": { "$ref": "#/entities/AppSettings" },
+      "description": "Store application general configuration"
+    },
+    "/identity/{identityId}": {
+      "schema": { "$ref": "#/entities/InstitutionalIdentity" },
+      "description": "Store the current institutional signees and headers"
+    },
+    "/notifications/{notificationId}": {
+      "schema": { "$ref": "#/entities/CriticalNotification" },
+      "description": "Store notifications generated across modules"
+    },
+    "/agreements/{agreementId}": {
+      "schema": { "$ref": "#/entities/PerformanceAgreement" },
+      "description": "Store performance agreements for cascading tracking"
+    },
+    "/contracts/{contractId}": {
+      "schema": { "$ref": "#/entities/CooperationContract" },
+      "description": "Store LPU contracts and PNBP values"
+    },
+    "/reporterTargets/{targetId}": {
+      "schema": { "$ref": "#/entities/ReporterTarget" },
+      "description": "Store individual daily/monthly targets for reporters"
+    },
+    "/newsReports/{reportId}": {
+      "schema": { "$ref": "#/entities/NewsReport" },
+      "description": "Store individual uploaded news and media posts"
+    }
+  }
+}
