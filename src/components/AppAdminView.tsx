@@ -34,6 +34,7 @@ export default function AppAdminView({
   // Institutional Identity Local State
   const [stasiunNama, setStasiunNama] = useState(identity.kepalaStasiunNama);
   const [stasiunTtd, setStasiunTtd] = useState(identity.kepalaStasiunTtd);
+  const [stasiunPassword, setStasiunPassword] = useState(identity.kepalaStasiunPassword || 'kepala');
 
   const [bidangNama, setBidangNama] = useState(identity.kepalaBidangNama);
   const [bidangTtd, setBidangTtd] = useState(identity.kepalaBidangTtd);
@@ -53,7 +54,8 @@ export default function AppAdminView({
   const [timLayananNama, setTimLayananNama] = useState(identity.ketuaTimLayananNama || '');
   const [timLayananTtd, setTimLayananTtd] = useState(identity.ketuaTimLayananTtd || '');
   
-  const [isSavedIdentity, setIsSavedIdentity] = useState(false);
+  const [isSavedKepala, setIsSavedKepala] = useState(false);
+  const [isSavedKabidKatim, setIsSavedKabidKatim] = useState(false);
 
   // Save General settings
   const handleSaveSettings = (e: React.FormEvent) => {
@@ -67,12 +69,24 @@ export default function AppAdminView({
     setTimeout(() => setIsSavedSettings(false), 2000);
   };
 
-  // Save Institutional Identity
-  const handleSaveIdentity = (e: React.FormEvent) => {
+  // Save Kepala Stasiun Identity
+  const handleSaveKepala = (e: React.FormEvent) => {
     e.preventDefault();
     onUpdateIdentity({
+      ...identity,
       kepalaStasiunNama: stasiunNama,
       kepalaStasiunTtd: stasiunTtd,
+      kepalaStasiunPassword: stasiunPassword,
+    });
+    setIsSavedKepala(true);
+    setTimeout(() => setIsSavedKepala(false), 2000);
+  };
+
+  // Save Kabid / Katim Identity
+  const handleSaveKabidKatim = (e: React.FormEvent) => {
+    e.preventDefault();
+    onUpdateIdentity({
+      ...identity,
       kepalaBidangNama: bidangNama,
       kepalaBidangTtd: bidangTtd,
       ketuaTimSiaranNama: timSiaranNama,
@@ -86,8 +100,8 @@ export default function AppAdminView({
       ketuaTimLayananNama: timLayananNama,
       ketuaTimLayananTtd: timLayananTtd
     });
-    setIsSavedIdentity(true);
-    setTimeout(() => setIsSavedIdentity(false), 2000);
+    setIsSavedKabidKatim(true);
+    setTimeout(() => setIsSavedKabidKatim(false), 2000);
   };
 
   // Mock document printable
@@ -167,26 +181,20 @@ export default function AppAdminView({
           </form>
         </div>
 
-        {/* Institutional Leadership Signature Settings Card */}
+        {/* Card 1: Pengaturan Kepala Stasiun */}
         <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm space-y-5">
           <div className="flex items-center gap-2 border-b border-slate-100 pb-3">
-            <div className="p-2 bg-indigo-50 rounded-lg text-indigo-600">
+            <div className="p-2 bg-slate-900 text-white rounded-lg">
               <Award className="w-4.5 h-4.5" />
             </div>
             <div>
-              <h2 className="text-sm font-bold text-slate-800">Pengaturan Identitas & TTD Lembaga</h2>
-              <p className="text-[10px] text-slate-400">Kelola nama pejabat dan tanda tangan elektronik untuk penandatanganan digital SK.</p>
+              <h2 className="text-sm font-bold text-slate-800">Pengaturan Kepala Stasiun</h2>
+              <p className="text-[10px] text-slate-400">Kelola nama, tanda tangan, dan kata sandi akun Kepala Stasiun.</p>
             </div>
           </div>
 
-          <form onSubmit={handleSaveIdentity} className="space-y-5">
-            
-            {/* 1. Kepala Stasiun Radio */}
+          <form onSubmit={handleSaveKepala} className="space-y-4">
             <div className="p-4 bg-slate-50/50 border border-slate-100 rounded-xl space-y-3.5">
-              <div className="flex items-center gap-2">
-                <span className="w-5 h-5 bg-slate-800 text-white rounded-full flex items-center justify-center text-[10px] font-bold">1</span>
-                <h3 className="text-xs font-bold text-slate-700 uppercase tracking-wide">Kepala Stasiun Radio</h3>
-              </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-3">
                   <div className="space-y-1">
@@ -218,20 +226,62 @@ export default function AppAdminView({
                       className="w-full bg-white border border-slate-200 focus:outline-hidden focus:ring-1 focus:ring-slate-400 rounded-lg px-2.5 py-1.5 text-xs text-slate-800 font-semibold"
                     />
                   </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-slate-500 uppercase">Kata Sandi Akun Kepala</label>
+                    <input
+                      type="text"
+                      value={stasiunPassword}
+                      onChange={(e) => setStasiunPassword(e.target.value)}
+                      placeholder="Masukkan kata sandi"
+                      className="w-full bg-white border border-slate-200 focus:outline-hidden focus:ring-1 focus:ring-slate-400 rounded-lg px-2.5 py-1.5 text-xs text-slate-800 font-semibold font-mono"
+                    />
+                  </div>
                 </div>
                 <SignaturePad
                   value={stasiunTtd}
                   onChange={(dataUrl) => setStasiunTtd(dataUrl)}
-                  height={100}
+                  height={135}
                   label="Tanda Tangan Kepala Stasiun"
                 />
               </div>
             </div>
 
+            <div className="flex justify-end pt-1">
+              <button
+                type="submit"
+                className="flex items-center gap-1.5 bg-slate-800 hover:bg-slate-700 text-white text-xs font-semibold px-4 py-2 rounded-xl transition-all shadow-xs"
+              >
+                {isSavedKepala ? (
+                  <>
+                    <Check className="w-3.5 h-3.5 text-emerald-400" />
+                    Berhasil Menyimpan Pengaturan Kepala
+                  </>
+                ) : (
+                  "Simpan Pengaturan Kepala Stasiun"
+                )}
+              </button>
+            </div>
+          </form>
+        </div>
+
+        {/* Card 2: Pengaturan Kabid / Katim */}
+        <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm space-y-5">
+          <div className="flex items-center gap-2 border-b border-slate-100 pb-3">
+            <div className="p-2 bg-indigo-50 rounded-lg text-indigo-600">
+              <Award className="w-4.5 h-4.5" />
+            </div>
+            <div>
+              <h2 className="text-sm font-bold text-slate-800">Pengaturan Kabid & Ketua Tim (Katim)</h2>
+              <p className="text-[10px] text-slate-400">Kelola nama pejabat dan tanda tangan elektronik Kepala Bidang dan Ketua Tim.</p>
+            </div>
+          </div>
+
+          <form onSubmit={handleSaveKabidKatim} className="space-y-5">
+            
             {/* 2. Kepala Bidang Tata Usaha */}
             <div className="p-4 bg-slate-50/50 border border-slate-100 rounded-xl space-y-3.5">
               <div className="flex items-center gap-2">
-                <span className="w-5 h-5 bg-slate-800 text-white rounded-full flex items-center justify-center text-[10px] font-bold">2</span>
+                <span className="w-5 h-5 bg-slate-800 text-white rounded-full flex items-center justify-center text-[10px] font-bold">1</span>
                 <h3 className="text-xs font-bold text-slate-700 uppercase tracking-wide">Kepala Bidang Tata Usaha</h3>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -515,13 +565,13 @@ export default function AppAdminView({
                 type="submit"
                 className="flex items-center gap-1.5 bg-slate-800 hover:bg-slate-700 text-white text-xs font-semibold px-4 py-2.5 rounded-xl transition-all shadow-xs"
               >
-                {isSavedIdentity ? (
+                {isSavedKabidKatim ? (
                   <>
                     <Check className="w-3.5 h-3.5 text-emerald-400" />
-                    Berhasil Menyimpan Identitas
+                    Berhasil Menyimpan Pengaturan Kabid/Katim
                   </>
                 ) : (
-                  "Simpan Identitas Pejabat & TTD"
+                  "Simpan Pengaturan Kabid / Katim"
                 )}
               </button>
             </div>

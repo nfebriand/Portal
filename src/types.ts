@@ -15,6 +15,7 @@ export interface Employee {
   createdAt: string;
   role?: 'Staff' | 'Ketua Bidang' | 'Superadmin';
   isEditor?: boolean;
+  password?: string;
 }
 
 export interface AppSettings {
@@ -26,6 +27,7 @@ export interface AppSettings {
 export interface InstitutionalIdentity {
   kepalaStasiunNama: string;
   kepalaStasiunTtd: string; // Base64 Data URL
+  kepalaStasiunPassword?: string;
   kepalaBidangNama: string; // Kepala Bidang Tata Usaha
   kepalaBidangTtd: string; // Base64 Data URL
   ketuaTimSiaranNama: string;

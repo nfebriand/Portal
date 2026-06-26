@@ -32,6 +32,7 @@ interface PerformanceAgreementViewProps {
   agreements: PerformanceAgreement[];
   onUpdateAgreements: (agreements: PerformanceAgreement[]) => void;
   onAddNotification?: (notification: CriticalNotification) => void;
+  currentUser?: { id: string; name: string; role: 'Kepala' | 'Staff' | 'Ketua Bidang' | 'Superadmin'; division?: string; photo?: string } | null;
 }
 
 export default function PerformanceAgreementView({
@@ -40,10 +41,29 @@ export default function PerformanceAgreementView({
   settings,
   agreements,
   onUpdateAgreements,
-  onAddNotification
+  onAddNotification,
+  currentUser
 }: PerformanceAgreementViewProps) {
   const [selectedYear, setSelectedYear] = useState<number>(2026);
   const [activeTab, setActiveTab] = useState<'pohon' | 'dokumen'>('pohon');
+
+  // Helper to check edit permissions for a specific agreement level
+  const canEditAgreement = (agreementLevel: string) => {
+    if (!currentUser) return true;
+    
+    // Kepala & Superadmin can edit all levels (1, 2, 3)
+    if (currentUser.role === 'Kepala' || currentUser.role === 'Superadmin') {
+      return true;
+    }
+    
+    // Level 3 is 'Pegawai'
+    // Level 3 can be edited by level 2 (Ketua Bidang)
+    if (agreementLevel === 'Pegawai' && currentUser.role === 'Ketua Bidang') {
+      return true;
+    }
+    
+    return false;
+  };
   
   // For Document Tab selection
   const [selectedDocLevel, setSelectedDocLevel] = useState<string>('Kepala Stasiun');
@@ -129,34 +149,23 @@ export default function PerformanceAgreementView({
     return identity.kepalaStasiunNama || 'Kepala Stasiun';
   };
 
-  // Find or Create an agreement dynamically
-  const getOrCreateAgreement = (level: string, empId?: string): PerformanceAgreement => {
-    const existing = agreements.find(a => a.year === selectedYear && a.level === level && (level !== 'Pegawai' || a.assignedToEmployeeId === empId));
+  // Active agreement on Document Tab
+  const activeDocumentAgreement = useMemo(() => {
+    const existing = agreements.find(a => a.year === selectedYear && a.level === selectedDocLevel && (selectedDocLevel !== 'Pegawai' || a.assignedToEmployeeId === selectedDocEmployeeId));
     if (existing) return existing;
 
-    // Create a new blank one
-    const newAg: PerformanceAgreement = {
-      id: `pk-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+    // Return a temporary draft so we can display it cleanly without rendering errors
+    const tempAg: PerformanceAgreement = {
+      id: `pk-temp-${selectedDocLevel}-${selectedDocEmployeeId || 'none'}`,
       year: selectedYear,
-      level: level as any,
-      assignedToEmployeeId: empId,
-      assignedToName: resolveLevelName(level, empId),
+      level: selectedDocLevel as any,
+      assignedToEmployeeId: selectedDocLevel === 'Pegawai' ? selectedDocEmployeeId : undefined,
+      assignedToName: resolveLevelName(selectedDocLevel, selectedDocEmployeeId),
       objectives: [],
       status: 'Draft',
       createdAt: new Date().toISOString()
     };
-
-    // Auto append and trigger update (async simulation friendly)
-    setTimeout(() => {
-      onUpdateAgreements([...agreements, newAg]);
-    }, 50);
-
-    return newAg;
-  };
-
-  // Active agreement on Document Tab
-  const activeDocumentAgreement = useMemo(() => {
-    return getOrCreateAgreement(selectedDocLevel, selectedDocLevel === 'Pegawai' ? selectedDocEmployeeId : undefined);
+    return tempAg;
   }, [selectedDocLevel, selectedDocEmployeeId, agreements, selectedYear]);
 
   // Total Statistics
@@ -243,6 +252,26 @@ export default function PerformanceAgreementView({
     });
   }, [agreements, selectedYear]);
 
+  // Find all active child delegations for the currently selected delegating target
+  const existingDelegationsForCurrent = useMemo(() => {
+    if (!delegatingIndicator) return [];
+    const list: Array<{
+      indicator: PerformanceIndicator;
+      agreement: PerformanceAgreement;
+    }> = [];
+    
+    agreements.forEach(ag => {
+      if (ag.year === selectedYear) {
+        ag.objectives.forEach(obj => {
+          if (obj.parentIndicatorId === delegatingIndicator.indicator.id) {
+            list.push({ indicator: obj, agreement: ag });
+          }
+        });
+      }
+    });
+    return list;
+  }, [delegatingIndicator, agreements, selectedYear]);
+
   // Handle adding a performance indicator to an agreement
   const handleAddIndicator = (agreementId: string) => {
     if (!newIndicatorName || !newIndicatorTarget) return;
@@ -256,15 +285,47 @@ export default function PerformanceAgreementView({
       achievement: 0
     };
 
-    const updated = agreements.map(ag => {
-      if (ag.id === agreementId) {
-        return {
-          ...ag,
-          objectives: [...ag.objectives, newObj]
-        };
-      }
-      return ag;
-    });
+    const isTemp = agreementId.startsWith('pk-temp-');
+    const isNewKepala = agreementId.startsWith('pk-kepala-');
+    let updated: PerformanceAgreement[];
+
+    if (isTemp) {
+      const targetLevel = selectedDocLevel;
+      const targetEmpId = selectedDocLevel === 'Pegawai' ? selectedDocEmployeeId : undefined;
+      
+      const newAg: PerformanceAgreement = {
+        id: `pk-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+        year: selectedYear,
+        level: targetLevel as any,
+        assignedToEmployeeId: targetEmpId,
+        assignedToName: resolveLevelName(targetLevel, targetEmpId),
+        objectives: [newObj],
+        status: 'Draft',
+        createdAt: new Date().toISOString()
+      };
+      updated = [...agreements, newAg];
+    } else if (isNewKepala) {
+      const newAg: PerformanceAgreement = {
+        id: agreementId,
+        year: selectedYear,
+        level: 'Kepala Stasiun',
+        assignedToName: resolveLevelName('Kepala Stasiun'),
+        objectives: [newObj],
+        status: 'Draft',
+        createdAt: new Date().toISOString()
+      };
+      updated = [...agreements, newAg];
+    } else {
+      updated = agreements.map(ag => {
+        if (ag.id === agreementId) {
+          return {
+            ...ag,
+            objectives: [...ag.objectives, newObj]
+          };
+        }
+        return ag;
+      });
+    }
 
     onUpdateAgreements(updated);
     setNewIndicatorName('');
@@ -274,18 +335,37 @@ export default function PerformanceAgreementView({
     setEditingAgreementId(null);
   };
 
-  // Handle deleting an indicator
+  // Handle deleting an indicator with cascading cleanup
   const handleDeleteIndicator = (agreementId: string, indicatorId: string) => {
-    if (!window.confirm("Apakah Anda yakin ingin menghapus indikator sasaran kinerja ini?")) return;
+    if (!window.confirm("Apakah Anda yakin ingin menghapus indikator sasaran kinerja ini? Seluruh pendelegasian sasaran turunan (Level 2 & Level 3) yang terhubung juga akan dihapus secara kaskade.")) return;
+
+    // Recursive helper to find all child/grandchild indicators
+    const getIdsToDelete = (startId: string): string[] => {
+      const ids = [startId];
+      let queue = [startId];
+      
+      while (queue.length > 0) {
+        const currentId = queue.shift()!;
+        // Find child indicators in all agreements
+        agreements.forEach(ag => {
+          ag.objectives.forEach(obj => {
+            if (obj.parentIndicatorId === currentId && !ids.includes(obj.id)) {
+              ids.push(obj.id);
+              queue.push(obj.id);
+            }
+          });
+        });
+      }
+      return ids;
+    };
+
+    const allIdsToDelete = getIdsToDelete(indicatorId);
 
     const updated = agreements.map(ag => {
-      if (ag.id === agreementId) {
-        return {
-          ...ag,
-          objectives: ag.objectives.filter(o => o.id !== indicatorId)
-        };
-      }
-      return ag;
+      return {
+        ...ag,
+        objectives: ag.objectives.filter(o => !allIdsToDelete.includes(o.id))
+      };
     });
 
     onUpdateAgreements(updated);
@@ -340,8 +420,12 @@ export default function PerformanceAgreementView({
   const submitDelegation = () => {
     if (!delegatingIndicator || !delegatedIndicatorName || !delegatedTarget) return;
 
-    // Get or Create targeted agreement
-    const targetAg = getOrCreateAgreement(delegateLevel, delegateLevel === 'Pegawai' ? delegateEmployeeId : undefined);
+    // Find if target agreement already exists
+    const existingAgIndex = agreements.findIndex(a => 
+      a.year === selectedYear && 
+      a.level === delegateLevel && 
+      (delegateLevel !== 'Pegawai' || a.assignedToEmployeeId === delegateEmployeeId)
+    );
 
     const newDelegatedIndicator: PerformanceIndicator = {
       id: `ind-${Date.now()}`,
@@ -353,25 +437,47 @@ export default function PerformanceAgreementView({
       parentIndicatorId: delegatingIndicator.indicator.id // CRITICAL for cascade tracing!
     };
 
-    // Update target agreement
-    const updated = agreements.map(ag => {
-      if (ag.id === targetAg.id) {
-        return {
-          ...ag,
-          objectives: [...ag.objectives, newDelegatedIndicator]
-        };
-      }
-      return ag;
-    });
+    let updated: PerformanceAgreement[];
+
+    if (existingAgIndex !== -1) {
+      // Update existing
+      updated = agreements.map((ag, idx) => {
+        if (idx === existingAgIndex) {
+          return {
+            ...ag,
+            objectives: [...ag.objectives, newDelegatedIndicator]
+          };
+        }
+        return ag;
+      });
+    } else {
+      // Create a brand new agreement with the indicator pre-filled
+      const newAgId = `pk-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+      const newAg: PerformanceAgreement = {
+        id: newAgId,
+        year: selectedYear,
+        level: delegateLevel as any,
+        assignedToEmployeeId: delegateLevel === 'Pegawai' ? delegateEmployeeId : undefined,
+        assignedToName: resolveLevelName(delegateLevel, delegateLevel === 'Pegawai' ? delegateEmployeeId : undefined),
+        objectives: [newDelegatedIndicator],
+        status: 'Draft',
+        createdAt: new Date().toISOString()
+      };
+      updated = [...agreements, newAg];
+    }
 
     onUpdateAgreements(updated);
 
     // Trigger critical notification for subordinate
     if (onAddNotification) {
+      const targetName = delegateLevel === 'Pegawai' 
+        ? resolveLevelName(delegateLevel, delegateEmployeeId)
+        : delegateLevel;
+
       onAddNotification({
         id: `notif-pk-delegation-${Date.now()}`,
         title: "Pendelegasian Sasaran Baru",
-        message: `Sasaran Kinerja "${delegatedIndicatorName}" (Target: ${delegatedTarget} ${delegatedUnit}) telah didelegasikan kepada ${targetAg.assignedToName || delegateLevel}. Harap segera laksanakan tindak lanjut.`,
+        message: `Sasaran Kinerja "${delegatedIndicatorName}" (Target: ${delegatedTarget} ${delegatedUnit}) telah didelegasikan kepada ${targetName}. Harap segera laksanakan tindak lanjut.`,
         type: "warning",
         timestamp: new Date().toISOString(),
         isRead: false,
@@ -402,33 +508,69 @@ export default function PerformanceAgreementView({
 
   // Sign document
   const handleSignDocument = (agreementId: string, role: 'pembuat' | 'penerima', dataUrl: string) => {
-    const updated = agreements.map(ag => {
-      if (ag.id === agreementId) {
-        const signField = role === 'pembuat' ? 'signaturePembuat' : 'signaturePenerima';
-        const isSignedBoth = (role === 'pembuat' && ag.signaturePenerima) || (role === 'penerima' && ag.signaturePembuat);
-        
-        return {
-          ...ag,
-          [signField]: dataUrl,
-          status: isSignedBoth ? 'Aktif' : ag.status
-        };
-      }
-      return ag;
-    });
+    const isTemp = agreementId.startsWith('pk-temp-');
+    let updated: PerformanceAgreement[];
+
+    if (isTemp) {
+      const signField = role === 'pembuat' ? 'signaturePembuat' : 'signaturePenerima';
+      const newAg: PerformanceAgreement = {
+        id: `pk-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+        year: selectedYear,
+        level: selectedDocLevel as any,
+        assignedToEmployeeId: selectedDocLevel === 'Pegawai' ? selectedDocEmployeeId : undefined,
+        assignedToName: resolveLevelName(selectedDocLevel, selectedDocLevel === 'Pegawai' ? selectedDocEmployeeId : undefined),
+        objectives: [],
+        status: 'Draft',
+        createdAt: new Date().toISOString(),
+        [signField]: dataUrl
+      };
+      updated = [...agreements, newAg];
+    } else {
+      updated = agreements.map(ag => {
+        if (ag.id === agreementId) {
+          const signField = role === 'pembuat' ? 'signaturePembuat' : 'signaturePenerima';
+          const isSignedBoth = (role === 'pembuat' && ag.signaturePenerima) || (role === 'penerima' && ag.signaturePembuat);
+          
+          return {
+            ...ag,
+            [signField]: dataUrl,
+            status: isSignedBoth ? 'Aktif' : ag.status
+          };
+        }
+        return ag;
+      });
+    }
     onUpdateAgreements(updated);
   };
 
   // Quick Action to activate/approve
   const handleApproveDocument = (agreementId: string) => {
-    const updated = agreements.map(ag => {
-      if (ag.id === agreementId) {
-        return {
-          ...ag,
-          status: 'Aktif' as const
-        };
-      }
-      return ag;
-    });
+    const isTemp = agreementId.startsWith('pk-temp-');
+    let updated: PerformanceAgreement[];
+
+    if (isTemp) {
+      const newAg: PerformanceAgreement = {
+        id: `pk-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+        year: selectedYear,
+        level: selectedDocLevel as any,
+        assignedToEmployeeId: selectedDocLevel === 'Pegawai' ? selectedDocEmployeeId : undefined,
+        assignedToName: resolveLevelName(selectedDocLevel, selectedDocLevel === 'Pegawai' ? selectedDocEmployeeId : undefined),
+        objectives: [],
+        status: 'Aktif',
+        createdAt: new Date().toISOString()
+      };
+      updated = [...agreements, newAg];
+    } else {
+      updated = agreements.map(ag => {
+        if (ag.id === agreementId) {
+          return {
+            ...ag,
+            status: 'Aktif' as const
+          };
+        }
+        return ag;
+      });
+    }
     onUpdateAgreements(updated);
   };
 
@@ -547,15 +689,21 @@ export default function PerformanceAgreementView({
               <p className="text-[11px] text-slate-400">Peta penyelarasan indikator kinerja dari Kepala Stasiun turun langsung ke tim hingga individu pegawai.</p>
             </div>
             
-            <button
-              onClick={() => {
-                const kepStasiunAg = getOrCreateAgreement('Kepala Stasiun');
-                setEditingAgreementId(kepStasiunAg.id);
-              }}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold rounded-xl transition-colors self-start"
-            >
-              <Plus className="w-3.5 h-3.5" /> Tambah Sasaran Kepala Stasiun
-            </button>
+            {canEditAgreement('Kepala Stasiun') && (
+              <button
+                onClick={() => {
+                  const existing = agreements.find(a => a.year === selectedYear && a.level === 'Kepala Stasiun');
+                  if (existing) {
+                    setEditingAgreementId(existing.id);
+                  } else {
+                    setEditingAgreementId(`pk-kepala-${Date.now()}`);
+                  }
+                }}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold rounded-xl transition-colors self-start"
+              >
+                <Plus className="w-3.5 h-3.5" /> Tambah Sasaran Kepala Stasiun
+              </button>
+            )}
           </div>
 
           {/* Root Level 1 Tree Nodes */}
@@ -563,15 +711,21 @@ export default function PerformanceAgreementView({
             {treeData.length === 0 ? (
               <div className="text-center py-12 bg-slate-50/50 rounded-2xl border border-dashed border-slate-200">
                 <p className="text-xs text-slate-400 italic">Belum ada sasaran Kepala Stasiun yang diatur.</p>
-                <button
-                  onClick={() => {
-                    const kepStasiunAg = getOrCreateAgreement('Kepala Stasiun');
-                    setEditingAgreementId(kepStasiunAg.id);
-                  }}
-                  className="mt-3 inline-flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold rounded-xl"
-                >
-                  <Plus className="w-3.5 h-3.5" /> Buat Perjanjian Kinerja
-                </button>
+                {canEditAgreement('Kepala Stasiun') && (
+                  <button
+                    onClick={() => {
+                      const existing = agreements.find(a => a.year === selectedYear && a.level === 'Kepala Stasiun');
+                      if (existing) {
+                        setEditingAgreementId(existing.id);
+                      } else {
+                        setEditingAgreementId(`pk-kepala-${Date.now()}`);
+                      }
+                    }}
+                    className="mt-3 inline-flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold rounded-xl"
+                  >
+                    <Plus className="w-3.5 h-3.5" /> Buat Perjanjian Kinerja
+                  </button>
+                )}
               </div>
             ) : (
               treeData.map((node, idx) => {
@@ -623,7 +777,8 @@ export default function PerformanceAgreementView({
                               type="number"
                               value={node.root.achievement}
                               onChange={(e) => handleUpdateAchievement(node.agreement.id, rootId, parseFloat(e.target.value) || 0)}
-                              className="w-12 bg-slate-50 border border-slate-200 rounded px-1 text-center font-bold text-slate-800 text-[11px] focus:outline-hidden focus:bg-white focus:ring-1 focus:ring-indigo-400"
+                              disabled={!canEditAgreement('Kepala Stasiun')}
+                              className="w-12 bg-slate-50 border border-slate-200 rounded px-1 text-center font-bold text-slate-800 text-[11px] focus:outline-hidden focus:bg-white focus:ring-1 focus:ring-indigo-400 disabled:opacity-60 disabled:cursor-not-allowed"
                             />
                             <span className="text-[10px] text-slate-400">{node.root.unit}</span>
                           </div>
@@ -637,21 +792,23 @@ export default function PerformanceAgreementView({
                           }`}>{rootScore}%</span>
                         </div>
 
-                        <div className="flex items-center gap-1 border-l border-slate-200 pl-4">
-                          <button
-                            onClick={() => openDelegation(node.root, node.agreement)}
-                            className="flex items-center gap-1 px-2.5 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 text-[10px] font-black rounded-lg transition-colors uppercase tracking-wide"
-                            title="Delegasikan target ini kepada Kepala Bidang atau Ketua Tim"
-                          >
-                            <Send className="w-3 h-3" /> Delegasikan
-                          </button>
-                          <button
-                            onClick={() => handleDeleteIndicator(node.agreement.id, rootId)}
-                            className="p-1.5 hover:bg-rose-50 text-rose-500 rounded-lg transition-colors"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
+                        {canEditAgreement('Kepala Stasiun') && (
+                          <div className="flex items-center gap-1 border-l border-slate-200 pl-4">
+                            <button
+                              onClick={() => openDelegation(node.root, node.agreement)}
+                              className="flex items-center gap-1 px-2.5 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 text-[10px] font-black rounded-lg transition-colors uppercase tracking-wide"
+                              title="Delegasikan target ini kepada Kepala Bidang atau Ketua Tim"
+                            >
+                              <Send className="w-3 h-3" /> Delegasikan
+                            </button>
+                            <button
+                              onClick={() => handleDeleteIndicator(node.agreement.id, rootId)}
+                              className="p-1.5 hover:bg-rose-50 text-rose-500 rounded-lg transition-colors"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        )}
 
                       </div>
                     </div>
@@ -713,7 +870,8 @@ export default function PerformanceAgreementView({
                                           type="number"
                                           value={l2.indicator.achievement}
                                           onChange={(e) => handleUpdateAchievement(l2.agreement.id, l2Id, parseFloat(e.target.value) || 0)}
-                                          className="w-11 bg-white border border-slate-200 rounded px-1 py-0 text-center font-bold text-slate-800 text-[10px] focus:outline-hidden"
+                                          disabled={!canEditAgreement('Kabid Tata Usaha')}
+                                          className="w-11 bg-white border border-slate-200 rounded px-1 py-0 text-center font-bold text-slate-800 text-[10px] focus:outline-hidden disabled:opacity-60 disabled:cursor-not-allowed"
                                         />
                                       </div>
                                     </div>
@@ -726,19 +884,23 @@ export default function PerformanceAgreementView({
                                     </div>
 
                                     <div className="flex items-center gap-1 border-l border-slate-150 pl-3">
-                                      <button
-                                        onClick={() => openDelegation(l2.indicator, l2.agreement)}
-                                        className="flex items-center gap-1 px-2 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-600 text-[9px] font-black rounded-md uppercase tracking-wide transition-colors"
-                                        title="Delegasikan target ini kepada Staf Pegawai pelaksana langsung"
-                                      >
-                                        <Send className="w-2.5 h-2.5" /> Delegasi Staf
-                                      </button>
-                                      <button
-                                        onClick={() => handleDeleteIndicator(l2.agreement.id, l2Id)}
-                                        className="p-1 hover:bg-rose-50 text-rose-500 rounded-md"
-                                      >
-                                        <Trash2 className="w-3 h-3" />
-                                      </button>
+                                      {canEditAgreement('Pegawai') && (
+                                        <button
+                                          onClick={() => openDelegation(l2.indicator, l2.agreement)}
+                                          className="flex items-center gap-1 px-2 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-600 text-[9px] font-black rounded-md uppercase tracking-wide transition-colors"
+                                          title="Delegasikan target ini kepada Staf Pegawai pelaksana langsung"
+                                        >
+                                          <Send className="w-2.5 h-2.5" /> Delegasi Staf
+                                        </button>
+                                      )}
+                                      {canEditAgreement('Kabid Tata Usaha') && (
+                                        <button
+                                          onClick={() => handleDeleteIndicator(l2.agreement.id, l2Id)}
+                                          className="p-1 hover:bg-rose-50 text-rose-500 rounded-md"
+                                        >
+                                          <Trash2 className="w-3 h-3" />
+                                        </button>
+                                      )}
                                     </div>
                                   </div>
 
@@ -788,7 +950,8 @@ export default function PerformanceAgreementView({
                                                   type="number"
                                                   value={l3.indicator.achievement}
                                                   onChange={(e) => handleUpdateAchievement(l3.agreement.id, l3Id, parseFloat(e.target.value) || 0)}
-                                                  className="w-10 bg-slate-50 border border-slate-200 rounded px-1 py-0 text-center font-bold text-slate-800 text-[9px] focus:outline-hidden"
+                                                  disabled={!canEditAgreement('Pegawai')}
+                                                  className="w-10 bg-slate-50 border border-slate-200 rounded px-1 py-0 text-center font-bold text-slate-800 text-[9px] focus:outline-hidden disabled:opacity-60 disabled:cursor-not-allowed"
                                                 />
                                               </div>
 
@@ -797,12 +960,14 @@ export default function PerformanceAgreementView({
                                                 <span className="font-black text-emerald-600 text-[10px]">{l3Score}%</span>
                                               </div>
 
-                                              <button
-                                                onClick={() => handleDeleteIndicator(l3.agreement.id, l3Id)}
-                                                className="p-1 hover:bg-rose-50 text-rose-500 rounded"
-                                              >
-                                                <Trash2 className="w-3 h-3" />
-                                              </button>
+                                              {canEditAgreement('Pegawai') && (
+                                                <button
+                                                  onClick={() => handleDeleteIndicator(l3.agreement.id, l3Id)}
+                                                  className="p-1 hover:bg-rose-50 text-rose-500 rounded"
+                                                >
+                                                  <Trash2 className="w-3 h-3" />
+                                                </button>
+                                              )}
                                             </div>
 
                                           </div>
@@ -1015,13 +1180,14 @@ export default function PerformanceAgreementView({
                         <th className="p-2 border-r border-slate-800 text-center w-8">No</th>
                         <th className="p-2 border-r border-slate-800">Sasaran / Indikator Kinerja Utama</th>
                         <th className="p-2 border-r border-slate-800 text-center w-20">Target</th>
-                        <th className="p-2 text-center w-16">Bobot (%)</th>
+                        <th className="p-2 border-r border-slate-800 text-center w-16 font-mono font-bold">Bobot (%)</th>
+                        <th className="p-2 text-center w-12 print:hidden">Aksi</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-300">
                       {activeDocumentAgreement.objectives.length === 0 ? (
                         <tr>
-                          <td colSpan={4} className="p-4 text-center text-slate-400 italic">Belum ada indikator sasaran yang terdaftar untuk dokumen ini.</td>
+                          <td colSpan={5} className="p-4 text-center text-slate-400 italic">Belum ada indikator sasaran yang terdaftar untuk dokumen ini.</td>
                         </tr>
                       ) : (
                         activeDocumentAgreement.objectives.map((obj, i) => (
@@ -1034,7 +1200,20 @@ export default function PerformanceAgreementView({
                               )}
                             </td>
                             <td className="p-2 border-r border-slate-800 text-center font-extrabold">{obj.target} {obj.unit}</td>
-                            <td className="p-2 text-center font-bold font-mono">{obj.weight}%</td>
+                            <td className="p-2 border-r border-slate-800 text-center font-bold font-mono">{obj.weight}%</td>
+                            <td className="p-2 text-center print:hidden">
+                              {canEditAgreement(activeDocumentAgreement.level) ? (
+                                <button
+                                  onClick={() => handleDeleteIndicator(activeDocumentAgreement.id, obj.id)}
+                                  className="p-1 hover:bg-rose-50 text-rose-500 hover:text-rose-600 rounded transition-colors"
+                                  title="Batal / Hapus Sasaran"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5 mx-auto" />
+                                </button>
+                              ) : (
+                                <span className="text-[10px] text-slate-400 italic">Hanya Baca</span>
+                              )}
+                            </td>
                           </tr>
                         ))
                       )}
@@ -1099,63 +1278,79 @@ export default function PerformanceAgreementView({
             </div>
 
             {/* Inline Quick Form to Edit Agreement Objectives directly on document view */}
-            <div className="bg-slate-50/60 p-4 rounded-2xl border border-slate-100 space-y-3">
-              <h4 className="text-xs font-black text-slate-500 uppercase tracking-wider flex items-center gap-1">
-                <Plus className="w-3.5 h-3.5 text-indigo-600" />
-                Kelola Indikator Dokumen Ini Secara Cepat
-              </h4>
-              
-              <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
-                <div className="sm:col-span-2 space-y-0.5">
-                  <label className="text-[9px] font-bold text-slate-400 uppercase">Indikator Kinerja Utama (IKU)</label>
-                  <input
-                    type="text"
-                    value={newIndicatorName}
-                    onChange={(e) => setNewIndicatorName(e.target.value)}
-                    placeholder="Contoh: Indeks Pemirsa Berita TV/Radio"
-                    className="w-full bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs text-slate-700 font-bold focus:outline-hidden focus:ring-1 focus:ring-indigo-400"
-                  />
-                </div>
-
-                <div className="space-y-0.5">
-                  <label className="text-[9px] font-bold text-slate-400 uppercase">Target</label>
-                  <div className="flex gap-1">
+            {canEditAgreement(activeDocumentAgreement.level) ? (
+              <div className="bg-slate-50/60 p-4 rounded-2xl border border-slate-100 space-y-3">
+                <h4 className="text-xs font-black text-slate-500 uppercase tracking-wider flex items-center gap-1">
+                  <Plus className="w-3.5 h-3.5 text-indigo-600" />
+                  Kelola Indikator Dokumen Ini Secara Cepat
+                </h4>
+                
+                <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
+                  <div className="sm:col-span-2 space-y-0.5">
+                    <label className="text-[9px] font-bold text-slate-400 uppercase">Indikator Kinerja Utama (IKU)</label>
                     <input
                       type="text"
-                      value={newIndicatorTarget}
-                      onChange={(e) => setNewIndicatorTarget(e.target.value)}
-                      placeholder="95"
-                      className="w-full bg-white border border-slate-200 rounded-lg px-2 py-1.5 text-xs text-slate-700 font-bold text-center focus:outline-hidden"
-                    />
-                    <input
-                      type="text"
-                      value={newIndicatorUnit}
-                      onChange={(e) => setNewIndicatorUnit(e.target.value)}
-                      placeholder="%"
-                      className="w-12 bg-white border border-slate-200 rounded-lg px-1 py-1.5 text-xs text-slate-700 font-bold text-center focus:outline-hidden"
+                      value={newIndicatorName}
+                      onChange={(e) => setNewIndicatorName(e.target.value)}
+                      placeholder="Contoh: Indeks Pemirsa Berita TV/Radio"
+                      className="w-full bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs text-slate-700 font-bold focus:outline-hidden focus:ring-1 focus:ring-indigo-400"
                     />
                   </div>
-                </div>
 
-                <div className="space-y-0.5">
-                  <label className="text-[9px] font-bold text-slate-400 uppercase">Bobot</label>
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="number"
-                      value={newIndicatorWeight}
-                      onChange={(e) => setNewIndicatorWeight(parseInt(e.target.value) || 25)}
-                      className="w-full bg-white border border-slate-200 rounded-lg px-2 py-1.5 text-xs text-slate-700 font-bold text-center focus:outline-hidden"
-                    />
-                    <button
-                      onClick={() => handleAddIndicator(activeDocumentAgreement.id)}
-                      className="p-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg font-bold"
-                    >
-                      <Plus className="w-4 h-4" />
-                    </button>
+                  <div className="space-y-0.5">
+                    <label className="text-[9px] font-bold text-slate-400 uppercase">Target</label>
+                    <div className="flex gap-1">
+                      <input
+                        type="text"
+                        value={newIndicatorTarget}
+                        onChange={(e) => setNewIndicatorTarget(e.target.value)}
+                        placeholder="95"
+                        className="w-full bg-white border border-slate-200 rounded-lg px-2 py-1.5 text-xs text-slate-700 font-bold text-center focus:outline-hidden"
+                      />
+                      <input
+                        type="text"
+                        value={newIndicatorUnit}
+                        onChange={(e) => setNewIndicatorUnit(e.target.value)}
+                        placeholder="%"
+                        className="w-12 bg-white border border-slate-200 rounded-lg px-1 py-1.5 text-xs text-slate-700 font-bold text-center focus:outline-hidden"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-0.5">
+                    <label className="text-[9px] font-bold text-slate-400 uppercase">Bobot</label>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="number"
+                        value={newIndicatorWeight}
+                        onChange={(e) => setNewIndicatorWeight(parseInt(e.target.value) || 25)}
+                        className="w-full bg-white border border-slate-200 rounded-lg px-2 py-1.5 text-xs text-slate-700 font-bold text-center focus:outline-hidden"
+                      />
+                      <button
+                        onClick={() => handleAddIndicator(activeDocumentAgreement.id)}
+                        className="p-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg font-bold"
+                      >
+                        <Plus className="w-4 h-4" />
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
+            ) : (
+              <div className="bg-amber-50 border border-amber-100 rounded-2xl p-4 flex items-center gap-3 text-amber-800 text-xs">
+                <ShieldCheck className="w-5 h-5 text-amber-600 shrink-0" />
+                <div className="space-y-1">
+                  <p className="font-extrabold">Akses Terbatas (Read-Only)</p>
+                  <p className="text-[10px] text-amber-700 leading-normal">
+                    Dokumen ini berada pada <span className="font-bold">{activeDocumentAgreement.level === 'Pegawai' ? 'Level 3 (Pegawai)' : 'Level 2 (Kabid/Ketua Tim)'}</span>. 
+                    {activeDocumentAgreement.level === 'Pegawai' 
+                      ? ' Pengeditan hanya diizinkan bagi Kepala Stasiun atau penerima delegasi Level 2 (Kabid/Ketua Tim) yang berwenang.'
+                      : ' Pengeditan indikator Level 1 dan Level 2 hanya dapat dilakukan oleh Kepala Stasiun.'
+                    }
+                  </p>
+                </div>
+              </div>
+            )}
 
           </div>
 
@@ -1194,6 +1389,38 @@ export default function PerformanceAgreementView({
                 <span>Didelegasikan oleh: <span className="font-bold text-slate-700">{delegatingIndicator.sourceAgreement.assignedToName}</span></span>
               </div>
             </div>
+
+            {/* Existing Active Delegations List */}
+            {existingDelegationsForCurrent.length > 0 && (
+              <div className="space-y-2">
+                <span className="text-[9px] font-extrabold text-slate-400 uppercase tracking-wider block">Daftar Pendelegasian Aktif dari Target Ini:</span>
+                <div className="max-h-28 overflow-y-auto border border-slate-150 rounded-2xl divide-y divide-slate-100 bg-slate-50/30">
+                  {existingDelegationsForCurrent.map(({ indicator, agreement }) => (
+                    <div key={indicator.id} className="p-2.5 flex items-center justify-between gap-3 text-xs bg-white">
+                      <div className="min-w-0 flex-1">
+                        <p className="font-bold text-slate-700 truncate">{indicator.indicatorName}</p>
+                        <p className="text-[10px] text-slate-400 flex items-center gap-1 mt-0.5">
+                          <span>Penerima: <span className="font-extrabold text-indigo-600">{agreement.assignedToName} ({agreement.level})</span></span>
+                          <span>•</span>
+                          <span>Target: <span className="font-extrabold text-slate-600">{indicator.target} {indicator.unit}</span></span>
+                        </p>
+                      </div>
+                      <button
+                        onClick={() => {
+                          if (window.confirm(`Apakah Anda yakin ingin membatalkan/menghapus pendelegasian target kepada "${agreement.assignedToName}"?`)) {
+                            handleDeleteIndicator(agreement.id, indicator.id);
+                          }
+                        }}
+                        className="p-1.5 hover:bg-rose-50 text-rose-500 hover:text-rose-600 rounded-lg transition-colors shrink-0"
+                        title="Batal / Hapus Delegasi"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* Delegation inputs */}
             <div className="space-y-4">
@@ -1316,6 +1543,97 @@ export default function PerformanceAgreementView({
                 className="flex items-center gap-1.5 px-4 py-2 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white font-black text-xs rounded-xl shadow-xs"
               >
                 <Send className="w-3.5 h-3.5" /> Kirim Delegasi
+              </button>
+            </div>
+
+          </div>
+        </div>
+      )}
+
+      {/* Add/Edit Indicator Modal */}
+      {editingAgreementId && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl max-w-lg w-full p-6 border border-slate-100 shadow-2xl space-y-5 animate-in zoom-in-95 duration-150">
+            
+            {/* Modal Header */}
+            <div className="flex justify-between items-center pb-2 border-b border-slate-100">
+              <div className="flex items-center gap-2">
+                <Target className="w-5 h-5 text-indigo-600 shrink-0" />
+                <div>
+                  <h3 className="text-sm font-bold text-slate-800">Tambah Sasaran Kinerja Baru</h3>
+                  <p className="text-[10px] text-slate-400">Tambahkan Indikator Kinerja Utama (IKU) baru pada dokumen perjanjian kinerja.</p>
+                </div>
+              </div>
+              <button 
+                onClick={() => setEditingAgreementId(null)}
+                className="p-1 hover:bg-slate-100 text-slate-400 hover:text-slate-600 rounded-lg transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Inputs */}
+            <div className="space-y-4">
+              <div className="space-y-1">
+                <label className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wide block">Nama Indikator Kinerja Utama (IKU)</label>
+                <textarea
+                  value={newIndicatorName}
+                  onChange={(e) => setNewIndicatorName(e.target.value)}
+                  placeholder="Contoh: Persentase efektivitas penyebaran informasi publik"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs text-slate-700 font-bold focus:outline-hidden focus:bg-white focus:ring-1 focus:ring-indigo-400 h-20 resize-none"
+                />
+              </div>
+
+              <div className="grid grid-cols-3 gap-3">
+                <div className="space-y-1">
+                  <label className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wide block">Target Kinerja</label>
+                  <input
+                    type="text"
+                    value={newIndicatorTarget}
+                    onChange={(e) => setNewIndicatorTarget(e.target.value)}
+                    placeholder="Contoh: 100"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2 text-xs font-bold text-center focus:outline-hidden focus:bg-white focus:ring-1 focus:ring-indigo-400"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wide block">Satuan Ukur</label>
+                  <input
+                    type="text"
+                    value={newIndicatorUnit}
+                    onChange={(e) => setNewIndicatorUnit(e.target.value)}
+                    placeholder="Contoh: % atau Laporan"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2 text-xs font-bold text-center focus:outline-hidden focus:bg-white focus:ring-1 focus:ring-indigo-400"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wide block">Bobot (%)</label>
+                  <input
+                    type="number"
+                    value={newIndicatorWeight}
+                    onChange={(e) => setNewIndicatorWeight(parseInt(e.target.value) || 25)}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2 text-xs font-bold text-center focus:outline-hidden focus:bg-white focus:ring-1 focus:ring-indigo-400"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Modal Actions */}
+            <div className="flex gap-2 justify-end pt-3 border-t border-slate-100">
+              <button
+                onClick={() => setEditingAgreementId(null)}
+                className="px-4 py-2 hover:bg-slate-50 text-slate-500 font-bold text-xs rounded-xl transition-colors"
+              >
+                Batal
+              </button>
+              
+              <button
+                onClick={() => handleAddIndicator(editingAgreementId)}
+                disabled={!newIndicatorName || !newIndicatorTarget}
+                className="flex items-center gap-1.5 px-4 py-2 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white font-black text-xs rounded-xl shadow-xs"
+              >
+                <Plus className="w-3.5 h-3.5" /> Tambah Sasaran
               </button>
             </div>
 

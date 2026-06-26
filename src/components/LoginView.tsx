@@ -1,76 +1,20 @@
 import React, { useState, FormEvent } from 'react';
-import { Radio, ShieldCheck, Key, UserCheck, ChevronRight, Eye, EyeOff } from 'lucide-react';
+import { Radio, ShieldCheck, Key, UserCheck, Eye, EyeOff } from 'lucide-react';
 import { Employee } from '../types';
 
 interface LoginViewProps {
   employees: Employee[];
   onLogin: (user: { id: string; name: string; role: 'Kepala' | 'Staff' | 'Ketua Bidang' | 'Superadmin'; division?: string; photo?: string }) => void;
   namaInstansi: string;
+  kepalaStasiunPassword?: string;
+  kepalaStasiunNama?: string;
 }
 
-export default function LoginView({ employees, onLogin, namaInstansi }: LoginViewProps) {
+export default function LoginView({ employees, onLogin, namaInstansi, kepalaStasiunPassword, kepalaStasiunNama }: LoginViewProps) {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
-  const [showSimulator, setShowSimulator] = useState(false);
-
-  const quickRoles = [
-    {
-      id: 'kepala',
-      name: 'Drs. H. Mulyadi Kusuma, M.M.',
-      role: 'Kepala' as const,
-      roleDisplay: 'Kepala Stasiun',
-      division: 'Pimpinan',
-      badgeColor: 'bg-rose-500/10 text-rose-400 border border-rose-500/20',
-      photo: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&h=150&fit=crop&crop=faces'
-    },
-    {
-      id: 'emp-1', // Heru
-      name: 'Heru Prasetyo, M.Si.',
-      role: 'Staff' as const,
-      roleDisplay: 'Staff Pemberitaan',
-      division: 'Pemberitaan',
-      badgeColor: 'bg-sky-500/10 text-sky-400 border border-sky-500/20',
-      photo: 'https://images.unsplash.com/photo-1560250097-0b93528c311a?w=150&h=150&fit=crop&crop=faces'
-    },
-    {
-      id: 'emp-2', // Siti
-      name: 'Siti Rahmawati, S.I.Kom.',
-      role: 'Staff' as const,
-      roleDisplay: 'Staff Konten Media Baru',
-      division: 'Konten Media Baru',
-      badgeColor: 'bg-pink-500/10 text-pink-400 border border-pink-500/20',
-      photo: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150&h=150&fit=crop&crop=faces'
-    },
-    {
-      id: 'emp-3', // Andi
-      name: 'Andi Wijaya, M.T.',
-      role: 'Staff' as const,
-      roleDisplay: 'Staff Teknologi & Media Baru',
-      division: 'Teknologi dan Media Baru',
-      badgeColor: 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20',
-      photo: 'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?w=150&h=150&fit=crop&crop=faces'
-    },
-    {
-      id: 'emp-4', // Dewi
-      name: 'Dewi Lestari, S.E.',
-      role: 'Staff' as const,
-      roleDisplay: 'Staff Tata Usaha / Umum',
-      division: 'Tata Usaha / Umum',
-      badgeColor: 'bg-violet-500/10 text-violet-400 border border-violet-500/20',
-      photo: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&h=150&fit=crop&crop=faces'
-    },
-    {
-      id: 'emp-5', // Rizky
-      name: 'Rizky Syahputra, A.Md.',
-      role: 'Staff' as const,
-      roleDisplay: 'Staff Layanan Pengembangan Usaha',
-      division: 'Layanan Pengembangan Usaha',
-      badgeColor: 'bg-amber-500/10 text-amber-400 border border-amber-500/20',
-      photo: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&h=150&fit=crop&crop=faces'
-    }
-  ];
 
   const handleManualLogin = (e: FormEvent) => {
     e.preventDefault();
@@ -93,9 +37,14 @@ export default function LoginView({ employees, onLogin, namaInstansi }: LoginVie
 
     // Check if it's Kepala
     if (username.toLowerCase() === 'kepala' || username === '196501012026121001') {
+      const isCorrectPassword = password === '123456' || password === 'kepala' || (kepalaStasiunPassword && password === kepalaStasiunPassword);
+      if (!isCorrectPassword) {
+        setError('Kata sandi salah. Silakan periksa kembali.');
+        return;
+      }
       onLogin({
         id: 'kepala',
-        name: 'Drs. H. Mulyadi Kusuma, M.M.',
+        name: kepalaStasiunNama || 'Drs. H. Mulyadi Kusuma, M.M.',
         role: 'Kepala',
         photo: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&h=150&fit=crop&crop=faces'
       });
@@ -108,6 +57,11 @@ export default function LoginView({ employees, onLogin, namaInstansi }: LoginVie
     );
 
     if (foundEmp) {
+      const expectedPassword = foundEmp.password || foundEmp.nip || '123456';
+      if (password !== expectedPassword) {
+        setError('Kata sandi salah. Silakan periksa kembali.');
+        return;
+      }
       onLogin({
         id: foundEmp.id,
         name: `${foundEmp.gelarDepan ? foundEmp.gelarDepan + ' ' : ''}${foundEmp.nama}${foundEmp.gelarBelakang ? ', ' + foundEmp.gelarBelakang : ''}`,
@@ -187,48 +141,7 @@ export default function LoginView({ employees, onLogin, namaInstansi }: LoginVie
           </button>
         </form>
 
-        {/* Collapsible Simulator Segment */}
-        <div className="pt-2 border-t border-slate-800/80">
-          <button
-            onClick={() => setShowSimulator(!showSimulator)}
-            type="button"
-            className="w-full flex items-center justify-between text-[10px] font-semibold text-slate-500 hover:text-indigo-400 uppercase tracking-wider transition-colors"
-          >
-            <span>Simulasi Masuk Cepat</span>
-            <span className="font-mono text-xs">{showSimulator ? '▲' : '▼'}</span>
-          </button>
 
-          {showSimulator && (
-            <div className="mt-3 grid grid-cols-1 gap-2 max-h-48 overflow-y-auto pr-1">
-              {quickRoles.map((role) => (
-                <button
-                  key={role.id}
-                  type="button"
-                  onClick={() => onLogin({
-                    id: role.id,
-                    name: role.name,
-                    role: role.role,
-                    division: role.division !== 'Pimpinan' ? role.division : undefined,
-                    photo: role.photo
-                  })}
-                  className="flex items-center gap-2.5 p-2 bg-slate-950 hover:bg-slate-900 border border-slate-800/50 rounded-xl transition-all text-left group"
-                >
-                  <img
-                    src={role.photo}
-                    alt={role.name}
-                    className="w-7 h-7 rounded-full object-cover border border-slate-800"
-                    referrerPolicy="no-referrer"
-                  />
-                  <div className="flex-1 min-w-0">
-                    <h3 className="text-[10px] font-bold text-slate-300 truncate group-hover:text-indigo-400 transition-colors">{role.name}</h3>
-                    <span className="text-[8px] text-slate-500 font-medium tracking-tight block">{role.roleDisplay}</span>
-                  </div>
-                  <ChevronRight className="w-3.5 h-3.5 text-slate-700 group-hover:text-slate-400 transition-all shrink-0" />
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
 
       </div>
 

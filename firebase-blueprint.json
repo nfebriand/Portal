@@ -20,7 +20,8 @@
         "ttdElektronik": { "type": "string" },
         "createdAt": { "type": "string" },
         "role": { "type": "string" },
-        "isEditor": { "type": "boolean" }
+        "isEditor": { "type": "boolean" },
+        "password": { "type": "string" }
       },
       "required": ["id", "nik", "nip", "nama", "jenjangPendidikan", "divisi", "jenisKelamin", "alamat", "noHp", "foto", "ttdElektronik", "createdAt"]
     },

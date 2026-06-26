@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Employee } from '../types';
 import SignaturePad from './SignaturePad';
-import { Search, UserPlus, Trash2, Edit2, Check, X, ShieldAlert, BadgeInfo, Phone, MapPin, Eye, FileDigit, Landmark, GraduationCap } from 'lucide-react';
+import { Search, UserPlus, Trash2, Edit2, Check, X, ShieldAlert, BadgeInfo, Phone, MapPin, Eye, EyeOff, Lock, FileDigit, Landmark, GraduationCap } from 'lucide-react';
 
 interface EmployeeAdminViewProps {
   employees: Employee[];
@@ -54,6 +54,9 @@ export default function EmployeeAdminView({
   const [formTtd, setFormTtd] = useState('');
   const [formRole, setFormRole] = useState<'Staff' | 'Ketua Bidang' | 'Superadmin'>('Staff');
   const [formIsEditor, setFormIsEditor] = useState<boolean>(false);
+  const [formPassword, setFormPassword] = useState('');
+  const [showFormPassword, setShowFormPassword] = useState(false);
+  const [showViewingPassword, setShowViewingPassword] = useState(false);
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
 
   // Trigger editing state
@@ -73,6 +76,8 @@ export default function EmployeeAdminView({
     setFormTtd(emp.ttdElektronik);
     setFormRole(emp.role || 'Staff');
     setFormIsEditor(emp.isEditor || false);
+    setFormPassword(emp.password || '');
+    setShowFormPassword(false);
     setFormErrors({});
     setIsFormOpen(true);
   };
@@ -94,6 +99,8 @@ export default function EmployeeAdminView({
     setFormTtd('');
     setFormRole('Staff');
     setFormIsEditor(false);
+    setFormPassword('');
+    setShowFormPassword(false);
     setFormErrors({});
     setIsFormOpen(true);
   };
@@ -144,6 +151,7 @@ export default function EmployeeAdminView({
       ttdElektronik: formTtd,
       role: formRole || editingEmployee?.role || 'Staff',
       isEditor: formIsEditor !== undefined ? formIsEditor : editingEmployee?.isEditor || false,
+      password: formPassword || formNIP || '123456',
       createdAt: editingEmployee ? editingEmployee.createdAt : new Date().toISOString()
     };
 
@@ -435,11 +443,11 @@ export default function EmployeeAdminView({
             </div>
 
             {/* Profile Placement offset */}
-            <div className="-mt-11 flex flex-col items-center px-4 pb-4">
+            <div className="-mt-8 flex flex-col items-center px-4 pb-4">
               <img 
                 src={viewingEmployee.foto} 
                 alt={viewingEmployee.nama} 
-                className="w-22 h-22 rounded-full border-4 border-white object-cover shadow-md bg-white"
+                className="w-22 h-22 rounded-full border-4 border-white object-cover object-[center_25%] shadow-md bg-white"
                 referrerPolicy="no-referrer"
               />
               <div className="text-center mt-2.5">
@@ -465,6 +473,22 @@ export default function EmployeeAdminView({
                 <div className="flex justify-between">
                   <span className="font-bold text-slate-400">NO HP/WA</span>
                   <span className="font-semibold text-slate-800">{viewingEmployee.noHp}</span>
+                </div>
+                <div className="flex justify-between items-center pt-1 border-t border-dotted border-slate-200">
+                  <span className="font-bold text-slate-400">KATA SANDI</span>
+                  <div className="flex items-center gap-1.5">
+                    <span className="font-semibold text-slate-800 font-mono">
+                      {showViewingPassword ? (viewingEmployee.password || viewingEmployee.nip || '123456') : '••••••••'}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setShowViewingPassword(!showViewingPassword)}
+                      className="text-slate-400 hover:text-slate-600 p-0.5 transition-colors"
+                      title={showViewingPassword ? "Sembunyikan Kata Sandi" : "Tampilkan Kata Sandi"}
+                    >
+                      {showViewingPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                    </button>
+                  </div>
                 </div>
                 <div className="flex flex-col pt-1.5 border-t border-dashed border-slate-200">
                   <span className="font-bold text-slate-400">ALAMAT DOMISILI</span>
@@ -708,6 +732,28 @@ export default function EmployeeAdminView({
                   />
                   {formErrors.noHp && <p className="text-[9px] text-rose-500 font-medium">{formErrors.noHp}</p>}
                 </div>
+              </div>
+
+              {/* Kata Sandi Akun */}
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-slate-600 uppercase tracking-wider block">Kata Sandi Akun Pegawai</label>
+                <div className="relative">
+                  <input
+                    type={showFormPassword ? "text" : "password"}
+                    value={formPassword}
+                    onChange={(e) => setFormPassword(e.target.value)}
+                    placeholder="Masukkan kata sandi baru (kosongkan untuk default NIP)"
+                    className="w-full bg-slate-50/50 border border-slate-200 rounded-lg pl-2.5 pr-10 py-1.5 text-xs focus:bg-white text-slate-700 font-mono"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowFormPassword(!showFormPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
+                  >
+                    {showFormPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+                <p className="text-[9px] text-slate-400">Jika dikosongkan, pegawai dapat masuk menggunakan NIP sebagai kata sandi default.</p>
               </div>
 
               {/* Alamat */}

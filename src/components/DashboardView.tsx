@@ -346,135 +346,6 @@ export default function DashboardView({
             <AlertTriangle className="w-4 h-4 animate-pulse" />
             Simulasi Peringatan Kritis
           </button>
-
-          <button
-            onClick={resetFilters}
-            disabled={selectedGenderFilter === 'Semua' && selectedDivisionFilter === 'Semua'}
-            className="flex items-center gap-1.5 bg-slate-50 hover:bg-slate-100 text-slate-600 disabled:opacity-40 disabled:cursor-not-allowed font-medium px-3 py-2.5 rounded-xl text-xs transition-all border border-slate-100"
-          >
-            <RefreshCw className="w-3.5 h-3.5" />
-            Reset Filter
-          </button>
-        </div>
-      </div>
-
-      {/* Dynamic Filters Bar */}
-      <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 flex flex-wrap gap-4 items-center">
-        <div className="flex items-center gap-2 text-xs font-semibold text-slate-500">
-          <Filter className="w-4 h-4" />
-          <span>FILTER DASHBOARD:</span>
-        </div>
-
-        {/* Gender Filter */}
-        <div className="flex gap-1 bg-white p-1 rounded-lg border border-slate-200 text-xs">
-          {['Semua', 'Laki-laki', 'Perempuan'].map((g) => (
-            <button
-              key={g}
-              onClick={() => setSelectedGenderFilter(g)}
-              className={`px-3 py-1.5 rounded-md font-medium transition-colors ${
-                selectedGenderFilter === g 
-                  ? 'bg-slate-800 text-white' 
-                  : 'text-slate-600 hover:bg-slate-100'
-              }`}
-            >
-              {g}
-            </button>
-          ))}
-        </div>
-
-        {/* Division Filter */}
-        <div className="flex gap-1 bg-white p-1 rounded-lg border border-slate-200 text-xs overflow-x-auto max-w-full">
-          {['Semua', 'Program Acara', 'Pemberitaan', 'Teknik', 'Tata Usaha / Umum', 'Layanan Publik'].map((d) => (
-            <button
-              key={d}
-              onClick={() => setSelectedDivisionFilter(d)}
-              className={`px-2.5 py-1.5 rounded-md font-medium transition-colors whitespace-nowrap ${
-                selectedDivisionFilter === d 
-                  ? 'bg-slate-800 text-white' 
-                  : 'text-slate-600 hover:bg-slate-100'
-              }`}
-            >
-              {d === 'Semua' ? 'Semua Divisi' : d}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* KPI Stats Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* Total Employees */}
-        <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-xs flex items-center justify-between">
-          <div className="space-y-1">
-            <p className="text-xs font-semibold text-slate-400 tracking-wider uppercase">Jumlah Pegawai</p>
-            <h3 className="text-3xl font-extrabold text-slate-800 font-mono tracking-tight">{filteredEmployees.length}</h3>
-            <p className="text-[10px] text-slate-500 flex items-center gap-1">
-              Dari total {employees.length} database
-            </p>
-          </div>
-          <div className="p-3.5 bg-slate-100 rounded-xl text-slate-700">
-            <Users className="w-6 h-6" />
-          </div>
-        </div>
-
-        {/* Gender Breakdown */}
-        <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-xs flex items-center justify-between">
-          <div className="space-y-1">
-            <p className="text-xs font-semibold text-slate-400 tracking-wider uppercase">Rasio Gender</p>
-            <div className="flex items-baseline gap-2">
-              <h3 className="text-xl font-bold text-slate-800 font-mono">{genderStats.male} L</h3>
-              <span className="text-slate-300">/</span>
-              <h3 className="text-xl font-bold text-slate-800 font-mono">{genderStats.female} P</h3>
-            </div>
-            <div className="w-28 bg-slate-100 h-1.5 rounded-full overflow-hidden flex">
-              <div className="bg-sky-500 h-full" style={{ width: `${genderStats.malePct}%` }} />
-              <div className="bg-pink-500 h-full" style={{ width: `${genderStats.femalePct}%` }} />
-            </div>
-            <p className="text-[10px] text-slate-400 font-mono">{genderStats.malePct}% L • {genderStats.femalePct}% P</p>
-          </div>
-          <div className="p-3.5 bg-sky-50 rounded-xl text-sky-600">
-            <User className="w-6 h-6" />
-          </div>
-        </div>
-
-        {/* Top Division */}
-        <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-xs flex items-center justify-between">
-          <div className="space-y-1">
-            <p className="text-xs font-semibold text-slate-400 tracking-wider uppercase">Divisi Terbesar</p>
-            <h3 className="text-lg font-bold text-slate-800 truncate max-w-[150px]">
-              {(() => {
-                const max = [...divisionStats].sort((a, b) => b.count - a.count)[0];
-                return max && max.count > 0 ? max.name : '-';
-              })()}
-            </h3>
-            <p className="text-[10px] text-slate-500">
-              Kekuatan {(() => {
-                const max = [...divisionStats].sort((a, b) => b.count - a.count)[0];
-                return max ? max.count : 0;
-              })()} Personel Aktif
-            </p>
-          </div>
-          <div className="p-3.5 bg-emerald-50 rounded-xl text-emerald-600">
-            <Landmark className="w-6 h-6" />
-          </div>
-        </div>
-
-        {/* Top Education */}
-        <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-xs flex items-center justify-between">
-          <div className="space-y-1">
-            <p className="text-xs font-semibold text-slate-400 tracking-wider uppercase">Pendidikan Terbanyak</p>
-            <h3 className="text-2xl font-extrabold text-slate-800 font-mono">
-              {(() => {
-                const max = [...educationStats].sort((a, b) => b.count - a.count)[0];
-                return max && max.count > 0 ? max.level : '-';
-              })()}
-            </h3>
-            <p className="text-[10px] text-slate-500">
-              Kualifikasi SDM Unggul
-            </p>
-          </div>
-          <div className="p-3.5 bg-purple-50 rounded-xl text-purple-600">
-            <GraduationCap className="w-6 h-6" />
-          </div>
         </div>
       </div>
 
@@ -482,7 +353,7 @@ export default function DashboardView({
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
         
         {/* LEFT COLUMN: Capaian Kinerja Pemberitaan & Media Baru */}
-        <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm space-y-6 flex flex-col justify-between">
+        <div className="bg-gradient-to-br from-rose-50/60 via-white to-white p-6 rounded-2xl border border-slate-100 shadow-sm space-y-6 flex flex-col justify-between">
           <div className="space-y-4">
             <div className="flex justify-between items-start gap-4">
               <div className="space-y-1">
@@ -576,7 +447,7 @@ export default function DashboardView({
         </div>
 
         {/* RIGHT COLUMN: Capaian LPU */}
-        <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm space-y-6 flex flex-col justify-between">
+        <div className="bg-gradient-to-br from-indigo-50/60 via-white to-white p-6 rounded-2xl border border-slate-100 shadow-sm space-y-6 flex flex-col justify-between">
           <div className="space-y-4">
             <div className="flex justify-between items-start gap-4">
               <div className="space-y-1">
@@ -692,7 +563,7 @@ export default function DashboardView({
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           
           {/* Card TMB */}
-          <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm space-y-4 flex flex-col justify-between">
+          <div className="bg-gradient-to-br from-emerald-50/60 via-white to-white p-5 rounded-2xl border border-slate-100 shadow-sm space-y-4 flex flex-col justify-between">
             <div className="space-y-3">
               <div className="flex justify-between items-start gap-4">
                 <div className="space-y-1">
@@ -741,7 +612,7 @@ export default function DashboardView({
           </div>
 
           {/* Card KMB */}
-          <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm space-y-4 flex flex-col justify-between">
+          <div className="bg-gradient-to-br from-pink-50/60 via-white to-white p-5 rounded-2xl border border-slate-100 shadow-sm space-y-4 flex flex-col justify-between">
             <div className="space-y-3">
               <div className="flex justify-between items-start gap-4">
                 <div className="space-y-1">
@@ -790,7 +661,7 @@ export default function DashboardView({
           </div>
 
           {/* Card Siaran */}
-          <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm space-y-4 flex flex-col justify-between">
+          <div className="bg-gradient-to-br from-sky-50/60 via-white to-white p-5 rounded-2xl border border-slate-100 shadow-sm space-y-4 flex flex-col justify-between">
             <div className="space-y-3">
               <div className="flex justify-between items-start gap-4">
                 <div className="space-y-1">
@@ -839,7 +710,7 @@ export default function DashboardView({
           </div>
 
           {/* Card Tata Usaha */}
-          <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm space-y-4 flex flex-col justify-between">
+          <div className="bg-gradient-to-br from-purple-50/60 via-white to-white p-5 rounded-2xl border border-slate-100 shadow-sm space-y-4 flex flex-col justify-between">
             <div className="space-y-3">
               <div className="flex justify-between items-start gap-4">
                 <div className="space-y-1">
@@ -890,191 +761,7 @@ export default function DashboardView({
         </div>
       </div>
 
-      {/* Trend Analysis Section (The interactive performance Area Chart) */}
-      <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm space-y-6">
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-          <div className="space-y-1">
-            <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2">
-              <TrendingUp className="w-5 h-5 text-indigo-500" />
-              Tren Performa Perusahaan (Radio Station)
-            </h2>
-            <p className="text-xs text-slate-500">Visualisasi tren triwulan terkini yang dimutakhirkan secara interaktif.</p>
-          </div>
 
-          {/* Metric Selector Tabs */}
-          <div className="flex bg-slate-100 p-0.5 rounded-xl border border-slate-200/60 text-xs">
-            <button
-              onClick={() => setSelectedMetric('rating')}
-              className={`px-3 py-1.5 rounded-lg font-semibold transition-all ${
-                selectedMetric === 'rating' ? 'bg-white text-slate-800 shadow-xs' : 'text-slate-500 hover:text-slate-800'
-              }`}
-            >
-              Rating Siaran
-            </button>
-            <button
-              onClick={() => setSelectedMetric('efficiency')}
-              className={`px-3 py-1.5 rounded-lg font-semibold transition-all ${
-                selectedMetric === 'efficiency' ? 'bg-white text-slate-800 shadow-xs' : 'text-slate-500 hover:text-slate-800'
-              }`}
-            >
-              Efisiensi Ops
-            </button>
-            <button
-              onClick={() => setSelectedMetric('listener')}
-              className={`px-3 py-1.5 rounded-lg font-semibold transition-all ${
-                selectedMetric === 'listener' ? 'bg-white text-slate-800 shadow-xs' : 'text-slate-500 hover:text-slate-800'
-              }`}
-            >
-              Pendengar (Ribu)
-            </button>
-          </div>
-        </div>
-
-        {/* Custom interactive SVG Chart */}
-        <div className="relative pt-4">
-          <div className="h-[240px] w-full relative">
-            <svg viewBox="0 0 600 220" className="w-full h-full overflow-visible">
-              <defs>
-                <linearGradient id="chartGrad" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#4f46e5" stopOpacity="0.25" />
-                  <stop offset="100%" stopColor="#4f46e5" stopOpacity="0.0" />
-                </linearGradient>
-              </defs>
-
-              {/* Grid Lines */}
-              {[0, 50, 100, 150, 200].map((y, i) => (
-                <line
-                  key={i}
-                  x1="40"
-                  y1={y}
-                  x2="580"
-                  y2={y}
-                  stroke="#f1f5f9"
-                  strokeWidth="1"
-                />
-              ))}
-
-              {/* Y Axis Labels */}
-              {[100, 75, 50, 25, 0].map((val, i) => (
-                <text
-                  key={i}
-                  x="30"
-                  y={i * 50}
-                  className="text-[9px] fill-slate-400 font-mono text-right"
-                  dominantBaseline="middle"
-                  textAnchor="end"
-                >
-                  {val}{selectedMetric === 'listener' ? '' : '%'}
-                </text>
-              ))}
-
-              {/* Line and Area Path generation */}
-              {(() => {
-                const points = trendData[selectedMetric];
-                const widthStep = 540 / (points.length - 1);
-                
-                // Construct path coordinates
-                const coords = points.map((p, idx) => {
-                  const x = 40 + idx * widthStep;
-                  const percent = p.value / 100;
-                  const y = 200 - percent * 200; // inverted Y logic
-                  return { x, y, val: p.value, month: p.month };
-                });
-
-                const linePath = coords.map((c, i) => `${i === 0 ? 'M' : 'L'} ${c.x} ${c.y}`).join(' ');
-                const areaPath = `${linePath} L ${coords[coords.length-1].x} 200 L ${coords[0].x} 200 Z`;
-
-                return (
-                  <>
-                    {/* Area fill */}
-                    <path d={areaPath} fill="url(#chartGrad)" />
-
-                    {/* Core Line */}
-                    <path
-                      d={linePath}
-                      fill="none"
-                      stroke="#4f46e5"
-                      strokeWidth="3.5"
-                      strokeLinecap="round"
-                    />
-
-                    {/* Tooltip vertical bar */}
-                    {hoveredDataPoint && (
-                      <line
-                        x1={coords.find(c => c.month === hoveredDataPoint.month)?.x}
-                        y1="0"
-                        x2={coords.find(c => c.month === hoveredDataPoint.month)?.x}
-                        y2="200"
-                        stroke="#818cf8"
-                        strokeDasharray="4 4"
-                        strokeWidth="1.5"
-                      />
-                    )}
-
-                    {/* Data Nodes */}
-                    {coords.map((c, idx) => (
-                      <g 
-                        key={idx}
-                        onMouseEnter={() => setHoveredDataPoint({ month: c.month, value: c.val })}
-                        onMouseLeave={() => setHoveredDataPoint(null)}
-                        className="cursor-pointer"
-                      >
-                        {/* Interactive hotspot */}
-                        <circle
-                          cx={c.x}
-                          cy={c.y}
-                          r="16"
-                          fill="transparent"
-                        />
-                        {/* Visible circle outline */}
-                        <circle
-                          cx={c.x}
-                          cy={c.y}
-                          r={hoveredDataPoint?.month === c.month ? "7" : "5"}
-                          fill="#ffffff"
-                          stroke="#4f46e5"
-                          strokeWidth="2.5"
-                          className="transition-all duration-150"
-                        />
-                        {/* Static Text Value Above */}
-                        <text
-                          x={c.x}
-                          y={c.y - 12}
-                          className="text-[9px] font-bold fill-indigo-700 text-center"
-                          textAnchor="middle"
-                        >
-                          {c.val}{selectedMetric === 'listener' ? 'k' : '%'}
-                        </text>
-                      </g>
-                    ))}
-
-                    {/* X Axis Months Labels */}
-                    {coords.map((c, idx) => (
-                      <text
-                        key={idx}
-                        x={c.x}
-                        y="215"
-                        className="text-[10px] font-semibold fill-slate-500"
-                        textAnchor="middle"
-                      >
-                        {c.month}
-                      </text>
-                    ))}
-                  </>
-                );
-              })()}
-            </svg>
-          </div>
-
-          {/* Interactive Legend / Floating Tooltip */}
-          {hoveredDataPoint && (
-            <div className="absolute top-2 left-1/2 transform -translate-x-1/2 bg-slate-900 text-white px-3 py-1.5 rounded-lg shadow-md text-xs font-semibold flex items-center gap-2">
-              <span className="text-indigo-400">{hoveredDataPoint.month}:</span>
-              <span>{hoveredDataPoint.value}{selectedMetric === 'listener' ? ' Ribu Pendengar' : '%'}</span>
-            </div>
-          )}
-        </div>
-      </div>
 
       {/* Main Stats Charts Grid (Gender, Division, Education) */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

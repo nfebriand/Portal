@@ -23,7 +23,8 @@ service cloud.firestore {
              data.noHp is string && 
              data.foto is string && 
              data.ttdElektronik is string && 
-             data.createdAt is string;
+             data.createdAt is string &&
+             (!('password' in data) || data.password is string);
     }
 
     function isValidSettings(data) {

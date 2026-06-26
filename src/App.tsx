@@ -130,6 +130,7 @@ const INITIAL_SETTINGS: AppSettings = {
 const INITIAL_IDENTITY: InstitutionalIdentity = {
   kepalaStasiunNama: "Drs. H. Mulyadi Kusuma, M.M.",
   kepalaStasiunTtd: MOCK_TTD_1,
+  kepalaStasiunPassword: "kepala",
   kepalaBidangNama: "Ir. Hendra Saputra, M.T.",
   kepalaBidangTtd: MOCK_TTD_2,
   ketuaTimSiaranNama: "Rina Kartika, S.Sos.",
@@ -745,6 +746,13 @@ export default function App() {
     setIdentity(newIdentity);
     localStorage.setItem('e_station_identity', JSON.stringify(newIdentity));
     await saveDocument('identity', 'current', newIdentity);
+
+    // Synchronize active session if logged in as Kepala
+    if (currentUser && currentUser.role === 'Kepala') {
+      const updatedUser = { ...currentUser, name: newIdentity.kepalaStasiunNama };
+      setCurrentUser(updatedUser);
+      localStorage.setItem('swara_current_user', JSON.stringify(updatedUser));
+    }
   };
 
   const handleUpdateNotifications = async (newNotifs: CriticalNotification[]) => {
@@ -879,6 +887,8 @@ export default function App() {
         employees={employees}
         onLogin={handleLogin}
         namaInstansi={identity.namaInstansi || settings.namaInstansi}
+        kepalaStasiunPassword={identity.kepalaStasiunPassword || 'kepala'}
+        kepalaStasiunNama={identity.kepalaStasiunNama}
       />
     );
   }
@@ -1282,6 +1292,7 @@ export default function App() {
               agreements={agreements}
               onUpdateAgreements={handleUpdateAgreements}
               onAddNotification={addNotification}
+              currentUser={currentUser}
             />
           )}
 
