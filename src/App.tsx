@@ -660,7 +660,7 @@ export default function App() {
   const [currentUser, setCurrentUser] = useState<{
     id: string;
     name: string;
-    role: 'Kepala' | 'Staff';
+    role: 'Kepala' | 'Staff' | 'Ketua Bidang' | 'Superadmin';
     division?: string;
     photo?: string;
   } | null>(() => {
@@ -668,7 +668,7 @@ export default function App() {
     return saved ? JSON.parse(saved) : null;
   });
 
-  const handleLogin = (user: { id: string; name: string; role: 'Kepala' | 'Staff'; division?: string; photo?: string }) => {
+  const handleLogin = (user: { id: string; name: string; role: 'Kepala' | 'Staff' | 'Ketua Bidang' | 'Superadmin'; division?: string; photo?: string }) => {
     setCurrentUser(user);
     localStorage.setItem('swara_current_user', JSON.stringify(user));
     setActiveTab('dashboard');
@@ -834,6 +834,129 @@ export default function App() {
     } catch (error) {
       console.error("Gagal berpindah ke mode produksi:", error);
       alert("Terjadi kesalahan saat mengosongkan database.");
+    }
+  };
+
+  const handleExportDatabase = () => {
+    try {
+      const backupData = {
+        version: 1,
+        timestamp: new Date().toISOString(),
+        data: {
+          employees,
+          settings,
+          identity,
+          notifications,
+          contracts,
+          reporterTargets,
+          newsReports,
+          agreements,
+          systemSeeded: true
+        }
+      };
+      
+      const jsonString = JSON.stringify(backupData, null, 2);
+      const blob = new Blob([jsonString], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      
+      const link = document.createElement('a');
+      const timestampStr = new Date().toISOString().slice(0, 10).replace(/-/g, '_');
+      link.href = url;
+      link.download = `portal_komando_backup_${timestampStr}.json`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error("Gagal mengekspor database:", error);
+      alert("Gagal melakukan ekspor database.");
+    }
+  };
+
+  const handleImportDatabase = async (jsonString: string): Promise<boolean> => {
+    try {
+      const parsed = JSON.parse(jsonString);
+      
+      if (!parsed || parsed.version !== 1 || !parsed.data) {
+        alert("Format file cadangan tidak valid. Pastikan Anda mengunggah file cadangan .json yang benar.");
+        return false;
+      }
+      
+      const { data } = parsed;
+      
+      if (
+        !Array.isArray(data.employees) ||
+        !data.settings ||
+        !data.identity ||
+        !Array.isArray(data.notifications) ||
+        !Array.isArray(data.contracts) ||
+        !Array.isArray(data.reporterTargets) ||
+        !Array.isArray(data.newsReports) ||
+        !Array.isArray(data.agreements)
+      ) {
+        alert("File cadangan tidak memiliki struktur data yang lengkap.");
+        return false;
+      }
+
+      const confirmRestore = window.confirm(
+        "PENTING: Tindakan ini akan menimpa seluruh data saat ini di database Firestore dengan data dari file cadangan. Apakah Anda yakin ingin melanjutkan?"
+      );
+      if (!confirmRestore) return false;
+
+      // Begin importing. Write to Firestore first:
+      await saveCollectionList('employees', data.employees);
+      await saveDocument('settings', 'current', data.settings);
+      await saveDocument('identity', 'current', data.identity);
+      await saveCollectionList('notifications', data.notifications);
+      await saveCollectionList('contracts', data.contracts);
+      await saveCollectionList('reporterTargets', data.reporterTargets);
+      await saveCollectionList('newsReports', data.newsReports);
+      await saveCollectionList('agreements', data.agreements);
+      
+      if (data.systemSeeded) {
+        await markSystemSeeded();
+      }
+
+      // Update local state:
+      setEmployees(data.employees);
+      setSettings(data.settings);
+      setIdentity(data.identity);
+      setNotifications(data.notifications);
+      setContracts(data.contracts);
+      setReporterTargets(data.reporterTargets);
+      setNewsReports(data.newsReports);
+      setAgreements(data.agreements);
+
+      // Save to localStorage backups
+      localStorage.setItem('e_station_employees', JSON.stringify(data.employees));
+      localStorage.setItem('e_station_settings', JSON.stringify(data.settings));
+      localStorage.setItem('e_station_identity', JSON.stringify(data.identity));
+      localStorage.setItem('e_station_notifications', JSON.stringify(data.notifications));
+      localStorage.setItem('e_station_contracts', JSON.stringify(data.contracts));
+      localStorage.setItem('e_station_reporter_targets', JSON.stringify(data.reporterTargets));
+      localStorage.setItem('e_station_news_reports', JSON.stringify(data.newsReports));
+      localStorage.setItem('e_station_agreements', JSON.stringify(data.agreements));
+
+      // Check current session user
+      const currentLoggedIn = localStorage.getItem('swara_current_user');
+      if (currentLoggedIn) {
+        const userObj = JSON.parse(currentLoggedIn);
+        const userStillExists = data.employees.some((emp: any) => emp.nip === userObj.id || emp.id === userObj.id);
+        const isSuperadmin = userObj.id === '1871102702910001';
+        if (!userStillExists && !isSuperadmin) {
+          setCurrentUser(null);
+          localStorage.removeItem('swara_current_user');
+          alert("Data berhasil dipulihkan! Sesi Anda telah berakhir karena akun Anda tidak ditemukan di dalam data yang baru diimpor.");
+          return true;
+        }
+      }
+
+      alert("Data berhasil dipulihkan dari file cadangan!");
+      return true;
+    } catch (error) {
+      console.error("Gagal mengimpor database:", error);
+      alert("Gagal membaca atau memproses file cadangan. Pastikan format file JSON valid.");
+      return false;
     }
   };
 
@@ -1366,6 +1489,11 @@ export default function App() {
               onUpdateIdentity={handleUpdateIdentity}
               employees={employees}
               onResetToProductionMode={handleResetToProductionMode}
+              onExportDatabase={handleExportDatabase}
+              onImportDatabase={handleImportDatabase}
+              currentUser={currentUser}
+              newsReports={newsReports}
+              onUpdateNewsReports={handleUpdateNewsReports}
             />
           )}
 
@@ -1378,6 +1506,9 @@ export default function App() {
               onUpdateAgreements={handleUpdateAgreements}
               onAddNotification={addNotification}
               currentUser={currentUser}
+              newsReports={newsReports}
+              contracts={contracts}
+              reporterTargets={reporterTargets}
             />
           )}
 

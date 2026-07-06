@@ -42,6 +42,15 @@ export interface InstitutionalIdentity {
   ketuaTimLayananTtd: string; // Base64 Data URL
 }
 
+export interface IndicatorComment {
+  id: string;
+  authorId: string;
+  authorName: string;
+  authorRole: string;
+  text: string;
+  timestamp: string;
+}
+
 export interface PerformanceIndicator {
   id: string;
   indicatorName: string; // Indikator Kinerja Utama (IKU) / Sasaran
@@ -50,6 +59,7 @@ export interface PerformanceIndicator {
   weight: number; // Bobot percentage, e.g. 25
   achievement: number; // Realisasi, e.g. 90
   parentIndicatorId?: string; // Links back to parent target for cascading traceability
+  comments?: IndicatorComment[];
 }
 
 export interface PerformanceAgreement {
@@ -109,6 +119,11 @@ export interface NewsReport {
   url: string; // link eviden
   type: 'Berita' | 'Konten Media Sosial';
   date: string; // tanggal lapor
+  // Added fields for import feature
+  category?: 'teks' | 'radio' | 'adlibs' | 'feature' | 'podcast' | 'sosmed' | string;
+  publishDateTime?: string; // tgl jam publish
+  reporterName?: string; // nama pembuat
+  editorName?: string; // nama editor
 }
 
 

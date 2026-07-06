@@ -22,8 +22,9 @@ import {
   Send,
   Printer
 } from 'lucide-react';
-import { Employee, InstitutionalIdentity, PerformanceAgreement, PerformanceIndicator, AppSettings, CriticalNotification } from '../types';
+import { Employee, InstitutionalIdentity, PerformanceAgreement, PerformanceIndicator, AppSettings, CriticalNotification, NewsReport, CooperationContract, ReporterTarget, IndicatorComment } from '../types';
 import SignaturePad from './SignaturePad';
+import IndicatorCommentsSection from './IndicatorCommentsSection';
 
 interface PerformanceAgreementViewProps {
   employees: Employee[];
@@ -33,6 +34,9 @@ interface PerformanceAgreementViewProps {
   onUpdateAgreements: (agreements: PerformanceAgreement[]) => void;
   onAddNotification?: (notification: CriticalNotification) => void;
   currentUser?: { id: string; name: string; role: 'Kepala' | 'Staff' | 'Ketua Bidang' | 'Superadmin'; division?: string; photo?: string } | null;
+  newsReports?: NewsReport[];
+  contracts?: CooperationContract[];
+  reporterTargets?: ReporterTarget[];
 }
 
 export default function PerformanceAgreementView({
@@ -42,10 +46,13 @@ export default function PerformanceAgreementView({
   agreements,
   onUpdateAgreements,
   onAddNotification,
-  currentUser
+  currentUser,
+  newsReports = [],
+  contracts = [],
+  reporterTargets = []
 }: PerformanceAgreementViewProps) {
   const [selectedYear, setSelectedYear] = useState<number>(2026);
-  const [activeTab, setActiveTab] = useState<'pohon' | 'dokumen'>('pohon');
+  const [activeTab, setActiveTab] = useState<'pohon' | 'dokumen' | 'evaluasi'>('pohon');
 
   // Helper to check edit permissions for a specific agreement level
   const canEditAgreement = (agreementLevel: string) => {
@@ -168,6 +175,189 @@ export default function PerformanceAgreementView({
     return tempAg;
   }, [selectedDocLevel, selectedDocEmployeeId, agreements, selectedYear]);
 
+  const [evalPeriod, setEvalPeriod] = useState<'q1' | 'q2' | 'q3' | 'q4' | 's1' | 's2' | 'tahunan'>('tahunan');
+  const [scaleTargets, setScaleTargets] = useState<boolean>(false);
+
+  // Period helpers
+  const isReportInPeriod = (r: NewsReport, period: string, year: number) => {
+    if (!r.date) return false;
+    const d = new Date(r.date);
+    if (isNaN(d.getTime())) return false;
+    if (d.getFullYear() !== year) return false;
+    
+    const month = d.getMonth(); // 0-11
+    switch (period) {
+      case 'q1': return month >= 0 && month <= 2;
+      case 'q2': return month >= 3 && month <= 5;
+      case 'q3': return month >= 6 && month <= 8;
+      case 'q4': return month >= 9 && month <= 11;
+      case 's1': return month >= 0 && month <= 5;
+      case 's2': return month >= 6 && month <= 11;
+      case 'tahunan':
+      default:
+        return true;
+    }
+  };
+
+  const isContractInPeriod = (c: CooperationContract, period: string, year: number) => {
+    if (!c.startDate) return false;
+    const d = new Date(c.startDate);
+    if (isNaN(d.getTime())) return false;
+    if (d.getFullYear() !== year) return false;
+    
+    const month = d.getMonth(); // 0-11
+    switch (period) {
+      case 'q1': return month >= 0 && month <= 2;
+      case 'q2': return month >= 3 && month <= 5;
+      case 'q3': return month >= 6 && month <= 8;
+      case 'q4': return month >= 9 && month <= 11;
+      case 's1': return month >= 0 && month <= 5;
+      case 's2': return month >= 6 && month <= 11;
+      case 'tahunan':
+      default:
+        return true;
+    }
+  };
+
+  // Dynamically calculate period-filtered cascading agreements
+  const periodAgreements = useMemo(() => {
+    // Filter newsReports & contracts for this period
+    const filteredReports = newsReports.filter(r => isReportInPeriod(r, evalPeriod, selectedYear));
+    const filteredContracts = contracts.filter(c => isContractInPeriod(c, evalPeriod, selectedYear));
+
+    // Compute total PNBP
+    const totalPnbpForPeriod = filteredContracts
+      .filter(c => c.linkedIndicatorId === 'ind-11')
+      .reduce((sum, c) => sum + c.realizedPnbp, 0);
+
+    // Filter agreements for this year
+    const yearAgs = agreements.filter(ag => ag.year === selectedYear);
+
+    // Set employee reports counts
+    const reportCountsByEmployee: Record<string, number> = {};
+    filteredReports.forEach(r => {
+      reportCountsByEmployee[r.employeeId] = (reportCountsByEmployee[r.employeeId] || 0) + 1;
+    });
+
+    // Calculate direct Level 3 (Pegawai) achievements
+    let tempAgs = yearAgs.map(ag => {
+      const objectives = ag.objectives.map(obj => {
+        let achievement = obj.achievement;
+        let targetVal = parseFloat(obj.target) || 100;
+
+        if (obj.id === 'ind-11' || obj.indicatorName.toLowerCase().includes('pnbp')) {
+          achievement = totalPnbpForPeriod;
+        }
+
+        if (ag.level === 'Pegawai' && ag.assignedToEmployeeId) {
+          const empId = ag.assignedToEmployeeId;
+          const empTargets = reporterTargets.filter(t => t.employeeId === empId);
+          const matchedTarget = empTargets.find(t => t.linkedIndicatorId === obj.id);
+          if (matchedTarget) {
+            achievement = reportCountsByEmployee[empId] || 0;
+          }
+        }
+
+        // Apply target scaling if checked
+        let targetString = obj.target;
+        if (scaleTargets) {
+          const fraction = evalPeriod.startsWith('q') ? 0.25 : evalPeriod.startsWith('s') ? 0.5 : 1.0;
+          const scaledVal = targetVal * fraction;
+          if (obj.target.includes('%')) {
+            targetString = `${Math.round(scaledVal)}%`;
+          } else {
+            const unitMatch = obj.target.match(/[a-zA-Z]+/);
+            const unitStr = unitMatch ? ' ' + unitMatch[0] : '';
+            targetString = `${Math.round(scaledVal)}${unitStr}`;
+          }
+          targetVal = scaledVal;
+        }
+
+        return { ...obj, _scaledTargetVal: targetVal, _scaledTargetString: targetString, achievement };
+      });
+      return { ...ag, objectives };
+    });
+
+    // Roll up Level 3 to Level 2 (Ketua Tim / Kabid)
+    tempAgs = tempAgs.map(ag => {
+      if (ag.level !== 'Kepala Stasiun' && ag.level !== 'Pegawai') {
+        const objectives = ag.objectives.map(l2Obj => {
+          const l3Objectives: { achievement: number; target: number; unit: string }[] = [];
+          tempAgs.forEach(otherAg => {
+            if (otherAg.level === 'Pegawai') {
+              otherAg.objectives.forEach(obj => {
+                if (obj.parentIndicatorId === l2Obj.id) {
+                  l3Objectives.push({ 
+                    achievement: obj.achievement || 0, 
+                    target: obj._scaledTargetVal !== undefined ? obj._scaledTargetVal : (parseFloat(obj.target) || 100), 
+                    unit: obj.unit 
+                  });
+                }
+              });
+            }
+          });
+
+          if (l3Objectives.length > 0) {
+            const isAbsolute = ['berita', 'konten', 'laporan', 'dokumen', 'video'].some(u => l2Obj.unit.toLowerCase().includes(u));
+            if (isAbsolute) {
+              const sumAchievement = l3Objectives.reduce((sum, child) => sum + child.achievement, 0);
+              return { ...l2Obj, achievement: sumAchievement };
+            } else {
+              const totalProgress = l3Objectives.reduce((sum, child) => {
+                const progress = child.target > 0 ? (child.achievement / child.target) * 100 : 0;
+                return sum + Math.min(120, progress);
+              }, 0);
+              const avgProgress = totalProgress / l3Objectives.length;
+              const targetVal = l2Obj._scaledTargetVal !== undefined ? l2Obj._scaledTargetVal : (parseFloat(l2Obj.target) || 100);
+              const newAchievement = Math.round((avgProgress / 100) * targetVal * 10) / 10;
+              return { ...l2Obj, achievement: newAchievement };
+            }
+          }
+          return l2Obj;
+        });
+        return { ...ag, objectives };
+      }
+      return ag;
+    });
+
+    // Roll up Level 2 to Level 1 (Kepala Stasiun)
+    tempAgs = tempAgs.map(ag => {
+      if (ag.level === 'Kepala Stasiun') {
+        const objectives = ag.objectives.map(rootObj => {
+          const l2Objectives: { achievement: number; target: number }[] = [];
+          tempAgs.forEach(otherAg => {
+            if (otherAg.level !== 'Kepala Stasiun' && otherAg.level !== 'Pegawai') {
+              otherAg.objectives.forEach(obj => {
+                if (obj.parentIndicatorId === rootObj.id) {
+                  l2Objectives.push({ 
+                    achievement: obj.achievement || 0, 
+                    target: obj._scaledTargetVal !== undefined ? obj._scaledTargetVal : (parseFloat(obj.target) || 100) 
+                  });
+                }
+              });
+            }
+          });
+
+          if (l2Objectives.length > 0) {
+            const totalProgress = l2Objectives.reduce((sum, child) => {
+              const progress = (child.achievement / child.target) * 100;
+              return sum + Math.min(120, progress);
+            }, 0);
+            const avgProgress = totalProgress / l2Objectives.length;
+            const targetVal = rootObj._scaledTargetVal !== undefined ? rootObj._scaledTargetVal : (parseFloat(rootObj.target) || 100);
+            const newAchievement = Math.round((avgProgress / 100) * targetVal * 10) / 10;
+            return { ...rootObj, achievement: newAchievement };
+          }
+          return rootObj;
+        });
+        return { ...ag, objectives };
+      }
+      return ag;
+    });
+
+    return tempAgs;
+  }, [agreements, selectedYear, evalPeriod, scaleTargets, newsReports, contracts, reporterTargets]);
+
   // Total Statistics
   const stats = useMemo(() => {
     let totalIndicators = 0;
@@ -175,15 +365,17 @@ export default function PerformanceAgreementView({
     let activePks = 0;
 
     agreements.filter(a => a.year === selectedYear).forEach(a => {
-      if (a.status === 'Aktif') activePks++;
-      a.objectives.forEach(obj => {
-        totalIndicators++;
-        // Calculate achievement percentage (realisasi / target * 100, capped at 120%)
-        const targetVal = parseFloat(obj.target) || 100;
-        const real = obj.achievement || 0;
-        const score = Math.min(120, Math.round((real / targetVal) * 100));
-        sumAchievement += score;
-      });
+      if (a.objectives.length > 0) {
+        if (a.status === 'Aktif') activePks++;
+        a.objectives.forEach(obj => {
+          totalIndicators++;
+          // Calculate achievement percentage (realisasi / target * 100, capped at 120%)
+          const targetVal = parseFloat(obj.target) || 100;
+          const real = obj.achievement || 0;
+          const score = Math.min(120, Math.round((real / targetVal) * 100));
+          sumAchievement += score;
+        });
+      }
     });
 
     const avgAchievement = totalIndicators > 0 ? Math.round(sumAchievement / totalIndicators) : 0;
@@ -192,7 +384,7 @@ export default function PerformanceAgreementView({
       totalIndicators,
       avgAchievement,
       activePks,
-      totalPks: agreements.filter(a => a.year === selectedYear).length
+      totalPks: agreements.filter(a => a.year === selectedYear && a.objectives.length > 0).length
     };
   }, [agreements, selectedYear]);
 
@@ -382,6 +574,79 @@ export default function PerformanceAgreementView({
       }
       return ag;
     });
+    onUpdateAgreements(updated);
+  };
+
+  // Handle adding an evaluation comment/feedback
+  const handleAddComment = (agreementId: string, indicatorId: string, commentText: string) => {
+    if (!commentText.trim() || !currentUser) return;
+
+    const newComment: IndicatorComment = {
+      id: `comment-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+      authorId: currentUser.id,
+      authorName: currentUser.name,
+      authorRole: currentUser.role,
+      text: commentText,
+      timestamp: new Date().toISOString()
+    };
+
+    const updated = agreements.map(ag => {
+      if (ag.id === agreementId) {
+        return {
+          ...ag,
+          objectives: ag.objectives.map(o => {
+            if (o.id === indicatorId) {
+              return {
+                ...o,
+                comments: [...(o.comments || []), newComment]
+              };
+            }
+            return o;
+          })
+        };
+      }
+      return ag;
+    });
+
+    onUpdateAgreements(updated);
+
+    // Send a notification if pimpinan adds feedback
+    if (onAddNotification && (currentUser.role === 'Kepala' || currentUser.role === 'Ketua Bidang' || currentUser.role === 'Superadmin')) {
+      const targetAgreement = agreements.find(ag => ag.id === agreementId);
+      if (targetAgreement) {
+        const objName = targetAgreement.objectives.find(o => o.id === indicatorId)?.indicatorName || '';
+        onAddNotification({
+          id: `notif-comment-${Date.now()}`,
+          title: 'Feedback Evaluasi Baru',
+          message: `${currentUser.name} (${currentUser.role}) memberikan catatan evaluasi pada sasaran kinerja: "${objName}"`,
+          type: 'info',
+          timestamp: new Date().toLocaleDateString('id-ID', { hour: '2-digit', minute: '2-digit' }),
+          isRead: false
+        });
+      }
+    }
+  };
+
+  // Handle deleting a comment
+  const handleDeleteComment = (agreementId: string, indicatorId: string, commentId: string) => {
+    const updated = agreements.map(ag => {
+      if (ag.id === agreementId) {
+        return {
+          ...ag,
+          objectives: ag.objectives.map(o => {
+            if (o.id === indicatorId) {
+              return {
+                ...o,
+                comments: (o.comments || []).filter(c => c.id !== commentId)
+              };
+            }
+            return o;
+          })
+        };
+      }
+      return ag;
+    });
+
     onUpdateAgreements(updated);
   };
 
@@ -683,6 +948,16 @@ export default function PerformanceAgreementView({
               }`}
             >
               Dokumen PK
+            </button>
+            <button
+              onClick={() => setActiveTab('evaluasi')}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold tracking-wide transition-all ${
+                activeTab === 'evaluasi' 
+                  ? 'bg-indigo-600 text-white shadow-xs' 
+                  : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              Evaluasi Berkala (Triwulan/Semester)
             </button>
           </div>
         </div>
@@ -1045,7 +1320,7 @@ export default function PerformanceAgreementView({
           </div>
 
         </div>
-      ) : (
+      ) : activeTab === 'dokumen' ? (
         
         // Document Tab
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
@@ -1428,6 +1703,366 @@ export default function PerformanceAgreementView({
 
           </div>
 
+        </div>
+      ) : (
+        // New Evaluasi Berkala Tab
+        <div className="space-y-6">
+          <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-xs space-y-6">
+            
+            {/* Header */}
+            <div className="flex flex-col md:flex-row justify-between md:items-center gap-4 pb-4 border-b border-slate-100">
+              <div>
+                <h3 className="text-sm font-bold text-slate-800 flex items-center gap-1.5">
+                  <Award className="w-4 h-4 text-amber-500" />
+                  Evaluasi Capaian Kinerja Berkala (Cascading IKP)
+                </h3>
+                <p className="text-[11px] text-slate-400">Analisis pencapaian Sasaran Strategis Pimpinan dan turunannya secara bertahap (Triwulan, Semester, dan Tahunan).</p>
+              </div>
+
+              {/* Print Button */}
+              <button 
+                onClick={() => window.print()}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl transition-colors self-start"
+              >
+                <Printer className="w-3.5 h-3.5" /> Cetak Laporan
+              </button>
+            </div>
+
+            {/* Controls panel */}
+            <div className="bg-slate-50 p-4 rounded-2xl border border-slate-150 space-y-4">
+              <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+                
+                {/* Period pills selector */}
+                <div className="space-y-1.5">
+                  <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wide block">Pilih Periode Evaluasi:</span>
+                  <div className="flex flex-wrap gap-1.5">
+                    {[
+                      { id: 'q1', label: 'Triwulan I (Jan-Mar)' },
+                      { id: 'q2', label: 'Triwulan II (Apr-Jun)' },
+                      { id: 'q3', label: 'Triwulan III (Jul-Sep)' },
+                      { id: 'q4', label: 'Triwulan IV (Okt-Des)' },
+                      { id: 's1', label: 'Semester I (Jan-Jun)' },
+                      { id: 's2', label: 'Semester II (Jul-Des)' },
+                      { id: 'tahunan', label: 'Tahunan (Full)' }
+                    ].map(p => (
+                      <button
+                        key={p.id}
+                        onClick={() => setEvalPeriod(p.id as any)}
+                        className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all border ${
+                          evalPeriod === p.id 
+                            ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm' 
+                            : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-100'
+                        }`}
+                      >
+                        {p.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Scaling Toggle */}
+                <div className="flex items-center gap-3 bg-white p-3 rounded-xl border border-slate-200 shadow-xs">
+                  <input
+                    type="checkbox"
+                    id="scaleTargetsCheckbox"
+                    checked={scaleTargets}
+                    onChange={(e) => setScaleTargets(e.target.checked)}
+                    className="w-4 h-4 text-indigo-600 border-slate-300 rounded-sm focus:ring-indigo-500 cursor-pointer"
+                  />
+                  <label htmlFor="scaleTargetsCheckbox" className="select-none cursor-pointer">
+                    <span className="text-xs font-bold text-slate-700 block">Skalakan Target Secara Proporsional</span>
+                    <span className="text-[10px] text-slate-400 block mt-0.5">Misal: Target Triwulan dihitung 25% dari target tahunan</span>
+                  </label>
+                </div>
+
+              </div>
+            </div>
+
+            {/* Periodic mini-stats */}
+            {(() => {
+              // Calculate specific period stats
+              let countIndicators = 0;
+              let scoreSum = 0;
+              
+              periodAgreements.forEach(a => {
+                a.objectives.forEach(obj => {
+                  countIndicators++;
+                  const targetVal = obj._scaledTargetVal !== undefined ? obj._scaledTargetVal : (parseFloat(obj.target) || 100);
+                  const real = obj.achievement || 0;
+                  const score = targetVal > 0 ? Math.min(120, Math.round((real / targetVal) * 100)) : 0;
+                  scoreSum += score;
+                });
+              });
+
+              const periodAvgScore = countIndicators > 0 ? Math.round(scoreSum / countIndicators) : 0;
+              const filteredReportsCount = newsReports.filter(r => isReportInPeriod(r, evalPeriod, selectedYear)).length;
+              const filteredPnbpAmount = contracts
+                .filter(c => isContractInPeriod(c, evalPeriod, selectedYear) && c.linkedIndicatorId === 'ind-11')
+                .reduce((sum, c) => sum + c.realizedPnbp, 0);
+
+              return (
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 bg-slate-50/50 p-4 rounded-2xl border border-slate-100">
+                  <div className="bg-white p-3 rounded-xl border border-slate-100 flex items-center gap-3">
+                    <div className="p-2 bg-indigo-50 text-indigo-600 rounded-lg">
+                      <TrendingUp className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <p className="text-[9px] font-bold text-slate-400 uppercase font-mono leading-none">Rata Capaian Periodik</p>
+                      <p className="text-sm font-black text-slate-800 mt-1 leading-none">{periodAvgScore}%</p>
+                    </div>
+                  </div>
+
+                  <div className="bg-white p-3 rounded-xl border border-slate-100 flex items-center gap-3">
+                    <div className="p-2 bg-emerald-50 text-emerald-600 rounded-lg">
+                      <Target className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <p className="text-[9px] font-bold text-slate-400 uppercase font-mono leading-none">Total IKP Terbaca</p>
+                      <p className="text-sm font-black text-slate-800 mt-1 leading-none">{countIndicators} Indikator</p>
+                    </div>
+                  </div>
+
+                  <div className="bg-white p-3 rounded-xl border border-slate-100 flex items-center gap-3">
+                    <div className="p-2 bg-blue-50 text-blue-600 rounded-lg">
+                      <FileText className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <p className="text-[9px] font-bold text-slate-400 uppercase font-mono leading-none">Produksi Berita/Konten</p>
+                      <p className="text-sm font-black text-slate-800 mt-1 leading-none">{filteredReportsCount} Konten</p>
+                    </div>
+                  </div>
+
+                  <div className="bg-white p-3 rounded-xl border border-slate-100 flex items-center gap-3">
+                    <div className="p-2 bg-violet-50 text-violet-600 rounded-lg">
+                      <Award className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <p className="text-[9px] font-bold text-slate-400 uppercase font-mono leading-none">PNBP Terkumpul</p>
+                      <p className="text-sm font-black text-slate-800 mt-1 leading-none">{filteredPnbpAmount} Juta</p>
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
+
+            {/* Hierarchical Cascading Table / List */}
+            <div className="space-y-6">
+              {(() => {
+                const kepalaAg = periodAgreements.find(a => a.level === 'Kepala Stasiun');
+                
+                if (!kepalaAg || kepalaAg.objectives.length === 0) {
+                  return (
+                    <div className="p-12 text-center border border-dashed border-slate-200 rounded-3xl bg-slate-50/50">
+                      <Award className="w-12 h-12 text-slate-300 mx-auto mb-3 animate-pulse" />
+                      <p className="text-xs font-bold text-slate-500">Belum ada target pimpinan atau Perjanjian Kinerja terdefinisi.</p>
+                      <p className="text-[10px] text-slate-400 mt-1">Gunakan Pohon Kinerja untuk mengonfigurasi sasaran strategis Kepala Stasiun terlebih dahulu.</p>
+                    </div>
+                  );
+                }
+
+                return (
+                  <div className="space-y-5">
+                    {kepalaAg.objectives.map((rootObj) => {
+                      const rootTargetVal = rootObj._scaledTargetVal !== undefined ? rootObj._scaledTargetVal : (parseFloat(rootObj.target) || 100);
+                      const rootReal = rootObj.achievement || 0;
+                      const rootScore = rootTargetVal > 0 ? Math.min(120, Math.round((rootReal / rootTargetVal) * 100)) : 0;
+                      
+                      // Find Level 2 descendants for this Level 1 objective
+                      const level2Objects = periodAgreements
+                        .filter(a => a.level !== 'Kepala Stasiun' && a.level !== 'Pegawai')
+                        .flatMap(a => 
+                          a.objectives
+                            .filter(obj => obj.parentIndicatorId === rootObj.id)
+                            .map(obj => ({ indicator: obj, agreement: a }))
+                        );
+
+                      return (
+                        <div key={rootObj.id} className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-xs hover:border-indigo-300 transition-colors">
+                          
+                          {/* Level 1: Kepala Stasiun Card Header */}
+                          <div className="p-5 bg-gradient-to-r from-indigo-50/50 to-purple-50/20 border-b border-slate-150 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                            <div className="space-y-1.5 flex-1">
+                              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[9px] font-extrabold uppercase bg-indigo-100 text-indigo-800 border border-indigo-200 font-mono tracking-wide">
+                                IKP PIMPINAN (LEVEL 1)
+                              </span>
+                              <h4 className="text-xs font-bold text-slate-800 leading-relaxed">{rootObj.indicatorName}</h4>
+                              <p className="text-[10px] text-slate-400 flex items-center gap-2">
+                                <span>Target: <span className="font-extrabold text-slate-700">{rootObj._scaledTargetString || rootObj.target} {rootObj.unit}</span></span>
+                                <span>•</span>
+                                <span>Realisasi: <span className="font-extrabold text-indigo-600">{rootReal} {rootObj.unit}</span></span>
+                                <span>•</span>
+                                <span>Bobot: <span className="font-extrabold text-purple-600">{rootObj.weight}%</span></span>
+                              </p>
+                            </div>
+
+                            {/* Circular/Badge Score Progress */}
+                            <div className="flex items-center gap-3 shrink-0 self-start md:self-center">
+                              <div className="w-24 bg-slate-100 rounded-full h-2 overflow-hidden">
+                                <div 
+                                  className={`h-full rounded-full transition-all duration-500 ${
+                                    rootScore >= 90 ? 'bg-emerald-500' : rootScore >= 50 ? 'bg-amber-500' : 'bg-rose-500'
+                                  }`}
+                                  style={{ width: `${Math.min(100, rootScore)}%` }}
+                                />
+                              </div>
+                              <span className={`px-3 py-1 rounded-full text-xs font-black border uppercase tracking-wider font-mono ${
+                                rootScore >= 90 ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 
+                                rootScore >= 50 ? 'bg-amber-50 text-amber-700 border-amber-200' : 
+                                'bg-rose-50 text-rose-700 border-rose-200'
+                              }`}>
+                                {rootScore}% Capaian
+                              </span>
+                            </div>
+                          </div>
+
+                          {/* Level 1 Catatan Evaluasi & Feedback */}
+                          <div className="px-5 py-2 border-b border-slate-100 bg-white">
+                            <IndicatorCommentsSection
+                              agreementId={kepalaAg.id}
+                              indicator={rootObj}
+                              currentUser={currentUser}
+                              onAddComment={handleAddComment}
+                              onDeleteComment={handleDeleteComment}
+                            />
+                          </div>
+
+                          {/* Level 2: Ketua Tim / Kabid Descendants */}
+                          <div className="p-4 bg-slate-50/30 space-y-4">
+                            <h5 className="text-[10px] font-black text-slate-400 uppercase tracking-wider flex items-center gap-1 mb-2">
+                              <GitFork className="w-3 h-3 text-indigo-400" />
+                              Pendelegasian & Cascading Turunannya (Level 2 & 3)
+                            </h5>
+
+                            {level2Objects.length === 0 ? (
+                              <p className="text-[11px] text-slate-400 italic pl-4">Belum ada delegasi indikator ke Level 2 (Ketua Tim / Kabid TU) yang berkorelasi.</p>
+                            ) : (
+                              <div className="space-y-3 pl-3 border-l border-indigo-100">
+                                {level2Objects.map(({ indicator: l2Obj, agreement: l2Ag }) => {
+                                  const l2TargetVal = l2Obj._scaledTargetVal !== undefined ? l2Obj._scaledTargetVal : (parseFloat(l2Obj.target) || 100);
+                                  const l2Real = l2Obj.achievement || 0;
+                                  const l2Score = l2TargetVal > 0 ? Math.min(120, Math.round((l2Real / l2TargetVal) * 100)) : 0;
+
+                                  // Find Level 3 descendants (Pegawai under this Level 2 indicator)
+                                  const level3Objects = periodAgreements
+                                    .filter(a => a.level === 'Pegawai')
+                                    .flatMap(a => 
+                                      a.objectives
+                                        .filter(obj => obj.parentIndicatorId === l2Obj.id)
+                                        .map(obj => ({ indicator: obj, agreement: a }))
+                                    );
+
+                                  return (
+                                    <div key={l2Obj.id} className="bg-white rounded-xl border border-slate-150 overflow-hidden shadow-xs">
+                                      
+                                      {/* Level 2 info row */}
+                                      <div className="p-3 bg-slate-50/50 flex flex-col sm:flex-row justify-between sm:items-center gap-2 border-b border-slate-150">
+                                        <div className="min-w-0 flex-1">
+                                          <div className="flex flex-wrap items-center gap-2">
+                                            <span className="px-2 py-0.5 rounded-full text-[8px] font-black uppercase bg-blue-100 text-blue-800 tracking-wider">
+                                              LEVEL 2
+                                            </span>
+                                            <span className="text-[10px] text-slate-500 font-extrabold truncate">
+                                              {l2Ag.assignedToName} ({l2Ag.level})
+                                            </span>
+                                          </div>
+                                          <p className="text-xs font-bold text-slate-700 leading-normal mt-1">{l2Obj.indicatorName}</p>
+                                          
+                                          <div className="flex items-center gap-2 text-[10px] text-slate-400 mt-1">
+                                            <span>Target: <span className="font-extrabold text-slate-600">{l2Obj._scaledTargetString || l2Obj.target} {l2Obj.unit}</span></span>
+                                            <span>•</span>
+                                            <span>Realisasi: <span className="font-extrabold text-indigo-600">{l2Real} {l2Obj.unit}</span></span>
+                                            <span>•</span>
+                                            <span>Bobot: <span className="font-extrabold text-indigo-500">{l2Obj.weight}%</span></span>
+                                          </div>
+                                        </div>
+
+                                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-black border shrink-0 font-mono ${
+                                          l2Score >= 90 ? 'bg-emerald-50/80 text-emerald-700 border-emerald-200' : 
+                                          l2Score >= 50 ? 'bg-amber-50/80 text-amber-700 border-amber-200' : 
+                                          'bg-rose-50/80 text-rose-700 border-rose-200'
+                                        }`}>
+                                          {l2Score}% Capaian
+                                        </span>
+                                      </div>
+
+                                      {/* Level 3 Pegawai row list */}
+                                      {level3Objects.length > 0 && (
+                                        <div className="p-2.5 bg-slate-100/30 border-t border-slate-100">
+                                          <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest block mb-1.5 pl-1">Kontributor Kinerja Pelaksana (Level 3 - Pegawai):</span>
+                                          <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                                            {level3Objects.map(({ indicator: l3Obj, agreement: l3Ag }) => {
+                                              const l3TargetVal = l3Obj._scaledTargetVal !== undefined ? l3Obj._scaledTargetVal : (parseFloat(l3Obj.target) || 100);
+                                              const l3Real = l3Obj.achievement || 0;
+                                              const l3Score = l3TargetVal > 0 ? Math.min(120, Math.round((l3Real / l3TargetVal) * 100)) : 0;
+
+                                              return (
+                                                <div key={l3Obj.id} className="bg-white p-3 rounded-lg border border-slate-150 flex flex-col justify-between gap-2.5 text-[11px] shadow-2xs hover:border-blue-200 transition-colors">
+                                                  <div className="flex items-start justify-between gap-2 w-full">
+                                                    <div className="min-w-0 flex-1">
+                                                      <div className="flex items-center gap-1.5">
+                                                        <User className="w-3 h-3 text-slate-400" />
+                                                        <span className="font-extrabold text-slate-700 truncate">{l3Ag.assignedToName}</span>
+                                                      </div>
+                                                      <p className="text-[10px] text-slate-500 leading-tight truncate mt-0.5">{l3Obj.indicatorName}</p>
+                                                      <div className="text-[9px] text-slate-400 mt-1 flex items-center gap-1">
+                                                        <span>Target: <span className="font-extrabold text-slate-500">{l3Obj._scaledTargetString || l3Obj.target} {l3Obj.unit}</span></span>
+                                                        <span>•</span>
+                                                        <span>Realisasi: <span className="font-extrabold text-indigo-600">{l3Real}</span></span>
+                                                      </div>
+                                                    </div>
+
+                                                    <span className={`px-1.5 py-0.5 rounded-md text-[9px] font-black font-mono shrink-0 \${
+                                                      l3Score >= 90 ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' :
+                                                      l3Score >= 50 ? 'bg-amber-50 text-amber-700 border border-amber-200' :
+                                                      'bg-rose-50 text-rose-700 border-rose-200'
+                                                    }`}>
+                                                      {l3Score}%
+                                                    </span>
+                                                  </div>
+
+                                                  {/* Level 3 Comments */}
+                                                  <IndicatorCommentsSection
+                                                    agreementId={l3Ag.id}
+                                                    indicator={l3Obj}
+                                                    currentUser={currentUser}
+                                                    onAddComment={handleAddComment}
+                                                    onDeleteComment={handleDeleteComment}
+                                                  />
+                                                </div>
+                                              );
+                                            })}
+                                          </div>
+                                        </div>
+                                      )}
+
+                                      {/* Level 2 Comments Section */}
+                                      <div className="p-3 bg-white border-t border-slate-100">
+                                        <IndicatorCommentsSection
+                                          agreementId={l2Ag.id}
+                                          indicator={l2Obj}
+                                          currentUser={currentUser}
+                                          onAddComment={handleAddComment}
+                                          onDeleteComment={handleDeleteComment}
+                                        />
+                                      </div>
+
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            )}
+
+                          </div>
+
+                        </div>
+                      );
+                    })}
+                  </div>
+                );
+              })()}
+            </div>
+
+          </div>
         </div>
       )}
 
