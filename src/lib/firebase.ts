@@ -11,7 +11,9 @@ const firebaseConfig = {
 };
 
 const app = initializeApp(firebaseConfig);
-export const db = initializeFirestore(app, {}, "ai-studio-portalkomandorri-c2023b9f-2e21-4774-af1d-619e281c8d21");
+export const db = initializeFirestore(app, {
+  experimentalForceLongPolling: true
+}, "ai-studio-portalkomandorri-c2023b9f-2e21-4774-af1d-619e281c8d21");
 
 async function testConnection() {
   try {

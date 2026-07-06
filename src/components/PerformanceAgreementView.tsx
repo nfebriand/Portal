@@ -574,6 +574,60 @@ export default function PerformanceAgreementView({
     onUpdateAgreements(updated);
   };
 
+  // Quick Action to reset active document back to Draft and clear electronic signatures
+  const handleResetDocumentToDraft = (agreementId: string) => {
+    if (!window.confirm("Apakah Anda yakin ingin membatalkan keaktifan dokumen ini dan mengembalikannya ke status Draft? Tanda tangan elektronik kedua belah pihak akan dihapus agar dokumen dapat direvisi kembali.")) return;
+
+    const updated = agreements.map(ag => {
+      if (ag.id === agreementId) {
+        return {
+          ...ag,
+          status: 'Draft' as const,
+          signaturePembuat: undefined,
+          signaturePenerima: undefined
+        };
+      }
+      return ag;
+    });
+
+    onUpdateAgreements(updated);
+
+    if (onAddNotification) {
+      onAddNotification({
+        id: `notif-pk-reset-${Date.now()}`,
+        title: "Status PK Dikembalikan ke Draft",
+        message: `Perjanjian Kinerja untuk ${activeDocumentAgreement.assignedToName} (${activeDocumentAgreement.level}) telah berhasil dikembalikan ke status Draft untuk direvisi.`,
+        type: "info",
+        timestamp: new Date().toISOString(),
+        isRead: false
+      });
+    }
+  };
+
+  // Quick Action to delete the entire agreement document
+  const handleDeleteAgreement = (agreementId: string) => {
+    if (agreementId.startsWith('pk-temp-')) {
+      alert("Dokumen ini masih berupa draft kosong sementara dan belum disimpan ke database.");
+      return;
+    }
+
+    if (!window.confirm("Apakah Anda yakin ingin menghapus seluruh dokumen Perjanjian Kinerja ini beserta semua indikator sasaran dan tanda tangan di dalamnya secara permanen?")) return;
+
+    const updated = agreements.filter(ag => ag.id !== agreementId);
+    onUpdateAgreements(updated);
+
+    if (onAddNotification) {
+      onAddNotification({
+        id: `notif-pk-deleted-${Date.now()}`,
+        title: "Dokumen PK Dihapus",
+        message: `Dokumen Perjanjian Kinerja untuk ${activeDocumentAgreement.assignedToName} (${activeDocumentAgreement.level}) telah berhasil dihapus sepenuhnya dari sistem.`,
+        type: "critical",
+        timestamp: new Date().toISOString(),
+        isRead: false
+      });
+    }
+  };
+
   return (
     <div className="space-y-6">
       
@@ -1095,19 +1149,39 @@ export default function PerformanceAgreementView({
                 </span>
               </div>
 
-              <div className="flex gap-2">
+              <div className="flex gap-2 flex-wrap justify-end">
                 {activeDocumentAgreement.status === 'Draft' && (
                   <button
                     onClick={() => handleApproveDocument(activeDocumentAgreement.id)}
-                    className="px-3 py-1 bg-emerald-600 hover:bg-emerald-500 text-white text-[10px] font-black rounded-xl transition-colors uppercase tracking-wide shadow-xs"
+                    className="px-3 py-1 bg-emerald-600 hover:bg-emerald-500 text-white text-[10px] font-black rounded-xl transition-colors uppercase tracking-wide shadow-xs cursor-pointer"
                   >
                     Setujui & Aktifkan
+                  </button>
+                )}
+
+                {activeDocumentAgreement.status === 'Aktif' && canEditAgreement(activeDocumentAgreement.level) && (
+                  <button
+                    onClick={() => handleResetDocumentToDraft(activeDocumentAgreement.id)}
+                    className="px-3 py-1 bg-amber-500 hover:bg-amber-600 text-white text-[10px] font-black rounded-xl transition-colors uppercase tracking-wide shadow-xs cursor-pointer flex items-center gap-1"
+                    title="Batalkan keaktifan dan edit kembali"
+                  >
+                    <X className="w-3 h-3" /> Kembalikan ke Draft
+                  </button>
+                )}
+
+                {!activeDocumentAgreement.id.startsWith('pk-temp-') && canEditAgreement(activeDocumentAgreement.level) && (
+                  <button
+                    onClick={() => handleDeleteAgreement(activeDocumentAgreement.id)}
+                    className="px-3 py-1 bg-rose-600 hover:bg-rose-750 text-white text-[10px] font-black rounded-xl transition-colors uppercase tracking-wide shadow-xs cursor-pointer flex items-center gap-1"
+                    title="Hapus seluruh dokumen PK ini"
+                  >
+                    <Trash2 className="w-3 h-3" /> Hapus PK
                   </button>
                 )}
                 
                 <button
                   onClick={() => window.print()}
-                  className="px-3 py-1 bg-white hover:bg-slate-100 border border-slate-200 text-slate-700 text-[10px] font-black rounded-xl transition-all uppercase tracking-wide flex items-center gap-1"
+                  className="px-3 py-1 bg-white hover:bg-slate-100 border border-slate-200 text-slate-700 text-[10px] font-black rounded-xl transition-all uppercase tracking-wide flex items-center gap-1 cursor-pointer"
                 >
                   <Printer className="w-3.5 h-3.5" /> Cetak PK
                 </button>

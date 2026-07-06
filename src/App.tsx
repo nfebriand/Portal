@@ -1260,6 +1260,8 @@ export default function App() {
                 contracts={contracts}
                 reporterTargets={reporterTargets}
                 newsReports={newsReports}
+                onUpdateAgreements={handleUpdateAgreements}
+                onAddNotification={addNotification}
               />
             )
           )}
