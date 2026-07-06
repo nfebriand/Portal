@@ -13,7 +13,9 @@ import {
   fetchDocument, 
   saveDocument, 
   saveCollectionList, 
-  deleteDocument 
+  deleteDocument,
+  isSystemSeeded,
+  markSystemSeeded
 } from './lib/firebaseSync';
 import { 
   Radio, 
@@ -681,14 +683,50 @@ export default function App() {
   useEffect(() => {
     async function loadData() {
       try {
-        const fireEmployees = await fetchCollection<Employee>('employees', INITIAL_EMPLOYEES);
-        const fireSettings = await fetchDocument<AppSettings>('settings', 'current', INITIAL_SETTINGS);
-        const fireIdentity = await fetchDocument<InstitutionalIdentity>('identity', 'current', INITIAL_IDENTITY);
-        const fireNotifications = await fetchCollection<CriticalNotification>('notifications', INITIAL_NOTIFICATIONS);
-        const fireContracts = await fetchCollection<CooperationContract>('contracts', INITIAL_CONTRACTS);
-        const fireTargets = await fetchCollection<ReporterTarget>('reporterTargets', INITIAL_REPORTER_TARGETS);
-        const fireReports = await fetchCollection<NewsReport>('newsReports', INITIAL_NEWS_REPORTS);
-        const fireAgreements = await fetchCollection<PerformanceAgreement>('agreements', INITIAL_AGREEMENTS);
+        const seeded = await isSystemSeeded();
+        
+        let fireEmployees: Employee[];
+        let fireSettings: AppSettings;
+        let fireIdentity: InstitutionalIdentity;
+        let fireNotifications: CriticalNotification[];
+        let fireContracts: CooperationContract[];
+        let fireTargets: ReporterTarget[];
+        let fireReports: NewsReport[];
+        let fireAgreements: PerformanceAgreement[];
+
+        if (!seeded) {
+          // First time database initialization: seed all default fallback collections
+          fireEmployees = INITIAL_EMPLOYEES;
+          fireSettings = INITIAL_SETTINGS;
+          fireIdentity = INITIAL_IDENTITY;
+          fireNotifications = INITIAL_NOTIFICATIONS;
+          fireContracts = INITIAL_CONTRACTS;
+          fireTargets = INITIAL_REPORTER_TARGETS;
+          fireReports = INITIAL_NEWS_REPORTS;
+          fireAgreements = INITIAL_AGREEMENTS;
+
+          await saveCollectionList('employees', INITIAL_EMPLOYEES);
+          await saveDocument('settings', 'current', INITIAL_SETTINGS);
+          await saveDocument('identity', 'current', INITIAL_IDENTITY);
+          await saveCollectionList('notifications', INITIAL_NOTIFICATIONS);
+          await saveCollectionList('contracts', INITIAL_CONTRACTS);
+          await saveCollectionList('reporterTargets', INITIAL_REPORTER_TARGETS);
+          await saveCollectionList('newsReports', INITIAL_NEWS_REPORTS);
+          await saveCollectionList('agreements', INITIAL_AGREEMENTS);
+          
+          await markSystemSeeded();
+        } else {
+          // Database is already seeded. Fetch current state. If a collection is emptied
+          // by the user, keep it empty instead of falling back to default dummy data.
+          fireEmployees = await fetchCollection<Employee>('employees', []);
+          fireSettings = await fetchDocument<AppSettings>('settings', 'current', INITIAL_SETTINGS);
+          fireIdentity = await fetchDocument<InstitutionalIdentity>('identity', 'current', INITIAL_IDENTITY);
+          fireNotifications = await fetchCollection<CriticalNotification>('notifications', []);
+          fireContracts = await fetchCollection<CooperationContract>('contracts', []);
+          fireTargets = await fetchCollection<ReporterTarget>('reporterTargets', []);
+          fireReports = await fetchCollection<NewsReport>('newsReports', []);
+          fireAgreements = await fetchCollection<PerformanceAgreement>('agreements', []);
+        }
 
         // Perform initial cascade check
         const initialCascaded = recalculateCascade(fireAgreements, fireContracts, fireReports, fireTargets);

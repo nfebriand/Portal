@@ -73,18 +73,52 @@ export async function saveDocument(collectionName: string, docId: string, data: 
   }
 }
 
-// Save list (bulk write) helper
+// Save list (bulk write) helper with automatic deletion of removed items
 export async function saveCollectionList<T extends { id: string }>(collectionName: string, list: T[]): Promise<void> {
   try {
+    const colRef = collection(db, collectionName);
+    const snapshot = await getDocs(colRef);
+    const existingIds = snapshot.docs.map(doc => doc.id);
+    const listIds = new Set(list.map(item => item.id));
+
     const batch = writeBatch(db);
-    // Write current items
+    
+    // Delete documents that are no longer in the list
+    existingIds.forEach((id) => {
+      if (!listIds.has(id)) {
+        const docRef = doc(db, collectionName, id);
+        batch.delete(docRef);
+      }
+    });
+
+    // Write/Update current items
     list.forEach((item) => {
       const docRef = doc(db, collectionName, item.id);
       batch.set(docRef, item);
     });
+
     await batch.commit();
   } catch (error) {
     console.error(`Error saving collection list ${collectionName}:`, error);
+  }
+}
+
+// System initialization status helpers to prevent re-seeding dummy data when collections are emptied
+export async function isSystemSeeded(): Promise<boolean> {
+  try {
+    const docSnap = await getDoc(doc(db, 'system', 'init'));
+    return docSnap.exists() && docSnap.data().seeded === true;
+  } catch (error) {
+    console.error("Error checking system init status:", error);
+    return false;
+  }
+}
+
+export async function markSystemSeeded(): Promise<void> {
+  try {
+    await setDoc(doc(db, 'system', 'init'), { seeded: true });
+  } catch (error) {
+    console.error("Error marking system as seeded:", error);
   }
 }
 
