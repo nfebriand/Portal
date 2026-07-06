@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { Employee, PerformanceAgreement, CooperationContract, ReporterTarget, NewsReport } from '../types';
 import { 
   TrendingUp, 
@@ -509,30 +510,50 @@ export default function DashboardBidangView({
                   ownObjectives.map((obj) => {
                     const pct = parseFloat(obj.target) > 0 ? Math.round((obj.achievement / parseFloat(obj.target)) * 100) : 0;
                     return (
-                      <div key={obj.id} className="p-4 bg-slate-50 rounded-xl border border-slate-100/80 space-y-2.5">
-                        <div className="flex justify-between items-start gap-4">
-                          <div className="space-y-0.5">
+                      <div key={obj.id} className="p-4 bg-slate-50 rounded-xl border border-slate-100/80 flex flex-col sm:flex-row items-center justify-between gap-4">
+                        <div className="space-y-2 flex-1 w-full">
+                          <div className="space-y-1">
                             <span className="text-[9px] font-bold font-mono text-indigo-500 bg-indigo-50 px-1.5 py-0.5 rounded-sm uppercase">ID: {obj.id}</span>
-                            <h3 className="text-xs font-bold text-slate-700 mt-1 leading-normal">{obj.indicatorName}</h3>
+                            <h3 className="text-xs font-bold text-slate-700 leading-normal">{obj.indicatorName}</h3>
                           </div>
-                          <div className="text-right shrink-0">
-                            <span className="text-[10px] text-slate-400 block font-medium">Realisasi / Target</span>
-                            <span className="text-xs font-extrabold text-slate-800 font-mono">
-                              {obj.achievement} {obj.unit} / {obj.target} {obj.unit}
-                            </span>
+                          <div className="grid grid-cols-2 gap-2 text-left pt-2 border-t border-slate-200/50">
+                            <div>
+                              <span className="text-[9px] text-slate-400 font-bold block uppercase">Realisasi</span>
+                              <span className="text-xs font-black text-indigo-600 font-mono">{obj.achievement} {obj.unit}</span>
+                            </div>
+                            <div>
+                              <span className="text-[9px] text-slate-400 font-bold block uppercase">Target</span>
+                              <span className="text-xs font-black text-slate-700 font-mono">{obj.target} {obj.unit}</span>
+                            </div>
                           </div>
                         </div>
 
-                        <div className="space-y-1">
-                          <div className="flex justify-between text-[10px]">
-                            <span className="text-slate-400">Persentase Ketercapaian</span>
-                            <span className="font-extrabold text-emerald-600 font-mono">{pct}%</span>
-                          </div>
-                          <div className="w-full bg-slate-200 h-2 rounded-full overflow-hidden">
-                            <div 
-                              className="bg-emerald-500 h-full rounded-full transition-all duration-300"
-                              style={{ width: `${Math.min(100, pct)}%` }}
-                            />
+                        {/* Half Circle Gauge */}
+                        <div className="relative w-28 h-16 flex items-center justify-center shrink-0 overflow-hidden">
+                          <ResponsiveContainer width="100%" height="100%">
+                            <PieChart margin={{ top: 5, left: 0, right: 0, bottom: 0 }}>
+                              <Pie
+                                data={[
+                                  { value: Math.min(100, Math.max(0, pct)) },
+                                  { value: 100 - Math.min(100, Math.max(0, pct)) }
+                                ]}
+                                cx="50%"
+                                cy="95%"
+                                startAngle={180}
+                                endAngle={0}
+                                innerRadius={22}
+                                outerRadius={32}
+                                paddingAngle={0}
+                                dataKey="value"
+                              >
+                                <Cell fill={pct >= 90 ? '#10b981' : pct >= 50 ? '#f59e0b' : '#f43f5e'} />
+                                <Cell fill="#e2e8f0" />
+                              </Pie>
+                            </PieChart>
+                          </ResponsiveContainer>
+                          <div className="absolute inset-x-0 bottom-0.5 flex flex-col items-center">
+                            <span className="text-xs font-black text-slate-800 font-mono tracking-tight">{pct}%</span>
+                            <span className="text-[7px] text-slate-400 font-bold uppercase tracking-wider">Capaian</span>
                           </div>
                         </div>
                       </div>
@@ -564,30 +585,50 @@ export default function DashboardBidangView({
                   teamObjectives.map((obj) => {
                     const pct = parseFloat(obj.target) > 0 ? Math.round((obj.achievement / parseFloat(obj.target)) * 100) : 0;
                     return (
-                      <div key={obj.id} className="p-4 bg-slate-50 rounded-xl border border-slate-100/80 space-y-2.5">
-                        <div className="flex justify-between items-start gap-4">
-                          <div className="space-y-0.5">
+                      <div key={obj.id} className="p-4 bg-slate-50 rounded-xl border border-slate-100/80 flex flex-col sm:flex-row items-center justify-between gap-4">
+                        <div className="space-y-2 flex-1 w-full">
+                          <div className="space-y-1">
                             <span className="text-[9px] font-bold font-mono text-indigo-500 bg-indigo-50 px-1.5 py-0.5 rounded-sm uppercase">ID: {obj.id}</span>
-                            <h3 className="text-xs font-bold text-slate-700 mt-1 leading-normal">{obj.indicatorName}</h3>
+                            <h3 className="text-xs font-bold text-slate-700 leading-normal">{obj.indicatorName}</h3>
                           </div>
-                          <div className="text-right shrink-0">
-                            <span className="text-[10px] text-slate-400 block font-medium">Realisasi / Target</span>
-                            <span className="text-xs font-extrabold text-slate-800 font-mono">
-                              {obj.achievement} {obj.unit} / {obj.target} {obj.unit}
-                            </span>
+                          <div className="grid grid-cols-2 gap-2 text-left pt-2 border-t border-slate-200/50">
+                            <div>
+                              <span className="text-[9px] text-slate-400 font-bold block uppercase">Realisasi</span>
+                              <span className="text-xs font-black text-indigo-600 font-mono">{obj.achievement} {obj.unit}</span>
+                            </div>
+                            <div>
+                              <span className="text-[9px] text-slate-400 font-bold block uppercase">Target</span>
+                              <span className="text-xs font-black text-slate-700 font-mono">{obj.target} {obj.unit}</span>
+                            </div>
                           </div>
                         </div>
 
-                        <div className="space-y-1">
-                          <div className="flex justify-between text-[10px]">
-                            <span className="text-slate-400">Persentase Ketercapaian Tim</span>
-                            <span className="font-extrabold text-indigo-600 font-mono">{pct}%</span>
-                          </div>
-                          <div className="w-full bg-slate-200 h-2 rounded-full overflow-hidden">
-                            <div 
-                              className="bg-indigo-600 h-full rounded-full transition-all duration-300"
-                              style={{ width: `${Math.min(100, pct)}%` }}
-                            />
+                        {/* Half Circle Gauge */}
+                        <div className="relative w-28 h-16 flex items-center justify-center shrink-0 overflow-hidden">
+                          <ResponsiveContainer width="100%" height="100%">
+                            <PieChart margin={{ top: 5, left: 0, right: 0, bottom: 0 }}>
+                              <Pie
+                                data={[
+                                  { value: Math.min(100, Math.max(0, pct)) },
+                                  { value: 100 - Math.min(100, Math.max(0, pct)) }
+                                ]}
+                                cx="50%"
+                                cy="95%"
+                                startAngle={180}
+                                endAngle={0}
+                                innerRadius={22}
+                                outerRadius={32}
+                                paddingAngle={0}
+                                dataKey="value"
+                              >
+                                <Cell fill={pct >= 90 ? '#10b981' : pct >= 50 ? '#f59e0b' : '#f43f5e'} />
+                                <Cell fill="#e2e8f0" />
+                              </Pie>
+                            </PieChart>
+                          </ResponsiveContainer>
+                          <div className="absolute inset-x-0 bottom-0.5 flex flex-col items-center">
+                            <span className="text-xs font-black text-slate-800 font-mono tracking-tight">{pct}%</span>
+                            <span className="text-[7px] text-slate-400 font-bold uppercase tracking-wider">Capaian</span>
                           </div>
                         </div>
                       </div>
