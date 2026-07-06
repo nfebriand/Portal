@@ -54,11 +54,6 @@ export default function DashboardView({
   const [hoveredDataPoint, setHoveredDataPoint] = useState<{ month: string; value: number } | null>(null);
   const [hoveredDonutSegment, setHoveredDonutSegment] = useState<string | null>(null);
 
-  // States for Chronological IKP Trends per Division
-  const [activeTrendDivision, setActiveTrendDivision] = useState<string>('Pemberitaan');
-  const [trendPeriodType, setTrendPeriodType] = useState<'triwulan' | 'semester'>('triwulan');
-  const [selectedPeriodIndex, setSelectedPeriodIndex] = useState<number>(3); // Default to Q4 (index 3)
-
   // 1. Data Processing with interactive filters
   const filteredEmployees = useMemo(() => {
     return employees.filter(emp => {
@@ -282,223 +277,111 @@ export default function DashboardView({
     };
   }, [agreements]);
 
-  // Historical and real-time trend data generator for IKP per division per triwulan & semester
-  const trendIkpData = useMemo(() => {
-    // Dynamically retrieve real-time achievements from stats
-    const realPmbNews = newsStats.totalReports || 18; 
-    const realLpuPnbp = lpuStats.totalRealisasi || 120; 
-    const realTmbKeandalan = divisionAgreementsStats.tmb.objectives.find(o => o.indicatorName.includes('Keandalan') || o.id === 'ind-9')?.achievement || 99.5;
-    const realKmbKonten = divisionAgreementsStats.kmb.objectives.find(o => o.indicatorName.includes('Jumlah') || o.id === 'ind-10')?.achievement || 18;
-    const realSiaranSkor = divisionAgreementsStats.siaran.objectives.find(o => o.indicatorName.includes('Kualitas') || o.id === 'ind-7')?.achievement || 86;
-    const realTuLaporan = divisionAgreementsStats.tu.objectives.find(o => o.indicatorName.includes('Keandalan') || o.id === 'ind-5')?.achievement || 95;
-
-    return {
-      'Pemberitaan': [
-        {
-          id: 'pemb-ikp1',
-          name: 'Akurasi & Ketepatan Siaran Berita',
-          unit: '%',
-          target: 100,
-          triwulan: [
-            { period: 'Q1 2026', Realisasi: 95.5, Target: 100 },
-            { period: 'Q2 2026', Realisasi: 97.2, Target: 100 },
-            { period: 'Q3 2026', Realisasi: 99.0, Target: 100 },
-            { period: 'Q4 2026 (Real-Time)', Realisasi: 100, Target: 100 }
-          ],
-          semester: [
-            { period: 'Semester 1', Realisasi: 96.35, Target: 100 },
-            { period: 'Semester 2 (Real-Time)', Realisasi: 100, Target: 100 }
-          ]
-        },
-        {
-          id: 'pemb-ikp2',
-          name: 'Jumlah Produksi Berita Utama & Daerah',
-          unit: 'Berita',
-          target: 100,
-          triwulan: [
-            { period: 'Q1 2026', Realisasi: 40, Target: 100 },
-            { period: 'Q2 2026', Realisasi: 75, Target: 100 },
-            { period: 'Q3 2026', Realisasi: 90, Target: 100 },
-            { period: 'Q4 2026 (Real-Time)', Realisasi: realPmbNews, Target: 100 }
-          ],
-          semester: [
-            { period: 'Semester 1', Realisasi: 57.5, Target: 100 },
-            { period: 'Semester 2 (Real-Time)', Realisasi: realPmbNews, Target: 100 }
-          ]
-        }
-      ],
-      'Layanan Pengembangan Usaha': [
-        {
-          id: 'lpu-ikp1',
-          name: 'Capaian PNBP Kerjasama & Iklan',
-          unit: 'Jt Rp',
-          target: lpuStats.targetCapaian || 150,
-          triwulan: [
-            { period: 'Q1 2026', Realisasi: 35, Target: lpuStats.targetCapaian || 150 },
-            { period: 'Q2 2026', Realisasi: 70, Target: lpuStats.targetCapaian || 150 },
-            { period: 'Q3 2026', Realisasi: 105, Target: lpuStats.targetCapaian || 150 },
-            { period: 'Q4 2026 (Real-Time)', Realisasi: realLpuPnbp, Target: lpuStats.targetCapaian || 150 }
-          ],
-          semester: [
-            { period: 'Semester 1', Realisasi: 52.5, Target: lpuStats.targetCapaian || 150 },
-            { period: 'Semester 2 (Real-Time)', Realisasi: realLpuPnbp, Target: lpuStats.targetCapaian || 150 }
-          ]
-        },
-        {
-          id: 'lpu-ikp2',
-          name: 'Jumlah Kemitraan Usaha Aktif',
-          unit: 'Mitra',
-          target: 12,
-          triwulan: [
-            { period: 'Q1 2026', Realisasi: 4, Target: 12 },
-            { period: 'Q2 2026', Realisasi: 7, Target: 12 },
-            { period: 'Q3 2026', Realisasi: 10, Target: 12 },
-            { period: 'Q4 2026 (Real-Time)', Realisasi: lpuStats.totalContracts || 11, Target: 12 }
-          ],
-          semester: [
-            { period: 'Semester 1', Realisasi: 5.5, Target: 12 },
-            { period: 'Semester 2 (Real-Time)', Realisasi: lpuStats.totalContracts || 11, Target: 12 }
-          ]
-        }
-      ],
-      'Teknologi dan Media Baru': [
-        {
-          id: 'tmb-ikp1',
-          name: 'Keandalan Streaming App & Pemancar Radio',
-          unit: '%',
-          target: 100,
-          triwulan: [
-            { period: 'Q1 2026', Realisasi: 98.8, Target: 100 },
-            { period: 'Q2 2026', Realisasi: 99.2, Target: 100 },
-            { period: 'Q3 2026', Realisasi: 99.5, Target: 100 },
-            { period: 'Q4 2026 (Real-Time)', Realisasi: realTmbKeandalan, Target: 100 }
-          ],
-          semester: [
-            { period: 'Semester 1', Realisasi: 99.0, Target: 100 },
-            { period: 'Semester 2 (Real-Time)', Realisasi: realTmbKeandalan, Target: 100 }
-          ]
-        },
-        {
-          id: 'tmb-ikp2',
-          name: 'Peralatan Siaran Ter-Digitalisasi',
-          unit: '%',
-          target: 100,
-          triwulan: [
-            { period: 'Q1 2026', Realisasi: 65, Target: 100 },
-            { period: 'Q2 2026', Realisasi: 78, Target: 100 },
-            { period: 'Q3 2026', Realisasi: 88, Target: 100 },
-            { period: 'Q4 2026 (Real-Time)', Realisasi: 95, Target: 100 }
-          ],
-          semester: [
-            { period: 'Semester 1', Realisasi: 71.5, Target: 100 },
-            { period: 'Semester 2 (Real-Time)', Realisasi: 95, Target: 100 }
-          ]
-        }
-      ],
-      'Konten Media Baru': [
-        {
-          id: 'kmb-ikp1',
-          name: 'Jumlah Konten Visual Interaktif Bulanan',
-          unit: 'Konten',
-          target: 20,
-          triwulan: [
-            { period: 'Q1 2026', Realisasi: 12, Target: 20 },
-            { period: 'Q2 2026', Realisasi: 16, Target: 20 },
-            { period: 'Q3 2026', Realisasi: 18, Target: 20 },
-            { period: 'Q4 2026 (Real-Time)', Realisasi: realKmbKonten, Target: 20 }
-          ],
-          semester: [
-            { period: 'Semester 1', Realisasi: 14, Target: 20 },
-            { period: 'Semester 2 (Real-Time)', Realisasi: realKmbKonten, Target: 20 }
-          ]
-        },
-        {
-          id: 'kmb-ikp2',
-          name: 'Tingkat Engagement Media Sosial',
-          unit: '%',
-          target: 5.0,
-          triwulan: [
-            { period: 'Q1 2026', Realisasi: 3.2, Target: 5.0 },
-            { period: 'Q2 2026', Realisasi: 3.9, Target: 5.0 },
-            { period: 'Q3 2026', Realisasi: 4.4, Target: 5.0 },
-            { period: 'Q4 2026 (Real-Time)', Realisasi: 4.8, Target: 5.0 }
-          ],
-          semester: [
-            { period: 'Semester 1', Realisasi: 3.55, Target: 5.0 },
-            { period: 'Semester 2 (Real-Time)', Realisasi: 4.6, Target: 5.0 }
-          ]
-        }
-      ],
-      'Siaran': [
-        {
-          id: 'siar-ikp1',
-          name: 'Kualitas Konten On-Air Program RRI',
-          unit: 'Skor',
-          target: 88,
-          triwulan: [
-            { period: 'Q1 2026', Realisasi: 80, Target: 88 },
-            { period: 'Q2 2026', Realisasi: 83, Target: 88 },
-            { period: 'Q3 2026', Realisasi: 85, Target: 88 },
-            { period: 'Q4 2026 (Real-Time)', Realisasi: realSiaranSkor, Target: 88 }
-          ],
-          semester: [
-            { period: 'Semester 1', Realisasi: 81.5, Target: 88 },
-            { period: 'Semester 2 (Real-Time)', Realisasi: realSiaranSkor, Target: 88 }
-          ]
-        },
-        {
-          id: 'siar-ikp2',
-          name: 'Indeks Kepuasan Pendengar Layanan Publik',
-          unit: 'Skor',
-          target: 90,
-          triwulan: [
-            { period: 'Q1 2026', Realisasi: 82, Target: 90 },
-            { period: 'Q2 2026', Realisasi: 84, Target: 90 },
-            { period: 'Q3 2026', Realisasi: 87, Target: 90 },
-            { period: 'Q4 2026 (Real-Time)', Realisasi: 89, Target: 90 }
-          ],
-          semester: [
-            { period: 'Semester 1', Realisasi: 83, Target: 90 },
-            { period: 'Semester 2 (Real-Time)', Realisasi: 88, Target: 90 }
-          ]
-        }
-      ],
-      'Tata Usaha / Umum': [
-        {
-          id: 'tu-ikp1',
-          name: 'Keandalan Laporan Administrasi & Keuangan',
-          unit: '%',
-          target: 100,
-          triwulan: [
-            { period: 'Q1 2026', Realisasi: 90, Target: 100 },
-            { period: 'Q2 2026', Realisasi: 94, Target: 100 },
-            { period: 'Q3 2026', Realisasi: 97, Target: 100 },
-            { period: 'Q4 2026 (Real-Time)', Realisasi: realTuLaporan, Target: 100 }
-          ],
-          semester: [
-            { period: 'Semester 1', Realisasi: 92, Target: 100 },
-            { period: 'Semester 2 (Real-Time)', Realisasi: realTuLaporan, Target: 100 }
-          ]
-        },
-        {
-          id: 'tu-ikp2',
-          name: 'Ketersediaan Logistik & Prasarana Siaran',
-          unit: '%',
-          target: 98,
-          triwulan: [
-            { period: 'Q1 2026', Realisasi: 92, Target: 98 },
-            { period: 'Q2 2026', Realisasi: 95, Target: 98 },
-            { period: 'Q3 2026', Realisasi: 96, Target: 98 },
-            { period: 'Q4 2026 (Real-Time)', Realisasi: 98, Target: 98 }
-          ],
-          semester: [
-            { period: 'Semester 1', Realisasi: 93.5, Target: 98 },
-            { period: 'Semester 2 (Real-Time)', Realisasi: 97, Target: 98 }
-          ]
-        }
-      ]
+  // Dynamic active PK (Perjanjian Kinerja) mapping for the 6 divisions/sections
+  const activeDivisionsData = useMemo(() => {
+    const findActiveAg = (level: string) => {
+      // First try to find one with status === 'Aktif'
+      let ag = agreements.find(a => a.level === level && a.status === 'Aktif');
+      if (!ag) {
+        // Fallback to any agreement with this level
+        ag = agreements.find(a => a.level === level);
+      }
+      return ag;
     };
-  }, [newsStats, lpuStats, divisionAgreementsStats]);
+
+    const pmbAg = findActiveAg('Ketua Tim Pemberitaan');
+    const lpuAg = findActiveAg('Ketua Tim Layanan Pengembangan Usaha');
+    const tmbAg = findActiveAg('Ketua Tim Teknologi dan Media Baru');
+    const kmbAg = findActiveAg('Ketua Tim Konten Media Baru');
+    const siaranAg = findActiveAg('Ketua Tim Siaran');
+    const tuAg = findActiveAg('Kabid Tata Usaha');
+
+    // Helper to calculate total percentage of an agreement's objectives
+    const getAvgPercentage = (ag: PerformanceAgreement | undefined) => {
+      if (!ag || !ag.objectives || ag.objectives.length === 0) return 0;
+      let sum = 0;
+      ag.objectives.forEach(obj => {
+        const targetVal = parseFloat(obj.target) || 100;
+        sum += targetVal > 0 ? (obj.achievement / targetVal) * 100 : 0;
+      });
+      return Math.round(sum / ag.objectives.length);
+    };
+
+    return [
+      {
+        key: 'Pemberitaan',
+        name: 'Pemberitaan & Media Baru',
+        level: 'Ketua Tim Pemberitaan',
+        agreement: pmbAg,
+        pic: pmbAg?.assignedToName || 'Ketua Tim Pemberitaan',
+        status: pmbAg?.status || 'Draft',
+        percentage: getAvgPercentage(pmbAg),
+        description: 'Produksi berita utama/daerah, akurasi pemberitaan, dan penyebaran konten berita.',
+        colorClass: 'text-sky-500 font-bold',
+        iconName: 'Pemberitaan'
+      },
+      {
+        key: 'Layanan Pengembangan Usaha',
+        name: 'Layanan Pengembangan Usaha (LPU)',
+        level: 'Ketua Tim Layanan Pengembangan Usaha',
+        agreement: lpuAg,
+        pic: lpuAg?.assignedToName || 'Ketua Tim LPU',
+        status: lpuAg?.status || 'Draft',
+        percentage: getAvgPercentage(lpuAg),
+        description: 'Optimalisasi PNBP, kemitraan strategis, sewa aset, dan jasa siaran iklan.',
+        colorClass: 'text-indigo-500 font-bold',
+        iconName: 'Layanan Pengembangan Usaha'
+      },
+      {
+        key: 'Teknologi dan Media Baru',
+        name: 'Teknologi & Media Baru (TMB)',
+        level: 'Ketua Tim Teknologi dan Media Baru',
+        agreement: tmbAg,
+        pic: tmbAg?.assignedToName || 'Ketua Tim TMB',
+        status: tmbAg?.status || 'Draft',
+        percentage: getAvgPercentage(tmbAg),
+        description: 'Keandalan pemancar, transmisi siaran, digitalisasi alat, dan streaming RRI Digital.',
+        colorClass: 'text-emerald-500 font-bold',
+        iconName: 'Teknologi dan Media Baru'
+      },
+      {
+        key: 'Konten Media Baru',
+        name: 'Konten Media Baru (KMB)',
+        level: 'Ketua Tim Konten Media Baru',
+        agreement: kmbAg,
+        pic: kmbAg?.assignedToName || 'Ketua Tim KMB',
+        status: kmbAg?.status || 'Draft',
+        percentage: getAvgPercentage(kmbAg),
+        description: 'Kreasi konten visual kreatif, pengelolaan media sosial, dan engagement publik.',
+        colorClass: 'text-pink-500 font-bold',
+        iconName: 'Konten Media Baru'
+      },
+      {
+        key: 'Siaran',
+        name: 'Siaran',
+        level: 'Ketua Tim Siaran',
+        agreement: siaranAg,
+        pic: siaranAg?.assignedToName || 'Ketua Tim Siaran',
+        status: siaranAg?.status || 'Draft',
+        percentage: getAvgPercentage(siaranAg),
+        description: 'Kualitas on-air, keragaman mata acara siaran, dan indeks kepuasan pendengar.',
+        colorClass: 'text-amber-500 font-bold',
+        iconName: 'Siaran'
+      },
+      {
+        key: 'Tata Usaha / Umum',
+        name: 'Tata Usaha / Umum',
+        level: 'Kabid Tata Usaha',
+        agreement: tuAg,
+        pic: tuAg?.assignedToName || 'Kepala Bagian Tata Usaha',
+        status: tuAg?.status || 'Draft',
+        percentage: getAvgPercentage(tuAg),
+        description: 'Pelayanan ketatausahaan, administrasi SDM, sarana prasarana, dan laporan keuangan.',
+        colorClass: 'text-violet-500 font-bold',
+        iconName: 'Tata Usaha / Umum'
+      }
+    ];
+  }, [agreements]);
 
   const triggerAlertSimulation = () => {
     const alertTypes = [
@@ -570,6 +453,160 @@ export default function DashboardView({
             <AlertTriangle className="w-4 h-4 animate-pulse" />
             Kirim Notifikasi Kritis
           </button>
+        </div>
+      </div>
+
+      {/* SECTION VISUALISASI CAPAIAN IKP PER DIVISI (HALF CIRCLE GAUGES) */}
+      <div id="trend-pimpinan-section" className="bg-white p-6 rounded-2xl border border-slate-100 shadow-xs space-y-6">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-slate-100 pb-5">
+          <div className="space-y-1">
+            <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2">
+              <Target className="w-5 h-5 text-indigo-600 animate-pulse" />
+              Capaian Indikator Kinerja Program (IKP) per Divisi/Bagian (PK Aktif)
+            </h2>
+            <p className="text-xs text-slate-500">
+              Visualisasi persentase ketercapaian target IKP per bidang kerja yang disinkronisasi langsung dari Perjanjian Kinerja (PK) yang aktif di sistem.
+            </p>
+          </div>
+        </div>
+
+        {/* Division Grid Section */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {activeDivisionsData.map((div) => {
+            const getDivisionIcon = (iconName: string) => {
+              switch (iconName) {
+                case 'Pemberitaan': return <Globe className="w-4 h-4 text-sky-500" />;
+                case 'Layanan Pengembangan Usaha': return <Handshake className="w-4 h-4 text-indigo-500" />;
+                case 'Teknologi dan Media Baru': return <Layers className="w-4 h-4 text-emerald-500" />;
+                case 'Konten Media Baru': return <Sparkles className="w-4 h-4 text-pink-500" />;
+                case 'Siaran': return <Target className="w-4 h-4 text-amber-500" />;
+                case 'Tata Usaha / Umum': return <Users className="w-4 h-4 text-violet-500" />;
+                default: return <FileText className="w-4 h-4 text-slate-500" />;
+              }
+            };
+
+            const statusColor = div.status === 'Aktif' 
+              ? 'bg-emerald-50 text-emerald-700 border-emerald-200' 
+              : div.status === 'Evaluasi'
+              ? 'bg-amber-50 text-amber-700 border-amber-200'
+              : 'bg-slate-50 text-slate-600 border-slate-200';
+
+            return (
+              <div 
+                key={div.key} 
+                className="bg-white p-5 rounded-2xl border border-slate-150 shadow-xs hover:border-slate-300 transition-all space-y-4 flex flex-col justify-between"
+              >
+                {/* Division Header */}
+                <div className="space-y-1.5 border-b border-slate-100 pb-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                      {getDivisionIcon(div.iconName)}
+                      <h3 className="text-xs font-black text-slate-800 uppercase tracking-wider">
+                        {div.name}
+                      </h3>
+                    </div>
+                    <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full border ${statusColor}`}>
+                      {div.status}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between text-[10px]">
+                    <span className="text-slate-400 font-medium">PIC: <span className="font-bold text-slate-600">{div.pic}</span></span>
+                    {div.agreement && (
+                      <span className="text-indigo-600 font-extrabold font-mono">{div.percentage}% Capaian</span>
+                    )}
+                  </div>
+                  <p className="text-[11px] text-slate-400 line-clamp-2 leading-tight">
+                    {div.description}
+                  </p>
+                </div>
+
+                {/* Gauges Side by Side */}
+                <div className="grid grid-cols-2 gap-3">
+                  {!div.agreement || div.agreement.objectives.length === 0 ? (
+                    <div className="col-span-2 py-8 text-center text-[11px] text-slate-400 italic bg-slate-50 rounded-xl border border-dashed border-slate-200">
+                      Belum ada target PK atau indikator aktif
+                    </div>
+                  ) : (
+                    div.agreement.objectives.map((obj) => {
+                      const realisasiVal = obj.achievement;
+                      const targetVal = parseFloat(obj.target) || 100;
+                      const percentage = targetVal > 0 ? Math.round((realisasiVal / targetVal) * 100) : 0;
+                      const fillPercentage = Math.min(100, Math.max(0, percentage));
+                      const remaining = 100 - fillPercentage;
+
+                      // Gauge colors dynamically matching standard color design system
+                      let gaugeColor = '#10b981'; // Emerald (>= 90%)
+                      if (percentage < 50) {
+                        gaugeColor = '#f43f5e'; // Rose (< 50%)
+                      } else if (percentage < 90) {
+                        gaugeColor = '#f59e0b'; // Amber (50% - 89%)
+                      }
+
+                      const gaugeData = [
+                        { value: fillPercentage },
+                        { value: remaining }
+                      ];
+
+                      return (
+                        <div key={obj.id} className="bg-slate-50/55 p-3 rounded-xl border border-slate-100 flex flex-col items-center justify-between space-y-2.5">
+                          <div className="text-center w-full min-h-[34px] flex flex-col justify-center">
+                            <span className="text-[10px] font-extrabold text-slate-600 line-clamp-2 leading-tight" title={obj.indicatorName}>
+                              {obj.indicatorName}
+                            </span>
+                          </div>
+
+                          {/* Recharts Half Circle */}
+                          <div className="relative w-full h-20 flex items-center justify-center overflow-hidden">
+                            <ResponsiveContainer width="100%" height="100%">
+                              <PieChart margin={{ top: 8, left: 0, right: 0, bottom: 0 }}>
+                                <Pie
+                                  data={gaugeData}
+                                  cx="50%"
+                                  cy="95%"
+                                  startAngle={180}
+                                  endAngle={0}
+                                  innerRadius={34}
+                                  outerRadius={48}
+                                  paddingAngle={0}
+                                  dataKey="value"
+                                >
+                                  <Cell fill={gaugeColor} />
+                                  <Cell fill="#e2e8f0" />
+                                </Pie>
+                              </PieChart>
+                            </ResponsiveContainer>
+
+                            {/* Center-bottom label inside the gauge */}
+                            <div className="absolute inset-x-0 bottom-1 flex flex-col items-center">
+                              <span className="text-sm font-black text-slate-800 font-mono tracking-tight leading-none">
+                                {percentage}%
+                              </span>
+                              <span className="text-[8px] text-slate-400 font-bold uppercase tracking-wider mt-0.5">Capaian</span>
+                            </div>
+                          </div>
+
+                          <div className="w-full grid grid-cols-2 gap-1 text-center border-t border-slate-150 pt-2 text-[10px]">
+                            <div className="flex flex-col min-w-0">
+                              <span className="text-[8px] font-bold text-slate-400 uppercase">Realisasi</span>
+                              <span className="font-extrabold text-indigo-600 font-mono truncate">
+                                {realisasiVal} <span className="text-[8px] font-medium text-slate-500 font-sans">{obj.unit}</span>
+                              </span>
+                            </div>
+                            <div className="flex flex-col border-l border-slate-150 min-w-0">
+                              <span className="text-[8px] font-bold text-slate-400 uppercase">Target</span>
+                              <span className="font-extrabold text-slate-700 font-mono truncate">
+                                {targetVal} <span className="text-[8px] font-medium text-slate-500 font-sans">{obj.unit}</span>
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              </div>
+            );
+          })}
         </div>
       </div>
 
@@ -987,223 +1024,7 @@ export default function DashboardView({
 
 
 
-      {/* SECTION VISUALISASI CAPAIAN IKP PER DIVISI (HALF CIRCLE GAUGES) */}
-      <div id="trend-pimpinan-section" className="bg-white p-6 rounded-2xl border border-slate-100 shadow-xs space-y-6">
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-slate-100 pb-5">
-          <div className="space-y-1">
-            <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2">
-              <Target className="w-5 h-5 text-indigo-600 animate-pulse" />
-              Capaian Indikator Kinerja Program (IKP) per Divisi/Bagian
-            </h2>
-            <p className="text-xs text-slate-500">
-              Persentase ketercapaian target IKP per bidang kerja. Pilih jenis periode dan kuartal untuk membandingkan performa.
-            </p>
-          </div>
 
-          {/* Interactive Controls */}
-          <div className="flex flex-wrap items-center gap-3 shrink-0">
-            {/* Period Type Switcher */}
-            <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl">
-              <button
-                onClick={() => {
-                  setTrendPeriodType('triwulan');
-                  setSelectedPeriodIndex(3); // Default to Q4 (Real-Time)
-                }}
-                className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all ${
-                  trendPeriodType === 'triwulan'
-                    ? 'bg-white text-indigo-600 shadow-xs'
-                    : 'text-slate-500 hover:text-slate-800'
-                }`}
-              >
-                Triwulan
-              </button>
-              <button
-                onClick={() => {
-                  setTrendPeriodType('semester');
-                  setSelectedPeriodIndex(1); // Default to S2 (Real-Time)
-                }}
-                className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all ${
-                  trendPeriodType === 'semester'
-                    ? 'bg-white text-indigo-600 shadow-xs'
-                    : 'text-slate-500 hover:text-slate-800'
-                }`}
-              >
-                Semester
-              </button>
-            </div>
-
-            {/* Individual Period Segment Selector */}
-            <div className="flex items-center gap-1 bg-slate-50 border border-slate-100 p-1 rounded-xl">
-              {(trendPeriodType === 'triwulan' 
-                ? [
-                    { label: 'Q1', index: 0 },
-                    { label: 'Q2', index: 1 },
-                    { label: 'Q3', index: 2 },
-                    { label: 'Q4 (Real)', index: 3 }
-                  ]
-                : [
-                    { label: 'S1', index: 0 },
-                    { label: 'S2 (Real)', index: 1 }
-                  ]
-              ).map((p) => {
-                const isActive = selectedPeriodIndex === p.index;
-                return (
-                  <button
-                    key={p.label}
-                    onClick={() => setSelectedPeriodIndex(p.index)}
-                    className={`px-2.5 py-1.5 text-xs font-black rounded-lg transition-all ${
-                      isActive
-                        ? 'bg-indigo-600 text-white shadow-xs'
-                        : 'text-slate-500 hover:text-slate-800 hover:bg-slate-100'
-                    }`}
-                  >
-                    {p.label}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        </div>
-
-        {/* Dynamic Period Banner */}
-        <div className="bg-slate-50 border border-slate-100 p-3 rounded-xl flex items-center justify-between text-xs">
-          <div className="flex items-center gap-2">
-            <span className="flex h-2 w-2 rounded-full bg-indigo-500 animate-ping" />
-            <span className="text-slate-500">Menampilkan Data Capaian:</span>
-            <span className="font-extrabold text-slate-800">
-              {trendPeriodType === 'triwulan' 
-                ? `Triwulan ${selectedPeriodIndex + 1 === 4 ? 'IV (Real-Time)' : selectedPeriodIndex + 1}`
-                : `Semester ${selectedPeriodIndex + 1 === 2 ? 'II (Real-Time)' : selectedPeriodIndex + 1}`
-              }
-            </span>
-          </div>
-          <span className="text-[10px] font-mono font-bold text-slate-400">STATUS: AKTIF</span>
-        </div>
-
-        {/* Division Grid Section */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {Object.entries(trendIkpData).map(([divisionName, ikps]: [string, any]) => {
-            const getDivisionIcon = (divName: string) => {
-              switch (divName) {
-                case 'Pemberitaan': return <Globe className="w-4 h-4 text-sky-500" />;
-                case 'Layanan Pengembangan Usaha': return <Handshake className="w-4 h-4 text-indigo-500" />;
-                case 'Teknologi dan Media Baru': return <Layers className="w-4 h-4 text-emerald-500" />;
-                case 'Konten Media Baru': return <Sparkles className="w-4 h-4 text-pink-500" />;
-                case 'Siaran': return <Target className="w-4 h-4 text-amber-500" />;
-                case 'Tata Usaha / Umum': return <Users className="w-4 h-4 text-violet-500" />;
-                default: return <FileText className="w-4 h-4 text-slate-500" />;
-              }
-            };
-
-            return (
-              <div 
-                key={divisionName} 
-                className="bg-white p-5 rounded-2xl border border-slate-150 shadow-xs hover:border-slate-300 transition-all space-y-4 flex flex-col justify-between"
-              >
-                {/* Division Header */}
-                <div className="space-y-1.5 border-b border-slate-100 pb-3">
-                  <div className="flex items-center gap-2">
-                    {getDivisionIcon(divisionName)}
-                    <h3 className="text-xs font-black text-slate-800 uppercase tracking-wider">
-                      {divisionName === 'Pemberitaan' ? 'Pemberitaan & Media Baru' : divisionName}
-                    </h3>
-                  </div>
-                  <p className="text-[11px] text-slate-400 line-clamp-1 leading-tight">
-                    {divisionName === 'Pemberitaan' && 'Produksi dan penyebaran berita utama & daerah serta akurasi siaran berita.'}
-                    {divisionName === 'Layanan Pengembangan Usaha' && 'Optimalisasi PNBP, sewa aset, sponsorship, dan kemitraan aktif.'}
-                    {divisionName === 'Teknologi dan Media Baru' && 'Keandalan pemancar radio, streaming aplikasi RRI Digital, dan digitalisasi.'}
-                    {divisionName === 'Konten Media Baru' && 'Kreasi konten visual interaktif dan optimasi engagement media sosial.'}
-                    {divisionName === 'Siaran' && 'Kualitas konten on-air program siaran RRI dan kepuasan pendengar.'}
-                    {divisionName === 'Tata Usaha / Umum' && 'Fasilitasi logistik umum, tata kelola keuangan, administrasi, dan pelaporan.'}
-                  </p>
-                </div>
-
-                {/* Gauges Side by Side */}
-                <div className="grid grid-cols-2 gap-3">
-                  {ikps.map((ikp: any) => {
-                    const periodData = trendPeriodType === 'triwulan' ? ikp.triwulan : ikp.semester;
-                    const activePoint = periodData[Math.min(selectedPeriodIndex, periodData.length - 1)] || periodData[periodData.length - 1];
-                    const realisasiVal = activePoint?.Realisasi || 0;
-                    const targetVal = activePoint?.Target || ikp.target || 100;
-
-                    const percentage = targetVal > 0 ? Math.round((realisasiVal / targetVal) * 100) : 0;
-                    const fillPercentage = Math.min(100, Math.max(0, percentage));
-                    const remaining = 100 - fillPercentage;
-
-                    // Let's set the gauge colors dynamically
-                    let gaugeColor = '#10b981'; // Emerald for excellent (>= 90%)
-                    if (percentage < 50) {
-                      gaugeColor = '#f43f5e'; // Rose for critical (< 50%)
-                    } else if (percentage < 90) {
-                      gaugeColor = '#f59e0b'; // Amber for warning (50% - 89%)
-                    }
-
-                    const gaugeData = [
-                      { value: fillPercentage },
-                      { value: remaining }
-                    ];
-
-                    return (
-                      <div key={ikp.id} className="bg-slate-50/55 p-3 rounded-xl border border-slate-100 flex flex-col items-center justify-between space-y-2.5">
-                        <div className="text-center w-full min-h-[34px] flex flex-col justify-center">
-                          <span className="text-[10px] font-extrabold text-slate-600 line-clamp-2 leading-tight">
-                            {ikp.name}
-                          </span>
-                        </div>
-
-                        {/* Recharts Half Circle */}
-                        <div className="relative w-full h-20 flex items-center justify-center overflow-hidden">
-                          <ResponsiveContainer width="100%" height="100%">
-                            <PieChart margin={{ top: 8, left: 0, right: 0, bottom: 0 }}>
-                              <Pie
-                                data={gaugeData}
-                                cx="50%"
-                                cy="95%"
-                                startAngle={180}
-                                endAngle={0}
-                                innerRadius={34}
-                                outerRadius={48}
-                                paddingAngle={0}
-                                dataKey="value"
-                              >
-                                <Cell fill={gaugeColor} />
-                                <Cell fill="#e2e8f0" />
-                              </Pie>
-                            </PieChart>
-                          </ResponsiveContainer>
-
-                          {/* Absolute labels inside the gauge */}
-                          <div className="absolute inset-x-0 bottom-1 flex flex-col items-center">
-                            <span className="text-sm font-black text-slate-800 font-mono tracking-tight leading-none">
-                              {percentage}%
-                            </span>
-                            <span className="text-[8px] text-slate-400 font-bold uppercase tracking-wider mt-0.5">Capaian</span>
-                          </div>
-                        </div>
-
-                        <div className="w-full grid grid-cols-2 gap-1 text-center border-t border-slate-150 pt-2 text-[10px]">
-                          <div className="flex flex-col min-w-0">
-                            <span className="text-[8px] font-bold text-slate-400 uppercase">Realisasi</span>
-                            <span className="font-extrabold text-indigo-600 font-mono truncate">
-                              {realisasiVal} <span className="text-[8px] font-medium text-slate-500 font-sans">{ikp.unit}</span>
-                            </span>
-                          </div>
-                          <div className="flex flex-col border-l border-slate-150 min-w-0">
-                            <span className="text-[8px] font-bold text-slate-400 uppercase">Target</span>
-                            <span className="font-extrabold text-slate-700 font-mono truncate">
-                              {targetVal} <span className="text-[8px] font-medium text-slate-500 font-sans">{ikp.unit}</span>
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
 
 
 
@@ -1396,79 +1217,7 @@ export default function DashboardView({
 
       </div>
 
-      {/* Critical Warnings Alert notifications panel */}
-      <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
-        <div className="bg-rose-50/50 px-6 py-4 border-b border-rose-100 flex justify-between items-center">
-          <div className="flex items-center gap-2">
-            <div className="p-1.5 bg-rose-100 rounded-lg text-rose-600">
-              <Bell className="w-4.5 h-4.5 animate-bounce" />
-            </div>
-            <div>
-              <h3 className="text-sm font-bold text-slate-800">Peringatan Metrik Kritis Kepegawaian</h3>
-              <p className="text-[11px] text-slate-500">Notifikasi push langsung untuk mitigasi risiko cepat.</p>
-            </div>
-          </div>
-          <span className="bg-rose-100 text-rose-800 font-bold text-[10px] px-2 py-0.5 rounded-full font-mono">
-            {notifications.filter(n => !n.isRead).length} Belum Dibaca
-          </span>
-        </div>
 
-        <div className="divide-y divide-slate-100">
-          {notifications.length === 0 ? (
-            <div className="p-8 text-center text-slate-400 text-xs italic">
-              Tidak ada peringatan metrik kritis terdeteksi saat ini. Sistem berjalan stabil.
-            </div>
-          ) : (
-            notifications.map((notif) => (
-              <div 
-                key={notif.id} 
-                className={`p-4 md:p-5 flex gap-4 transition-colors ${
-                  notif.isRead ? 'bg-white opacity-70' : 'bg-rose-50/20'
-                }`}
-              >
-                <div className={`p-2 rounded-xl h-fit ${
-                  notif.type === 'critical' ? 'bg-rose-100 text-rose-600' : 'bg-amber-100 text-amber-600'
-                }`}>
-                  <AlertTriangle className="w-5 h-5" />
-                </div>
-
-                <div className="flex-1 space-y-1">
-                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-1">
-                    <h4 className="text-xs font-bold text-slate-800 flex items-center gap-2">
-                      {notif.title}
-                      {!notif.isRead && (
-                        <span className="w-1.5 h-1.5 bg-rose-500 rounded-full animate-ping" />
-                      )}
-                    </h4>
-                    <span className="text-[10px] text-slate-400 font-mono">{notif.timestamp}</span>
-                  </div>
-                  <p className="text-xs text-slate-600 leading-relaxed">{notif.message}</p>
-                  
-                  {notif.metricName && (
-                    <div className="flex gap-2 items-center pt-1.5">
-                      <span className="text-[10px] font-bold bg-slate-100 text-slate-600 px-2 py-0.5 rounded-md">
-                        {notif.metricName}
-                      </span>
-                      <span className="text-xs font-bold text-rose-600 font-mono">
-                        {notif.metricValue}
-                      </span>
-                    </div>
-                  )}
-                </div>
-
-                {!notif.isRead && (
-                  <button
-                    onClick={() => onReadNotification(notif.id)}
-                    className="text-[10px] font-bold text-slate-400 hover:text-slate-800 border border-slate-200 hover:border-slate-300 rounded-lg px-2.5 py-1 transition-all h-fit self-center"
-                  >
-                    Tandai Dibaca
-                  </button>
-                )}
-              </div>
-            ))
-          )}
-        </div>
-      </div>
     </div>
   );
 }

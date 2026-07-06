@@ -581,7 +581,7 @@ export default function PemberitaanMediaBaruView({
                 {cascadingPath.l2 ? (
                   <div className="p-4 bg-amber-50/40 rounded-2xl border border-amber-100/60 flex flex-col justify-between space-y-4">
                     <div className="space-y-2">
-                      <span className="bg-amber-100 text-amber-700 font-extrabold text-[9px] font-mono px-2 py-0.5 rounded-full uppercase tracking-wider">Level 2: Ketua Tim / Kabid</span>
+                      <span className="bg-amber-100 text-amber-700 font-extrabold text-[9px] font-mono px-2 py-0.5 rounded-full uppercase tracking-wider">Level 2: Ketua Tim / Kabag</span>
                       <div className="pt-1">
                         <h4 className="text-xs font-bold text-slate-700 leading-tight">{cascadingPath.l2.agreement.assignedToName}</h4>
                         <p className="text-[10px] text-slate-400 font-medium">{cascadingPath.l2.agreement.level}</p>

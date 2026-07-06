@@ -109,7 +109,7 @@ export default function PerformanceAgreementView({
 
   // List of Level 2 official levels
   const level2Options = [
-    { value: 'Kabid Tata Usaha', label: `Kepala Bidang Tata Usaha (${identity.kepalaBidangNama || 'Belum Diatur'})` },
+    { value: 'Kabid Tata Usaha', label: `Kepala Bagian Tata Usaha (${identity.kepalaBidangNama || 'Belum Diatur'})` },
     { value: 'Ketua Tim Siaran', label: `Ketua Tim Siaran (${identity.ketuaTimSiaranNama || 'Belum Diatur'})` },
     { value: 'Ketua Tim Pemberitaan', label: `Ketua Tim Pemberitaan (${identity.ketuaTimPemberitaanNama || 'Belum Diatur'})` },
     { value: 'Ketua Tim Teknologi dan Media Baru', label: `Ketua Tim Teknologi dan Media Baru (${identity.ketuaTimTeknikNama || 'Belum Diatur'})` },
@@ -120,7 +120,7 @@ export default function PerformanceAgreementView({
   // Helper to resolve name by level
   const resolveLevelName = (level: string, empId?: string): string => {
     if (level === 'Kepala Stasiun') return identity.kepalaStasiunNama || 'Kepala Stasiun';
-    if (level === 'Kabid Tata Usaha') return identity.kepalaBidangNama || 'Kabid Tata Usaha';
+    if (level === 'Kabid Tata Usaha') return identity.kepalaBidangNama || 'Kepala Bagian Tata Usaha';
     if (level === 'Ketua Tim Siaran') return identity.ketuaTimSiaranNama || 'Ketua Tim Siaran';
     if (level === 'Ketua Tim Pemberitaan') return identity.ketuaTimPemberitaanNama || 'Ketua Tim Pemberitaan';
     if (level === 'Ketua Tim Teknologi dan Media Baru') return identity.ketuaTimTeknikNama || 'Ketua Tim Teknologi & MB';
@@ -146,7 +146,7 @@ export default function PerformanceAgreementView({
       const emp = employees.find(e => e.id === assignedToEmployeeId);
       if (!emp) return 'Ketua Tim';
       // Find suitable team head based on division
-      if (emp.divisi === 'Tata Usaha / Umum') return identity.kepalaBidangNama || 'Kabid Tata Usaha';
+      if (emp.divisi === 'Tata Usaha / Umum') return identity.kepalaBidangNama || 'Kepala Bagian Tata Usaha';
       if (emp.divisi === 'Pemberitaan') return identity.ketuaTimPemberitaanNama || 'Ketua Tim Pemberitaan';
       if (emp.divisi === 'Siaran') return identity.ketuaTimSiaranNama || 'Ketua Tim Siaran';
       if (emp.divisi === 'Teknologi dan Media Baru') return identity.ketuaTimTeknikNama || 'Ketua Tim Teknologi & MB';
@@ -1147,7 +1147,7 @@ export default function PerformanceAgreementView({
                       <div className="p-4 bg-slate-50/20 divide-y divide-slate-100">
                         {node.level2.length === 0 ? (
                           <div className="py-6 text-center text-slate-400 italic text-[11px] bg-white rounded-xl border border-dashed border-slate-100">
-                            Belum ada delegasi ke level 2 (Kabid/Ketua Tim). Klik tombol "Delegasikan" untuk memecah target ini.
+                            Belum ada delegasi ke level 2 (Kabag/Ketua Tim). Klik tombol "Delegasikan" untuk memecah target ini.
                           </div>
                         ) : (
                           node.level2.map((l2) => {
@@ -1355,7 +1355,7 @@ export default function PerformanceAgreementView({
 
               {/* Level 2 Buttons */}
               <div className="space-y-1.5">
-                <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wide">Para Ketua Tim / Kabid TU</span>
+                <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wide">Para Ketua Tim / Kabag TU</span>
                 <div className="space-y-1">
                   {level2Options.map((opt) => (
                     <button
@@ -1369,7 +1369,9 @@ export default function PerformanceAgreementView({
                     >
                       <Layers className="w-3.5 h-3.5 text-blue-600 shrink-0" />
                       <div className="truncate">
-                        <p className="truncate">{opt.value}</p>
+                        <p className="truncate">
+                          {opt.value === 'Kabid Tata Usaha' ? 'Kepala Bagian Tata Usaha' : opt.value}
+                        </p>
                         <p className="text-[9px] text-slate-500 font-mono leading-none mt-0.5 truncate">
                           {opt.value === 'Kabid Tata Usaha' ? identity.kepalaBidangNama :
                            opt.value === 'Ketua Tim Siaran' ? identity.ketuaTimSiaranNama :
@@ -1691,9 +1693,9 @@ export default function PerformanceAgreementView({
                 <div className="space-y-1">
                   <p className="font-extrabold">Akses Terbatas (Read-Only)</p>
                   <p className="text-[10px] text-amber-700 leading-normal">
-                    Dokumen ini berada pada <span className="font-bold">{activeDocumentAgreement.level === 'Pegawai' ? 'Level 3 (Pegawai)' : 'Level 2 (Kabid/Ketua Tim)'}</span>. 
+                    Dokumen ini berada pada <span className="font-bold">{activeDocumentAgreement.level === 'Pegawai' ? 'Level 3 (Pegawai)' : 'Level 2 (Kabag/Ketua Tim)'}</span>. 
                     {activeDocumentAgreement.level === 'Pegawai' 
-                      ? ' Pengeditan hanya diizinkan bagi Kepala Stasiun atau penerima delegasi Level 2 (Kabid/Ketua Tim) yang berwenang.'
+                      ? ' Pengeditan hanya diizinkan bagi Kepala Stasiun atau penerima delegasi Level 2 (Kabag/Ketua Tim) yang berwenang.'
                       : ' Pengeditan indikator Level 1 dan Level 2 hanya dapat dilakukan oleh Kepala Stasiun.'
                     }
                   </p>
@@ -1934,7 +1936,7 @@ export default function PerformanceAgreementView({
                             </h5>
 
                             {level2Objects.length === 0 ? (
-                              <p className="text-[11px] text-slate-400 italic pl-4">Belum ada delegasi indikator ke Level 2 (Ketua Tim / Kabid TU) yang berkorelasi.</p>
+                              <p className="text-[11px] text-slate-400 italic pl-4">Belum ada delegasi indikator ke Level 2 (Ketua Tim / Kabag TU) yang berkorelasi.</p>
                             ) : (
                               <div className="space-y-3 pl-3 border-l border-indigo-100">
                                 {level2Objects.map(({ indicator: l2Obj, agreement: l2Ag }) => {

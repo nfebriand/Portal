@@ -673,11 +673,11 @@ export default function AppAdminView({
 
           <form onSubmit={handleSaveKabidKatim} className="space-y-5">
             
-            {/* 2. Kepala Bidang Tata Usaha */}
+            {/* 2. Kepala Bagian Tata Usaha */}
             <div className="p-4 bg-slate-50/50 border border-slate-100 rounded-xl space-y-3.5">
               <div className="flex items-center gap-2">
                 <span className="w-5 h-5 bg-slate-800 text-white rounded-full flex items-center justify-center text-[10px] font-bold">1</span>
-                <h3 className="text-xs font-bold text-slate-700 uppercase tracking-wide">Kepala Bidang Tata Usaha</h3>
+                <h3 className="text-xs font-bold text-slate-700 uppercase tracking-wide">Kepala Bagian Tata Usaha</h3>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-3">
@@ -715,7 +715,7 @@ export default function AppAdminView({
                   value={bidangTtd}
                   onChange={(dataUrl) => setBidangTtd(dataUrl)}
                   height={100}
-                  label="Tanda Tangan Kepala Bidang Tata Usaha"
+                  label="Tanda Tangan Kepala Bagian Tata Usaha"
                 />
               </div>
             </div>
@@ -1433,16 +1433,16 @@ export default function AppAdminView({
               <span className="text-[7px] text-slate-400 font-mono">NIP. 197203151998031002</span>
             </div>
 
-            {/* Sibling Officials: Kabid TU & Para Ketua Tim */}
+            {/* Sibling Officials: Kabag TU & Para Ketua Tim */}
             <div className="space-y-4 pt-1">
-              {/* Kepala Bidang Tata Usaha */}
+              {/* Kepala Bagian Tata Usaha */}
               <div className="flex flex-col items-center text-center border-b border-slate-100 pb-3">
                 <span className="text-[8px] font-bold text-slate-500 uppercase">Disetujui Oleh,</span>
-                <span className="text-[8px] font-extrabold text-slate-400 uppercase tracking-wider">Kepala Bidang Tata Usaha</span>
+                <span className="text-[8px] font-extrabold text-slate-400 uppercase tracking-wider">Kepala Bagian Tata Usaha</span>
                 
                 <div className="h-9 flex items-center justify-center my-1">
                   {bidangTtd ? (
-                    <img src={bidangTtd} alt="TTD Kabid TU" className="max-h-full max-w-[100px] object-contain mix-blend-multiply" />
+                    <img src={bidangTtd} alt="TTD Kabag TU" className="max-h-full max-w-[100px] object-contain mix-blend-multiply" />
                   ) : (
                     <span className="text-[8px] text-rose-400 italic">Belum TTD</span>
                   )}
