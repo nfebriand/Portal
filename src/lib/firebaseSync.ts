@@ -25,13 +25,15 @@ export async function fetchCollection<T extends { id: string }>(collectionName: 
     const colRef = collection(db, collectionName);
     const snapshot = await getDocs(colRef);
     if (snapshot.empty) {
-      // Seed fallback data to Firestore
-      const batch = writeBatch(db);
-      fallbackData.forEach((item) => {
-        const docRef = doc(db, collectionName, item.id);
-        batch.set(docRef, item);
-      });
-      await batch.commit();
+      if (fallbackData && fallbackData.length > 0) {
+        // Seed fallback data to Firestore
+        const batch = writeBatch(db);
+        fallbackData.forEach((item) => {
+          const docRef = doc(db, collectionName, item.id);
+          batch.set(docRef, item);
+        });
+        await batch.commit();
+      }
       return fallbackData;
     }
     const data: T[] = [];
@@ -82,12 +84,14 @@ export async function saveCollectionList<T extends { id: string }>(collectionNam
     const listIds = new Set(list.map(item => item.id));
 
     const batch = writeBatch(db);
+    let hasOps = false;
     
     // Delete documents that are no longer in the list
     existingIds.forEach((id) => {
       if (!listIds.has(id)) {
         const docRef = doc(db, collectionName, id);
         batch.delete(docRef);
+        hasOps = true;
       }
     });
 
@@ -95,9 +99,12 @@ export async function saveCollectionList<T extends { id: string }>(collectionNam
     list.forEach((item) => {
       const docRef = doc(db, collectionName, item.id);
       batch.set(docRef, item);
+      hasOps = true;
     });
 
-    await batch.commit();
+    if (hasOps) {
+      await batch.commit();
+    }
   } catch (error) {
     console.error(`Error saving collection list ${collectionName}:`, error);
   }
