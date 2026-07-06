@@ -101,44 +101,56 @@ service cloud.firestore {
     }
 
     // Collection match rules
+    match /system/{systemId} {
+      allow read, write: if true;
+    }
+
     match /employees/{employeeId} {
       allow read: if true;
-      allow write: if isValidEmployee(incoming());
+      allow create, update: if isValidEmployee(incoming());
+      allow delete: if true;
     }
 
     match /settings/{settingsId} {
       allow read: if true;
-      allow write: if isValidSettings(incoming());
+      allow create, update: if isValidSettings(incoming());
+      allow delete: if true;
     }
 
     match /identity/{identityId} {
       allow read: if true;
-      allow write: if isValidIdentity(incoming());
+      allow create, update: if isValidIdentity(incoming());
+      allow delete: if true;
     }
 
     match /notifications/{notificationId} {
       allow read: if true;
-      allow write: if isValidNotification(incoming());
+      allow create, update: if isValidNotification(incoming());
+      allow delete: if true;
     }
 
     match /agreements/{agreementId} {
       allow read: if true;
-      allow write: if isValidAgreement(incoming());
+      allow create, update: if isValidAgreement(incoming());
+      allow delete: if true;
     }
 
     match /contracts/{contractId} {
       allow read: if true;
-      allow write: if isValidContract(incoming());
+      allow create, update: if isValidContract(incoming());
+      allow delete: if true;
     }
 
     match /reporterTargets/{targetId} {
       allow read: if true;
-      allow write: if isValidTarget(incoming());
+      allow create, update: if isValidTarget(incoming());
+      allow delete: if true;
     }
 
     match /newsReports/{reportId} {
       allow read: if true;
-      allow write: if isValidReport(incoming());
+      allow create, update: if isValidReport(incoming());
+      allow delete: if true;
     }
   }
 }

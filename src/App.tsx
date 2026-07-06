@@ -793,6 +793,50 @@ export default function App() {
     }
   };
 
+  const handleResetToProductionMode = async () => {
+    if (!window.confirm("PENTING: Apakah Anda yakin ingin menghapus seluruh data dummy (pegawai, perjanjian kinerja, berita, kontrak LPU, target, dan notifikasi) dan masuk ke Mode Produksi bersih?\n\nSemua data dummy bawaan akan dihapus permanen dari Firestore database agar Anda dapat mulai mengisi data riil.")) {
+      return;
+    }
+
+    try {
+      // 1. Mark system as seeded (so it won't re-seed with dummy data on refresh)
+      await markSystemSeeded();
+
+      // 2. Clear all collections in firestore by saving empty lists
+      await saveCollectionList('employees', []);
+      await saveCollectionList('notifications', []);
+      await saveCollectionList('contracts', []);
+      await saveCollectionList('reporterTargets', []);
+      await saveCollectionList('newsReports', []);
+      await saveCollectionList('agreements', []);
+
+      // 3. Clear local react state
+      setEmployees([]);
+      setNotifications([]);
+      setContracts([]);
+      setReporterTargets([]);
+      setNewsReports([]);
+      setAgreements([]);
+
+      // Clear local storage backups
+      localStorage.removeItem('e_station_employees');
+      localStorage.removeItem('e_station_notifications');
+      localStorage.removeItem('e_station_contracts');
+      localStorage.removeItem('e_station_reporter_targets');
+      localStorage.removeItem('e_station_news_reports');
+      localStorage.removeItem('e_station_agreements');
+
+      // 4. Force log out to login screen since employees list is now empty
+      setCurrentUser(null);
+      localStorage.removeItem('swara_current_user');
+
+      alert("Portal berhasil dikosongkan dan dialihkan ke Mode Produksi bersih!\n\nSemua data dummy telah dihapus. Silakan gunakan akun Superadmin (Username: 1871102702910001, Password: orange@dan) untuk masuk dan mulai mendaftarkan data pegawai riil.");
+    } catch (error) {
+      console.error("Gagal berpindah ke mode produksi:", error);
+      alert("Terjadi kesalahan saat mengosongkan database.");
+    }
+  };
+
   const handleUpdateNotifications = async (newNotifs: CriticalNotification[]) => {
     setNotifications(newNotifs);
     localStorage.setItem('e_station_notifications', JSON.stringify(newNotifs));
@@ -1045,7 +1089,7 @@ export default function App() {
             className="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-semibold tracking-wide transition-all text-rose-400 hover:text-rose-200 hover:bg-rose-950/40 border border-dashed border-rose-900/30 shrink-0"
           >
             <X className="w-4 h-4 text-rose-500" />
-            Keluar Simulator
+            Keluar Aplikasi
           </button>
         </nav>
 
@@ -1171,7 +1215,7 @@ export default function App() {
             className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-semibold tracking-wide text-rose-400 hover:bg-rose-950/40"
           >
             <X className="w-4 h-4 text-rose-500" />
-            Keluar Simulator
+            Keluar Aplikasi
           </button>
         </div>
       )}
@@ -1321,6 +1365,7 @@ export default function App() {
               onUpdateSettings={handleUpdateSettings}
               onUpdateIdentity={handleUpdateIdentity}
               employees={employees}
+              onResetToProductionMode={handleResetToProductionMode}
             />
           )}
 

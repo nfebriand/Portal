@@ -338,13 +338,13 @@ export default function DashboardView({
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          {/* Quick Simulation Trigger */}
+          {/* Quick Alert Trigger */}
           <button
             onClick={triggerAlertSimulation}
             className="flex items-center gap-2 bg-rose-50 hover:bg-rose-100 text-rose-700 font-semibold px-4 py-2.5 rounded-xl text-xs transition-all border border-rose-100 shadow-xs"
           >
             <AlertTriangle className="w-4 h-4 animate-pulse" />
-            Simulasi Peringatan Kritis
+            Kirim Notifikasi Kritis
           </button>
         </div>
       </div>
@@ -961,7 +961,7 @@ export default function DashboardView({
             </div>
             <div>
               <h3 className="text-sm font-bold text-slate-800">Peringatan Metrik Kritis Kepegawaian</h3>
-              <p className="text-[11px] text-slate-500">Notifikasi push simulasi untuk mitigasi risiko cepat.</p>
+              <p className="text-[11px] text-slate-500">Notifikasi push langsung untuk mitigasi risiko cepat.</p>
             </div>
           </div>
           <span className="bg-rose-100 text-rose-800 font-bold text-[10px] px-2 py-0.5 rounded-full font-mono">

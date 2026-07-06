@@ -359,7 +359,7 @@ export default function DashboardBidangView({
               <h1 className="text-xl font-bold tracking-tight">{currentUser.name}</h1>
               <p className="text-xs text-slate-300 flex items-center gap-1">
                 <Briefcase className="w-3.5 h-3.5 text-slate-400" />
-                <span>NIP. {currentEmployee?.nip || 'Simulator NIP'} • Divisi <strong>{activeDivision}</strong></span>
+                <span>NIP. {currentEmployee?.nip || '-'} • Divisi <strong>{activeDivision}</strong></span>
               </p>
             </div>
           </div>
@@ -812,7 +812,7 @@ export default function DashboardBidangView({
                           />
                           <div className="space-y-0.5">
                             <h4 className="text-xs font-bold text-slate-700 leading-tight">{staff.nama}</h4>
-                            <p className="text-[10px] text-slate-400">NIP. {staff.nip || 'Simulator NIP'}</p>
+                            <p className="text-[10px] text-slate-400">NIP. {staff.nip || '-'}</p>
                             <span className="inline-block text-[9px] font-bold text-indigo-600 bg-indigo-50/80 px-2 py-0.5 rounded-sm">
                               {delegatedCount} Sasaran Diterima
                             </span>
@@ -866,7 +866,7 @@ export default function DashboardBidangView({
                     className="w-full bg-slate-50 text-slate-800 border border-slate-200 focus:border-indigo-600 focus:ring-1 focus:ring-indigo-600 rounded-xl px-3 py-2 text-xs outline-none transition-all"
                   >
                     {divisionStaff.map(s => (
-                      <option key={s.id} value={s.id}>{s.nama} ({s.nip || 'NIP Simulator'})</option>
+                      <option key={s.id} value={s.id}>{s.nama} ({s.nip || '-'})</option>
                     ))}
                   </select>
                 </div>

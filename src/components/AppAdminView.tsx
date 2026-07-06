@@ -9,6 +9,7 @@ interface AppAdminViewProps {
   onUpdateSettings: (settings: AppSettings) => void;
   onUpdateIdentity: (identity: InstitutionalIdentity) => void;
   employees?: Employee[];
+  onResetToProductionMode?: () => void;
 }
 
 export default function AppAdminView({
@@ -16,7 +17,8 @@ export default function AppAdminView({
   identity,
   onUpdateSettings,
   onUpdateIdentity,
-  employees = []
+  employees = [],
+  onResetToProductionMode
 }: AppAdminViewProps) {
   const formatFullName = (emp: Employee) => {
     let full = emp.nama;
@@ -104,8 +106,8 @@ export default function AppAdminView({
     setTimeout(() => setIsSavedKabidKatim(false), 2000);
   };
 
-  // Mock document printable
-  const handlePrintMock = () => {
+  // Official document printable
+  const handlePrintDocument = () => {
     window.print();
   };
 
@@ -578,6 +580,45 @@ export default function AppAdminView({
           </form>
         </div>
 
+        {/* Production Mode and Database Cleanup Card */}
+        {onResetToProductionMode && (
+          <div className="bg-rose-50/50 border border-rose-100 p-5 rounded-2xl shadow-sm space-y-4">
+            <div className="flex items-center gap-2 border-b border-rose-100 pb-3">
+              <div className="p-2 bg-rose-600 text-white rounded-lg">
+                <Building className="w-4.5 h-4.5" />
+              </div>
+              <div>
+                <h2 className="text-sm font-bold text-slate-800">Manajemen Database & Mode Produksi</h2>
+                <p className="text-[10px] text-slate-400">Kosongkan data dummy dan beralih ke lingkungan kerja riil.</p>
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              <p className="text-xs text-slate-600 leading-relaxed">
+                Tombol di bawah ini akan menghapus seluruh data contoh/dummy bawaan (Daftar Pegawai, Dokumen PK, Laporan Pemberitaan, dan Kontrak Kerja Sama LPU) dari sistem dan database Firestore secara permanen untuk mengaktifkan <strong>Mode Produksi Bersih</strong>.
+              </p>
+              <div className="p-3 bg-rose-100/50 border border-rose-200/50 rounded-xl text-[11px] text-rose-800 space-y-1">
+                <span className="font-extrabold block">⚠️ PERHATIAN SEBELUM TINDAKAN:</span>
+                <ul className="list-disc list-inside space-y-0.5 font-medium">
+                  <li>Tindakan ini tidak dapat dibatalkan (irreversible).</li>
+                  <li>Sistem akan mengeluarkan Anda secara otomatis dari sesi saat ini.</li>
+                  <li>Gunakan akun Superadmin bawaan untuk masuk kembali dan mendaftarkan pegawai riil pertama Anda.</li>
+                </ul>
+              </div>
+            </div>
+
+            <div className="flex justify-end pt-1">
+              <button
+                type="button"
+                onClick={onResetToProductionMode}
+                className="flex items-center gap-2 bg-rose-600 hover:bg-rose-700 text-white text-xs font-extrabold px-4 py-2.5 rounded-xl transition-all shadow-md shadow-rose-600/10 cursor-pointer active:scale-98"
+              >
+                Hapus Semua Data Dummy & Aktifkan Mode Produksi
+              </button>
+            </div>
+          </div>
+        )}
+
       </div>
 
       {/* Right Column - Live Official Document Signing Preview */}
@@ -585,14 +626,14 @@ export default function AppAdminView({
         <div className="flex justify-between items-center">
           <h2 className="text-xs font-extrabold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
             <FileText className="w-4 h-4" />
-            Simulasi Dokumen Resmi (Live SK)
+            Preview Dokumen Resmi (Live SK)
           </h2>
           <button
-            onClick={handlePrintMock}
+            onClick={handlePrintDocument}
             className="flex items-center gap-1 bg-white hover:bg-slate-50 text-slate-600 font-bold text-[10px] px-2.5 py-1.5 border border-slate-200 rounded-lg transition-all"
           >
             <Printer className="w-3 h-3" />
-            Cetak Mock
+            Cetak Dokumen
           </button>
         </div>
 
