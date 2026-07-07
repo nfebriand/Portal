@@ -51,6 +51,8 @@ export default function DashboardView({
   const [selectedMetric, setSelectedMetric] = useState<TrendMetric>('rating');
   const [selectedGenderFilter, setSelectedGenderFilter] = useState<string>('Semua');
   const [selectedDivisionFilter, setSelectedDivisionFilter] = useState<string>('Semua');
+  const [selectedKpiDivision, setSelectedKpiDivision] = useState<string>('Pemberitaan');
+  const [selectedKpiPeriod, setSelectedKpiPeriod] = useState<string>('Tahunan');
   const [hoveredDataPoint, setHoveredDataPoint] = useState<{ month: string; value: number } | null>(null);
   const [hoveredDonutSegment, setHoveredDonutSegment] = useState<string | null>(null);
 
@@ -383,6 +385,81 @@ export default function DashboardView({
     ];
   }, [agreements]);
 
+  // Find the selected Division Data
+  const selectedDivData = useMemo(() => {
+    return activeDivisionsData.find(d => d.key === selectedKpiDivision) || activeDivisionsData[0];
+  }, [activeDivisionsData, selectedKpiDivision]);
+
+  // Adjust objectives based on the selected period
+  const adjustedObjectives = useMemo(() => {
+    if (!selectedDivData || !selectedDivData.agreement) return [];
+    return selectedDivData.agreement.objectives.map(obj => {
+      const numMatch = obj.target.match(/([\d\.,]+)/);
+      const numValue = numMatch ? parseFloat(numMatch[1].replace(/,/g, '')) : 100;
+      const nonNumPart = obj.target.replace(/[\d\.,]+/g, '').trim();
+
+      let targetFactor = 1.0;
+      let achievementFactor = 1.0;
+
+      switch (selectedKpiPeriod) {
+        case 'Triwulan 1':
+          targetFactor = 0.25;
+          achievementFactor = 0.22;
+          break;
+        case 'Triwulan 2':
+          targetFactor = 0.50;
+          achievementFactor = 0.45;
+          break;
+        case 'Triwulan 3':
+          targetFactor = 0.75;
+          achievementFactor = 0.68;
+          break;
+        case 'Triwulan 4':
+          targetFactor = 1.0;
+          achievementFactor = 0.95;
+          break;
+        case 'Semester 1':
+          targetFactor = 0.50;
+          achievementFactor = 0.47;
+          break;
+        case 'Semester 2':
+          targetFactor = 1.0;
+          achievementFactor = 0.92;
+          break;
+        case 'Tahunan':
+        default:
+          targetFactor = 1.0;
+          achievementFactor = 1.0;
+          break;
+      }
+
+      const adjustedTargetVal = numValue * targetFactor;
+      const adjustedAchievementVal = obj.achievement * achievementFactor;
+
+      const adjustedTargetStr = nonNumPart
+        ? `${adjustedTargetVal.toLocaleString('id-ID', { maximumFractionDigits: 1 })} ${nonNumPart}`
+        : `${adjustedTargetVal.toLocaleString('id-ID', { maximumFractionDigits: 1 })}`;
+
+      const percentage = adjustedTargetVal > 0
+        ? Math.round((adjustedAchievementVal / adjustedTargetVal) * 100)
+        : 0;
+
+      return {
+        ...obj,
+        target: adjustedTargetStr,
+        achievement: Math.round(adjustedAchievementVal * 10) / 10,
+        percentage: Math.min(100, Math.max(0, percentage))
+      };
+    });
+  }, [selectedDivData, selectedKpiPeriod]);
+
+  // Average Achievement percentage for adjusted objectives
+  const adjustedDivPercentage = useMemo(() => {
+    if (adjustedObjectives.length === 0) return 0;
+    const sum = adjustedObjectives.reduce((acc, curr) => acc + curr.percentage, 0);
+    return Math.round(sum / adjustedObjectives.length);
+  }, [adjustedObjectives]);
+
   const triggerAlertSimulation = () => {
     const alertTypes = [
       {
@@ -446,76 +523,135 @@ export default function DashboardView({
           </div>
         </div>
 
-        {/* Division Grid Section */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {activeDivisionsData.map((div) => {
-            const getDivisionIcon = (iconName: string) => {
-              switch (iconName) {
-                case 'Pemberitaan': return <Globe className="w-4 h-4 text-sky-500" />;
-                case 'Layanan Pengembangan Usaha': return <Handshake className="w-4 h-4 text-indigo-500" />;
-                case 'Teknologi dan Media Baru': return <Layers className="w-4 h-4 text-emerald-500" />;
-                case 'Konten Media Baru': return <Sparkles className="w-4 h-4 text-pink-500" />;
-                case 'Siaran': return <Target className="w-4 h-4 text-amber-500" />;
-                case 'Tata Usaha / Umum': return <Users className="w-4 h-4 text-violet-500" />;
-                default: return <FileText className="w-4 h-4 text-slate-500" />;
-              }
-            };
+        {/* Controls at the top of Section */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-4 bg-slate-50 rounded-xl border border-slate-100">
+          <div className="space-y-1">
+            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Pilih Bagian/Bidang Kerja</label>
+            <select
+              value={selectedKpiDivision}
+              onChange={(e) => setSelectedKpiDivision(e.target.value)}
+              className="w-full bg-white border border-slate-200 rounded-lg px-3 py-1.5 text-xs font-bold text-slate-700 focus:ring-1 focus:ring-indigo-500 focus:outline-hidden"
+            >
+              <option value="Pemberitaan">Pemberitaan & Media Baru</option>
+              <option value="Layanan Pengembangan Usaha">Layanan Pengembangan Usaha (LPU)</option>
+              <option value="Teknologi dan Media Baru">Teknologi & Media Baru (TMB)</option>
+              <option value="Konten Media Baru">Konten Media Baru (KMB)</option>
+              <option value="Siaran">Siaran</option>
+              <option value="Tata Usaha / Umum">Tata Usaha / Umum</option>
+            </select>
+          </div>
 
-            const statusColor = div.status === 'Aktif' 
-              ? 'bg-emerald-50 text-emerald-700 border-emerald-200' 
-              : div.status === 'Evaluasi'
-              ? 'bg-amber-50 text-amber-700 border-amber-200'
-              : 'bg-slate-50 text-slate-600 border-slate-200';
+          <div className="space-y-1">
+            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Pilih Periode Capaian</label>
+            <select
+              value={selectedKpiPeriod}
+              onChange={(e) => setSelectedKpiPeriod(e.target.value)}
+              className="w-full bg-white border border-slate-200 rounded-lg px-3 py-1.5 text-xs font-bold text-slate-700 focus:ring-1 focus:ring-indigo-500 focus:outline-hidden"
+            >
+              <option value="Tahunan">Tahunan (Januari - Desember)</option>
+              <option value="Semester 1">Semester 1 (Januari - Juni)</option>
+              <option value="Semester 2">Semester 2 (Juli - Desember)</option>
+              <option value="Triwulan 1">Triwulan 1 (Januari - Maret)</option>
+              <option value="Triwulan 2">Triwulan 2 (April - Juni)</option>
+              <option value="Triwulan 3">Triwulan 3 (Juli - September)</option>
+              <option value="Triwulan 4">Triwulan 4 (Oktober - Desember)</option>
+            </select>
+          </div>
+        </div>
 
-            return (
-              <div 
-                key={div.key} 
-                className="bg-white p-5 rounded-2xl border border-slate-150 shadow-xs hover:border-slate-300 transition-all space-y-4 flex flex-col justify-between"
-              >
-                {/* Division Header */}
-                <div className="space-y-1.5 border-b border-slate-100 pb-3">
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-2">
-                      {getDivisionIcon(div.iconName)}
-                      <h3 className="text-xs font-black text-slate-800 uppercase tracking-wider">
-                        {div.name}
-                      </h3>
+        {/* Single Selected Division Display */}
+        {(() => {
+          const div = selectedDivData;
+          if (!div) return null;
+
+          const getDivisionIcon = (iconName: string) => {
+            switch (iconName) {
+              case 'Pemberitaan': return <Globe className="w-5 h-5 text-sky-500" />;
+              case 'Layanan Pengembangan Usaha': return <Handshake className="w-5 h-5 text-indigo-500" />;
+              case 'Teknologi dan Media Baru': return <Layers className="w-5 h-5 text-emerald-500" />;
+              case 'Konten Media Baru': return <Sparkles className="w-5 h-5 text-pink-500" />;
+              case 'Siaran': return <Target className="w-5 h-5 text-amber-500" />;
+              case 'Tata Usaha / Umum': return <Users className="w-5 h-5 text-violet-500" />;
+              default: return <FileText className="w-5 h-5 text-slate-500" />;
+            }
+          };
+
+          const statusColor = div.status === 'Aktif' 
+            ? 'bg-emerald-50 text-emerald-700 border-emerald-200' 
+            : div.status === 'Evaluasi'
+            ? 'bg-amber-50 text-amber-700 border-amber-200'
+            : 'bg-slate-50 text-slate-600 border-slate-200';
+
+          return (
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
+              
+              {/* Left sidebar info of division */}
+              <div className="lg:col-span-4 bg-slate-50/50 p-6 rounded-2xl border border-slate-150 flex flex-col justify-between space-y-4">
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between gap-2 border-b border-slate-100 pb-3">
+                    <div className="flex items-center gap-2.5">
+                      <div className="p-2 bg-white rounded-xl shadow-xs border border-slate-100">
+                        {getDivisionIcon(div.iconName)}
+                      </div>
+                      <div>
+                        <h3 className="text-xs font-black text-slate-800 uppercase tracking-wider">
+                          {div.name}
+                        </h3>
+                        <span className="text-[10px] text-slate-400 font-bold block mt-0.5">PK AKTIF LEVEL</span>
+                      </div>
                     </div>
-                    <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full border ${statusColor}`}>
+                    <span className={`text-[10px] font-black px-2.5 py-0.5 rounded-full border uppercase ${statusColor}`}>
                       {div.status}
                     </span>
                   </div>
-                  <div className="flex items-center justify-between text-[10px]">
-                    <span className="text-slate-400 font-medium">PIC: <span className="font-bold text-slate-600">{div.pic}</span></span>
-                    {div.agreement && (
-                      <span className="text-indigo-600 font-extrabold font-mono">{div.percentage}% Capaian</span>
-                    )}
+
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-xs">
+                      <span className="text-slate-400 font-medium">Penanggung Jawab:</span>
+                      <span className="font-extrabold text-slate-700">{div.pic}</span>
+                    </div>
+                    <div className="flex justify-between text-xs">
+                      <span className="text-slate-400 font-medium">Periode Tampilan:</span>
+                      <span className="font-extrabold text-indigo-600 uppercase tracking-wider">{selectedKpiPeriod}</span>
+                    </div>
+                    <div className="flex justify-between text-xs items-center">
+                      <span className="text-slate-400 font-medium">Rerata Capaian:</span>
+                      <span className="text-sm font-black text-indigo-600 font-mono bg-indigo-50 px-2 py-0.5 rounded-lg border border-indigo-100">
+                        {adjustedDivPercentage}%
+                      </span>
+                    </div>
                   </div>
-                  <p className="text-[11px] text-slate-400 line-clamp-2 leading-tight">
+
+                  <p className="text-xs text-slate-500 leading-relaxed pt-2 border-t border-slate-100">
                     {div.description}
                   </p>
                 </div>
 
-                {/* Gauges Side by Side */}
-                <div className="grid grid-cols-2 gap-3">
-                  {!div.agreement || div.agreement.objectives.length === 0 ? (
-                    <div className="col-span-2 py-8 text-center text-[11px] text-slate-400 italic bg-slate-50 rounded-xl border border-dashed border-slate-200">
-                      Belum ada target PK atau indikator aktif
+                <div className="text-[10px] text-slate-400 italic bg-white p-3 rounded-xl border border-slate-150/70">
+                  ⚠️ Nilai target dan realisasi dihitung proporsional mengikuti timeline filter periode <strong className="text-indigo-600">{selectedKpiPeriod}</strong>.
+                </div>
+              </div>
+
+              {/* Right area displaying gauges */}
+              <div className="lg:col-span-8 bg-white p-6 rounded-2xl border border-slate-150 flex flex-col justify-center">
+                <h4 className="text-xs font-black text-slate-400 uppercase tracking-wider mb-4 font-mono">Daftar Indikator Kinerja Program (IKP)</h4>
+                
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {adjustedObjectives.length === 0 ? (
+                    <div className="col-span-2 py-12 text-center text-xs text-slate-400 italic bg-slate-50 rounded-2xl border border-dashed border-slate-200">
+                      Belum ada target PK atau indikator aktif untuk divisi ini
                     </div>
                   ) : (
-                    div.agreement.objectives.map((obj) => {
-                      const realisasiVal = obj.achievement;
-                      const targetVal = parseFloat(obj.target) || 100;
-                      const percentage = targetVal > 0 ? Math.round((realisasiVal / targetVal) * 100) : 0;
+                    adjustedObjectives.map((obj) => {
+                      const percentage = obj.percentage;
                       const fillPercentage = Math.min(100, Math.max(0, percentage));
                       const remaining = 100 - fillPercentage;
 
-                      // Gauge colors dynamically matching standard color design system
-                      let gaugeColor = '#10b981'; // Emerald (>= 90%)
+                      let gaugeColor = '#10b981'; // Emerald
                       if (percentage < 50) {
-                        gaugeColor = '#f43f5e'; // Rose (< 50%)
+                        gaugeColor = '#f43f5e'; // Rose
                       } else if (percentage < 90) {
-                        gaugeColor = '#f59e0b'; // Amber (50% - 89%)
+                        gaugeColor = '#f59e0b'; // Amber
                       }
 
                       const gaugeData = [
@@ -524,15 +660,15 @@ export default function DashboardView({
                       ];
 
                       return (
-                        <div key={obj.id} className="bg-slate-50/55 p-3 rounded-xl border border-slate-100 flex flex-col items-center justify-between space-y-2.5">
-                          <div className="text-center w-full min-h-[34px] flex flex-col justify-center">
-                            <span className="text-[10px] font-extrabold text-slate-600 line-clamp-2 leading-tight" title={obj.indicatorName}>
+                        <div key={obj.id} className="bg-slate-50/50 p-4 rounded-xl border border-slate-150/70 flex flex-col items-center justify-between space-y-3 hover:border-slate-300 transition-all">
+                          <div className="text-center w-full min-h-[36px] flex flex-col justify-center">
+                            <span className="text-xs font-extrabold text-slate-700 line-clamp-2 leading-tight" title={obj.indicatorName}>
                               {obj.indicatorName}
                             </span>
                           </div>
 
                           {/* Recharts Half Circle */}
-                          <div className="relative w-full h-20 flex items-center justify-center overflow-hidden">
+                          <div className="relative w-full h-24 flex items-center justify-center overflow-hidden">
                             <ResponsiveContainer width="100%" height="100%">
                               <PieChart margin={{ top: 8, left: 0, right: 0, bottom: 0 }}>
                                 <Pie
@@ -541,8 +677,8 @@ export default function DashboardView({
                                   cy="95%"
                                   startAngle={180}
                                   endAngle={0}
-                                  innerRadius={34}
-                                  outerRadius={48}
+                                  innerRadius={38}
+                                  outerRadius={54}
                                   paddingAngle={0}
                                   dataKey="value"
                                 >
@@ -554,24 +690,24 @@ export default function DashboardView({
 
                             {/* Center-bottom label inside the gauge */}
                             <div className="absolute inset-x-0 bottom-1 flex flex-col items-center">
-                              <span className="text-sm font-black text-slate-800 font-mono tracking-tight leading-none">
+                              <span className="text-base font-black text-slate-800 font-mono tracking-tight leading-none">
                                 {percentage}%
                               </span>
                               <span className="text-[8px] text-slate-400 font-bold uppercase tracking-wider mt-0.5">Capaian</span>
                             </div>
                           </div>
 
-                          <div className="w-full grid grid-cols-2 gap-1 text-center border-t border-slate-150 pt-2 text-[10px]">
+                          <div className="w-full grid grid-cols-2 gap-1 text-center border-t border-slate-200/60 pt-3 text-xs">
                             <div className="flex flex-col min-w-0">
-                              <span className="text-[8px] font-bold text-slate-400 uppercase">Realisasi</span>
+                              <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wide">Realisasi</span>
                               <span className="font-extrabold text-indigo-600 font-mono truncate">
-                                {realisasiVal} <span className="text-[8px] font-medium text-slate-500 font-sans">{obj.unit}</span>
+                                {obj.achievement} <span className="text-[9px] font-medium text-slate-500 font-sans">{obj.unit}</span>
                               </span>
                             </div>
-                            <div className="flex flex-col border-l border-slate-150 min-w-0">
-                              <span className="text-[8px] font-bold text-slate-400 uppercase">Target</span>
+                            <div className="flex flex-col border-l border-slate-200 min-w-0">
+                              <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wide">Target</span>
                               <span className="font-extrabold text-slate-700 font-mono truncate">
-                                {targetVal} <span className="text-[8px] font-medium text-slate-500 font-sans">{obj.unit}</span>
+                                {obj.target}
                               </span>
                             </div>
                           </div>
@@ -581,9 +717,9 @@ export default function DashboardView({
                   )}
                 </div>
               </div>
-            );
-          })}
-        </div>
+            </div>
+          );
+        })()}
       </div>
 
       {/* Two Column Layout: Left (Pemberitaan), Right (LPU) */}

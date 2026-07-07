@@ -8,6 +8,7 @@ import CooperationPnbpView from './components/CooperationPnbpView';
 import PemberitaanMediaBaruView from './components/PemberitaanMediaBaruView';
 import LoginView from './components/LoginView';
 import DashboardBidangView from './components/DashboardBidangView';
+import DashboardTmbView from './components/DashboardTmbView';
 import { 
   fetchCollection, 
   fetchDocument, 
@@ -22,7 +23,6 @@ import {
   LayoutDashboard, 
   Users, 
   Settings, 
-  Bell, 
   Menu, 
   X, 
   ShieldCheck, 
@@ -30,7 +30,8 @@ import {
   Volume2,
   GitFork,
   Handshake,
-  Share2
+  Share2,
+  Cpu
 } from 'lucide-react';
 
 // Reusable clean SVG vector signature data-urls for preloaded employees
@@ -645,7 +646,7 @@ const recalculateCascade = (
 };
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'kepegawaian' | 'aplikasi' | 'pk' | 'lpu' | 'pemberitaan'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'kepegawaian' | 'aplikasi' | 'pk' | 'lpu' | 'pemberitaan' | 'tmb'>('dashboard');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isSyncing, setIsSyncing] = useState(true);
   const [employees, setEmployees] = useState<Employee[]>([]);
@@ -656,7 +657,6 @@ export default function App() {
   const [contracts, setContracts] = useState<CooperationContract[]>([]);
   const [reporterTargets, setReporterTargets] = useState<ReporterTarget[]>([]);
   const [newsReports, setNewsReports] = useState<NewsReport[]>([]);
-  const [isNotifOpen, setIsNotifOpen] = useState(false);
   const [currentUser, setCurrentUser] = useState<{
     id: string;
     name: string;
@@ -1189,8 +1189,23 @@ export default function App() {
             </button>
           )}
 
-          {/* Administrasi Aplikasi (Kepala or Tata Usaha) */}
-          {(currentUser.role === 'Kepala' || currentUser.division === 'Tata Usaha / Umum') && (
+          {/* Dashboard TMB */}
+          {(currentUser.role === 'Kepala' || currentUser.role === 'Superadmin' || currentUser.division === 'Teknik' || currentUser.division === 'Teknologi & Media Baru') && (
+            <button
+              onClick={() => setActiveTab('tmb')}
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-semibold tracking-wide transition-all ${
+                activeTab === 'tmb' 
+                  ? 'bg-indigo-600 text-white shadow-xs shadow-indigo-600/25' 
+                  : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
+              }`}
+            >
+              <Cpu className="w-4 h-4" />
+              Dashboard TMB
+            </button>
+          )}
+
+          {/* Administrasi Aplikasi (Superadmin Only) */}
+          {currentUser.role === 'Superadmin' && (
             <button
               onClick={() => setActiveTab('aplikasi')}
               className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-semibold tracking-wide transition-all ${
@@ -1239,17 +1254,6 @@ export default function App() {
         </div>
 
         <div className="flex items-center gap-2">
-          {/* Notifications bell */}
-          <button 
-            onClick={() => setIsNotifOpen(!isNotifOpen)}
-            className="p-2 hover:bg-slate-800 rounded-lg relative text-slate-300 transition-colors"
-          >
-            <Bell className="w-4.5 h-4.5" />
-            {unreadCount > 0 && (
-              <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-rose-500 rounded-full" />
-            )}
-          </button>
-
           {/* Hamburger toggle */}
           <button
             onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
@@ -1321,7 +1325,21 @@ export default function App() {
             </button>
           )}
 
-          {(currentUser.role === 'Kepala' || currentUser.division === 'Tata Usaha / Umum') && (
+          {/* Dashboard TMB */}
+          {(currentUser.role === 'Kepala' || currentUser.role === 'Superadmin' || currentUser.division === 'Teknik' || currentUser.division === 'Teknologi & Media Baru') && (
+            <button
+              onClick={() => { setActiveTab('tmb'); setIsMobileMenuOpen(false); }}
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-semibold tracking-wide transition-colors ${
+                activeTab === 'tmb' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:bg-slate-800'
+              }`}
+            >
+              <Cpu className="w-4 h-4" />
+              Dashboard TMB
+            </button>
+          )}
+
+          {/* Administrasi Aplikasi (Superadmin Only) */}
+          {currentUser.role === 'Superadmin' && (
             <button
               onClick={() => { setActiveTab('aplikasi'); setIsMobileMenuOpen(false); }}
               className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-semibold tracking-wide transition-colors ${
@@ -1356,63 +1374,6 @@ export default function App() {
           </div>
 
           <div className="flex items-center gap-4">
-            {/* Notifications Alert Dropdown Button */}
-            <div className="relative">
-              <button 
-                onClick={() => setIsNotifOpen(!isNotifOpen)}
-                className="p-2 bg-slate-50 hover:bg-slate-100 rounded-xl relative text-slate-600 border border-slate-100 transition-all flex items-center gap-1.5 text-xs font-bold"
-              >
-                <Bell className="w-4.5 h-4.5 text-slate-500" />
-                <span>Peringatan</span>
-                {unreadCount > 0 && (
-                  <span className="bg-rose-500 text-white text-[9px] font-black px-1.5 py-0.5 rounded-full font-mono">
-                    {unreadCount}
-                  </span>
-                )}
-              </button>
-
-              {/* Notification Overlay Menu */}
-              {isNotifOpen && (
-                <div className="absolute right-0 mt-2 w-80 bg-white border border-slate-200 rounded-2xl shadow-xl p-4 space-y-3 z-50 animate-in fade-in slide-in-from-top-2 duration-150">
-                  <div className="flex justify-between items-center border-b border-slate-100 pb-2">
-                    <span className="text-xs font-extrabold text-slate-700 uppercase tracking-wide">Pemberitahuan Sistem</span>
-                    <button 
-                      onClick={() => setIsNotifOpen(false)}
-                      className="text-[10px] font-bold text-indigo-600 hover:underline"
-                    >
-                      Tutup
-                    </button>
-                  </div>
-
-                  <div className="max-h-60 overflow-y-auto divide-y divide-slate-50 space-y-2">
-                    {notifications.length === 0 ? (
-                      <p className="text-[11px] text-slate-400 text-center py-4 italic">Tidak ada notifikasi baru.</p>
-                    ) : (
-                      notifications.slice(0, 4).map((n) => (
-                        <div key={n.id} className="pt-2 text-xs space-y-1">
-                          <div className="flex justify-between items-center">
-                            <span className={`text-[10px] font-bold uppercase tracking-wider ${
-                              n.type === 'critical' ? 'text-rose-500' : 'text-amber-500'
-                            }`}>{n.title}</span>
-                            <span className="text-[9px] text-slate-400 font-mono">{n.timestamp}</span>
-                          </div>
-                          <p className="text-[11px] text-slate-600 leading-normal">{n.message}</p>
-                          {!n.isRead && (
-                            <button
-                              onClick={() => { readNotification(n.id); setIsNotifOpen(false); setActiveTab('dashboard'); }}
-                              className="text-[9px] font-extrabold text-indigo-600 hover:underline flex items-center gap-1"
-                            >
-                              Detail & Selesaikan
-                            </button>
-                          )}
-                        </div>
-                      ))
-                    )}
-                  </div>
-                </div>
-              )}
-            </div>
-
             {/* User Executive Profil */}
             <div className="flex items-center gap-2.5 pl-4 border-l border-slate-200">
               <div className="text-right">
@@ -1532,6 +1493,15 @@ export default function App() {
               newsReports={newsReports}
               onUpdateReporterTargets={handleUpdateReporterTargets}
               onUpdateNewsReports={handleUpdateNewsReports}
+            />
+          )}
+
+          {activeTab === 'tmb' && (
+            <DashboardTmbView
+              currentUser={currentUser}
+              employees={employees}
+              agreements={agreements}
+              onUpdateAgreements={handleUpdateAgreements}
             />
           )}
         </div>

@@ -20,7 +20,10 @@ import {
   ClipboardCheck, 
   FileCheck,
   Send,
-  Printer
+  Printer,
+  ArrowUp,
+  ArrowDown,
+  Edit2
 } from 'lucide-react';
 import { Employee, InstitutionalIdentity, PerformanceAgreement, PerformanceIndicator, AppSettings, CriticalNotification, NewsReport, CooperationContract, ReporterTarget, IndicatorComment } from '../types';
 import SignaturePad from './SignaturePad';
@@ -106,6 +109,10 @@ export default function PerformanceAgreementView({
   const toggleExpandIndicator = (id: string) => {
     setExpandedIndicators(prev => ({ ...prev, [id]: !prev[id] }));
   };
+
+  // Renaming and Re-ordering State
+  const [renamingIndicatorId, setRenamingIndicatorId] = useState<string | null>(null);
+  const [renamingNameValue, setRenamingNameValue] = useState<string>('');
 
   // List of Level 2 official levels
   const level2Options = [
@@ -570,6 +577,51 @@ export default function PerformanceAgreementView({
         return {
           ...ag,
           objectives: ag.objectives.map(o => o.id === indicatorId ? { ...o, achievement: value } : o)
+        };
+      }
+      return ag;
+    });
+    onUpdateAgreements(updated);
+  };
+
+  // Handle renaming indicator
+  const handleSaveRename = (agreementId: string, indicatorId: string) => {
+    if (!renamingNameValue.trim()) return;
+    const updated = agreements.map(ag => {
+      if (ag.id === agreementId) {
+        return {
+          ...ag,
+          objectives: ag.objectives.map(o => o.id === indicatorId ? { ...o, indicatorName: renamingNameValue } : o)
+        };
+      }
+      return ag;
+    });
+    onUpdateAgreements(updated);
+    setRenamingIndicatorId(null);
+    setRenamingNameValue('');
+  };
+
+  // Handle moving objectives Up or Down for ordering
+  const handleMoveObjective = (agreementId: string, indicatorId: string, direction: 'up' | 'down') => {
+    const updated = agreements.map(ag => {
+      if (ag.id === agreementId) {
+        const idx = ag.objectives.findIndex(o => o.id === indicatorId);
+        if (idx === -1) return ag;
+
+        const newObjectives = [...ag.objectives];
+        if (direction === 'up' && idx > 0) {
+          const temp = newObjectives[idx];
+          newObjectives[idx] = newObjectives[idx - 1];
+          newObjectives[idx - 1] = temp;
+        } else if (direction === 'down' && idx < newObjectives.length - 1) {
+          const temp = newObjectives[idx];
+          newObjectives[idx] = newObjectives[idx + 1];
+          newObjectives[idx + 1] = temp;
+        }
+
+        return {
+          ...ag,
+          objectives: newObjectives
         };
       }
       return ag;
@@ -1080,14 +1132,79 @@ export default function PerformanceAgreementView({
                           {isExpanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
                         </button>
 
-                        <div className="space-y-1">
+                        <div className="space-y-1 flex-1">
                           <div className="flex flex-wrap items-center gap-1.5">
                             <span className="px-2 py-0.5 bg-purple-100 text-purple-700 text-[9px] font-black uppercase rounded-md border border-purple-200">
                               LEVEL 1 • KEPALA STASIUN
                             </span>
                             <span className="text-[10px] text-slate-400 font-mono">ID: {rootId}</span>
+                            
+                            {/* Reordering Controls for Level 1 */}
+                            {canEditAgreement('Kepala Stasiun') && (
+                              <div className="flex items-center gap-1 ml-2 bg-slate-200/50 rounded-lg p-0.5">
+                                <button
+                                  onClick={() => handleMoveObjective(node.agreement.id, rootId, 'up')}
+                                  className="p-1 hover:bg-slate-300 rounded text-slate-600 transition-colors"
+                                  title="Pindahkan ke Atas"
+                                >
+                                  <ArrowUp className="w-3 h-3" />
+                                </button>
+                                <button
+                                  onClick={() => handleMoveObjective(node.agreement.id, rootId, 'down')}
+                                  className="p-1 hover:bg-slate-300 rounded text-slate-600 transition-colors"
+                                  title="Pindahkan ke Bawah"
+                                >
+                                  <ArrowDown className="w-3 h-3" />
+                                </button>
+                              </div>
+                            )}
                           </div>
-                          <h4 className="text-xs font-bold text-slate-800 leading-normal">{node.root.indicatorName}</h4>
+
+                          {renamingIndicatorId === rootId ? (
+                            <div className="flex items-center gap-2 mt-1 max-w-xl">
+                              <input
+                                type="text"
+                                value={renamingNameValue}
+                                onChange={(e) => setRenamingNameValue(e.target.value)}
+                                className="flex-1 text-xs bg-white border border-indigo-400 rounded-lg px-2.5 py-1.5 font-medium text-slate-800 focus:outline-hidden focus:ring-1 focus:ring-indigo-500"
+                                autoFocus
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter') handleSaveRename(node.agreement.id, rootId);
+                                  if (e.key === 'Escape') setRenamingIndicatorId(null);
+                                }}
+                              />
+                              <button
+                                onClick={() => handleSaveRename(node.agreement.id, rootId)}
+                                className="p-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg transition-colors"
+                                title="Simpan"
+                              >
+                                <Check className="w-3.5 h-3.5" />
+                              </button>
+                              <button
+                                onClick={() => setRenamingIndicatorId(null)}
+                                className="p-1.5 bg-slate-200 hover:bg-slate-300 text-slate-600 rounded-lg transition-colors"
+                                title="Batal"
+                              >
+                                <X className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          ) : (
+                            <div className="flex items-center gap-2 group">
+                              <h4 className="text-xs font-bold text-slate-800 leading-normal">{node.root.indicatorName}</h4>
+                              {canEditAgreement('Kepala Stasiun') && (
+                                <button
+                                  onClick={() => {
+                                    setRenamingIndicatorId(rootId);
+                                    setRenamingNameValue(node.root.indicatorName);
+                                  }}
+                                  className="p-1 opacity-0 group-hover:opacity-100 hover:bg-slate-200 text-slate-500 rounded-md transition-all"
+                                  title="Ubah Nama PK"
+                                >
+                                  <Edit2 className="w-3 h-3" />
+                                </button>
+                              )}
+                            </div>
+                          )}
                           <p className="text-[10px] text-slate-400">Penanggung Jawab: <span className="font-bold text-slate-600">{node.agreement.assignedToName}</span></p>
                         </div>
                       </div>
@@ -1173,14 +1290,79 @@ export default function PerformanceAgreementView({
                                       {isL2Expanded ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
                                     </button>
 
-                                    <div className="space-y-0.5">
-                                      <div className="flex items-center gap-1.5">
+                                    <div className="space-y-0.5 flex-1">
+                                      <div className="flex items-center gap-1.5 flex-wrap">
                                         <span className="px-1.5 py-0.5 bg-blue-100 text-blue-700 text-[8px] font-extrabold uppercase rounded border border-blue-200">
                                           LEVEL 2 • {l2.agreement.level.toUpperCase()}
                                         </span>
                                         <span className="text-[9px] text-slate-400 font-mono">Parent ID: {l2.indicator.parentIndicatorId}</span>
+                                        
+                                        {/* Reordering Controls for Level 2 */}
+                                        {canEditAgreement(l2.agreement.level) && (
+                                          <div className="flex items-center gap-1 ml-2 bg-slate-100 rounded p-0.5">
+                                            <button
+                                              onClick={() => handleMoveObjective(l2.agreement.id, l2Id, 'up')}
+                                              className="p-0.5 hover:bg-slate-200 rounded text-slate-500 transition-colors"
+                                              title="Pindahkan ke Atas"
+                                            >
+                                              <ArrowUp className="w-2.5 h-2.5" />
+                                            </button>
+                                            <button
+                                              onClick={() => handleMoveObjective(l2.agreement.id, l2Id, 'down')}
+                                              className="p-0.5 hover:bg-slate-200 rounded text-slate-500 transition-colors"
+                                              title="Pindahkan ke Bawah"
+                                            >
+                                              <ArrowDown className="w-2.5 h-2.5" />
+                                            </button>
+                                          </div>
+                                        )}
                                       </div>
-                                      <h5 className="text-xs font-bold text-slate-700 leading-normal">{l2.indicator.indicatorName}</h5>
+
+                                      {renamingIndicatorId === l2Id ? (
+                                        <div className="flex items-center gap-2 mt-1">
+                                          <input
+                                            type="text"
+                                            value={renamingNameValue}
+                                            onChange={(e) => setRenamingNameValue(e.target.value)}
+                                            className="flex-1 text-xs bg-white border border-indigo-400 rounded-lg px-2 py-1 font-medium text-slate-800 focus:outline-hidden"
+                                            autoFocus
+                                            onKeyDown={(e) => {
+                                              if (e.key === 'Enter') handleSaveRename(l2.agreement.id, l2Id);
+                                              if (e.key === 'Escape') setRenamingIndicatorId(null);
+                                            }}
+                                          />
+                                          <button
+                                            onClick={() => handleSaveRename(l2.agreement.id, l2Id)}
+                                            className="p-1 bg-emerald-600 hover:bg-emerald-500 text-white rounded transition-colors"
+                                            title="Simpan"
+                                          >
+                                            <Check className="w-3 h-3" />
+                                          </button>
+                                          <button
+                                            onClick={() => setRenamingIndicatorId(null)}
+                                            className="p-1 bg-slate-200 hover:bg-slate-300 text-slate-600 rounded transition-colors"
+                                            title="Batal"
+                                          >
+                                            <X className="w-3 h-3" />
+                                          </button>
+                                        </div>
+                                      ) : (
+                                        <div className="flex items-center gap-1.5 group">
+                                          <h5 className="text-xs font-bold text-slate-700 leading-normal">{l2.indicator.indicatorName}</h5>
+                                          {canEditAgreement(l2.agreement.level) && (
+                                            <button
+                                              onClick={() => {
+                                                setRenamingIndicatorId(l2Id);
+                                                setRenamingNameValue(l2.indicator.indicatorName);
+                                              }}
+                                              className="p-0.5 opacity-0 group-hover:opacity-100 hover:bg-slate-100 text-slate-400 rounded transition-all"
+                                              title="Ubah Nama PK"
+                                            >
+                                              <Edit2 className="w-2.5 h-2.5" />
+                                            </button>
+                                          )}
+                                        </div>
+                                      )}
                                       <p className="text-[10px] text-slate-400">Penerima Delegasi: <span className="font-extrabold text-indigo-600">{l2.agreement.assignedToName}</span></p>
                                     </div>
                                   </div>
@@ -1262,7 +1444,71 @@ export default function PerformanceAgreementView({
                                                 </span>
                                                 <span className="text-[8px] text-slate-400 font-mono">Parent: {l3.indicator.parentIndicatorId}</span>
                                               </div>
-                                              <h6 className="font-semibold text-slate-700">{l3.indicator.indicatorName}</h6>
+                                              {/* Reordering Controls for Level 3 */}
+                                              {canEditAgreement('Pegawai') && (
+                                                <div className="flex items-center gap-1 mb-1.5 bg-slate-100 rounded p-0.5 w-fit">
+                                                  <button
+                                                    onClick={() => handleMoveObjective(l3.agreement.id, l3Id, 'up')}
+                                                    className="p-0.5 hover:bg-slate-200 rounded text-slate-500 transition-colors"
+                                                    title="Pindahkan ke Atas"
+                                                  >
+                                                    <ArrowUp className="w-2.5 h-2.5" />
+                                                  </button>
+                                                  <button
+                                                    onClick={() => handleMoveObjective(l3.agreement.id, l3Id, 'down')}
+                                                    className="p-0.5 hover:bg-slate-200 rounded text-slate-500 transition-colors"
+                                                    title="Pindahkan ke Bawah"
+                                                  >
+                                                    <ArrowDown className="w-2.5 h-2.5" />
+                                                  </button>
+                                                </div>
+                                              )}
+
+                                              {renamingIndicatorId === l3Id ? (
+                                                <div className="flex items-center gap-2 mt-1">
+                                                  <input
+                                                    type="text"
+                                                    value={renamingNameValue}
+                                                    onChange={(e) => setRenamingNameValue(e.target.value)}
+                                                    className="flex-1 text-xs bg-white border border-indigo-400 rounded-lg px-2 py-0.5 font-medium text-slate-800 focus:outline-hidden"
+                                                    autoFocus
+                                                    onKeyDown={(e) => {
+                                                      if (e.key === 'Enter') handleSaveRename(l3.agreement.id, l3Id);
+                                                      if (e.key === 'Escape') setRenamingIndicatorId(null);
+                                                    }}
+                                                  />
+                                                  <button
+                                                    onClick={() => handleSaveRename(l3.agreement.id, l3Id)}
+                                                    className="p-0.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded transition-colors"
+                                                    title="Simpan"
+                                                  >
+                                                    <Check className="w-2.5 h-2.5" />
+                                                  </button>
+                                                  <button
+                                                    onClick={() => setRenamingIndicatorId(null)}
+                                                    className="p-0.5 bg-slate-200 hover:bg-slate-300 text-slate-600 rounded transition-colors"
+                                                    title="Batal"
+                                                  >
+                                                    <X className="w-2.5 h-2.5" />
+                                                  </button>
+                                                </div>
+                                              ) : (
+                                                <div className="flex items-center gap-1.5 group">
+                                                  <h6 className="font-semibold text-slate-700">{l3.indicator.indicatorName}</h6>
+                                                  {canEditAgreement('Pegawai') && (
+                                                    <button
+                                                      onClick={() => {
+                                                        setRenamingIndicatorId(l3Id);
+                                                        setRenamingNameValue(l3.indicator.indicatorName);
+                                                      }}
+                                                      className="p-0.5 opacity-0 group-hover:opacity-100 hover:bg-slate-100 text-slate-400 rounded transition-all"
+                                                      title="Ubah Nama PK"
+                                                    >
+                                                      <Edit2 className="w-2.5 h-2.5" />
+                                                    </button>
+                                                  )}
+                                                </div>
+                                              )}
                                               <p className="text-[10px] text-slate-400">Pegawai Pelaksana: <span className="font-extrabold text-emerald-600">{l3.agreement.assignedToName}</span></p>
                                             </div>
 

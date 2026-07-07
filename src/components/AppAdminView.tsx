@@ -504,6 +504,20 @@ export default function AppAdminView({
     window.print();
   };
 
+  if (currentUser?.role !== 'Superadmin') {
+    return (
+      <div className="lg:col-span-12 bg-white p-8 rounded-3xl border border-slate-100 shadow-md flex flex-col items-center justify-center text-center space-y-4 max-w-lg mx-auto my-12">
+        <div className="p-4 bg-rose-50 text-rose-600 rounded-full animate-bounce">
+          <AlertCircle className="w-8 h-8" />
+        </div>
+        <h2 className="text-lg font-bold text-slate-800">Akses Ditolak / Terbatas</h2>
+        <p className="text-xs text-slate-500 leading-relaxed">
+          Maaf, menu Administrasi Aplikasi, Manajemen Database, serta Fitur Cadangan & Impor hanya dapat diakses secara eksklusif oleh akun dengan level kewenangan <strong>Superadmin</strong>.
+        </p>
+      </div>
+    );
+  }
+
   return (
     <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
       
@@ -974,70 +988,72 @@ export default function AppAdminView({
         </div>
 
         {/* Backup, Export & Import Database Card */}
-        <div className="bg-white border border-slate-200 p-5 rounded-2xl shadow-sm space-y-4">
-          <div className="flex items-center gap-2 border-b border-slate-100 pb-3">
-            <div className="p-2 bg-slate-800 text-white rounded-lg">
-              <Database className="w-4.5 h-4.5" />
-            </div>
-            <div>
-              <h2 className="text-sm font-bold text-slate-800">Cadangan & Impor Database</h2>
-              <p className="text-[10px] text-slate-400">Ekspor data ke file cadangan atau pulihkan dari file .json.</p>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {/* Export section */}
-            <div className="space-y-2.5 flex flex-col justify-between">
+        {currentUser?.role === 'Superadmin' && (
+          <div className="bg-white border border-slate-200 p-5 rounded-2xl shadow-sm space-y-4">
+            <div className="flex items-center gap-2 border-b border-slate-100 pb-3">
+              <div className="p-2 bg-slate-800 text-white rounded-lg">
+                <Database className="w-4.5 h-4.5" />
+              </div>
               <div>
-                <span className="text-[11px] font-extrabold text-slate-500 uppercase tracking-wider block">Ekspor Data</span>
-                <p className="text-xs text-slate-500 leading-relaxed mt-1">
-                  Unduh seluruh data instansi saat ini (Daftar Pegawai, Perjanjian Kinerja, Kontrak Kerja Sama, dll.) dalam bentuk file .json terkompresi.
-                </p>
+                <h2 className="text-sm font-bold text-slate-800">Cadangan & Impor Database</h2>
+                <p className="text-[10px] text-slate-400">Ekspor data ke file cadangan atau pulihkan dari file .json.</p>
               </div>
-              {onExportDatabase && (
-                <button
-                  type="button"
-                  onClick={onExportDatabase}
-                  className="flex items-center gap-2 bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold px-4 py-2.5 rounded-xl transition-all cursor-pointer w-full justify-center active:scale-98 mt-2"
-                >
-                  <Download className="w-4 h-4" />
-                  Unduh File Cadangan (.json)
-                </button>
-              )}
             </div>
 
-            {/* Import section with drag & drop */}
-            <div className="space-y-2.5">
-              <span className="text-[11px] font-extrabold text-slate-500 uppercase tracking-wider block">Impor & Pulihkan</span>
-              <div
-                onDragOver={handleDragOver}
-                onDragLeave={handleDragLeave}
-                onDrop={handleDrop}
-                onClick={() => fileInputRef.current?.click()}
-                className={`border-2 border-dashed rounded-xl p-4 text-center cursor-pointer transition-all flex flex-col items-center justify-center gap-1.5 min-h-[110px] ${
-                  isDragging
-                    ? "border-slate-800 bg-slate-50 text-slate-800"
-                    : "border-slate-200 hover:border-slate-300 text-slate-500 bg-slate-50/30"
-                }`}
-              >
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept=".json"
-                  onChange={handleFileChange}
-                  className="hidden"
-                />
-                <Upload className="w-5 h-5 text-slate-400" />
-                <div className="text-[11px] font-semibold">
-                  {isDragging ? "Lepaskan file di sini" : "Klik atau seret file .json ke sini"}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Export section */}
+              <div className="space-y-2.5 flex flex-col justify-between">
+                <div>
+                  <span className="text-[11px] font-extrabold text-slate-500 uppercase tracking-wider block">Ekspor Data</span>
+                  <p className="text-xs text-slate-500 leading-relaxed mt-1">
+                    Unduh seluruh data instansi saat ini (Daftar Pegawai, Perjanjian Kinerja, Kontrak Kerja Sama, dll.) dalam bentuk file .json terkompresi.
+                  </p>
                 </div>
-                <div className="text-[9px] text-slate-400">
-                  Mendukung file cadangan .json dari portal Swara
+                {onExportDatabase && (
+                  <button
+                    type="button"
+                    onClick={onExportDatabase}
+                    className="flex items-center gap-2 bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold px-4 py-2.5 rounded-xl transition-all cursor-pointer w-full justify-center active:scale-98 mt-2"
+                  >
+                    <Download className="w-4 h-4" />
+                    Unduh File Cadangan (.json)
+                  </button>
+                )}
+              </div>
+
+              {/* Import section with drag & drop */}
+              <div className="space-y-2.5">
+                <span className="text-[11px] font-extrabold text-slate-500 uppercase tracking-wider block">Impor & Pulihkan</span>
+                <div
+                  onDragOver={handleDragOver}
+                  onDragLeave={handleDragLeave}
+                  onDrop={handleDrop}
+                  onClick={() => fileInputRef.current?.click()}
+                  className={`border-2 border-dashed rounded-xl p-4 text-center cursor-pointer transition-all flex flex-col items-center justify-center gap-1.5 min-h-[110px] ${
+                    isDragging
+                      ? "border-slate-800 bg-slate-50 text-slate-800"
+                      : "border-slate-200 hover:border-slate-300 text-slate-500 bg-slate-50/30"
+                  }`}
+                >
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept=".json"
+                    onChange={handleFileChange}
+                    className="hidden"
+                  />
+                  <Upload className="w-5 h-5 text-slate-400" />
+                  <div className="text-[11px] font-semibold">
+                    {isDragging ? "Lepaskan file di sini" : "Klik atau seret file .json ke sini"}
+                  </div>
+                  <div className="text-[9px] text-slate-400">
+                    Mendukung file cadangan .json dari portal Swara
+                  </div>
                 </div>
               </div>
             </div>
           </div>
-        </div>
+        )}
 
         {/* Exclusive Menu: Import Data Berita & Media Baru */}
         <div className="bg-white border border-slate-200 p-5 rounded-2xl shadow-sm space-y-4">
@@ -1328,7 +1344,7 @@ export default function AppAdminView({
         </div>
 
         {/* Production Mode and Database Cleanup Card */}
-        {onResetToProductionMode && (
+        {onResetToProductionMode && currentUser?.role === 'Superadmin' && (
           <div className="bg-rose-50/50 border border-rose-100 p-5 rounded-2xl shadow-sm space-y-4">
             <div className="flex items-center gap-2 border-b border-rose-100 pb-3">
               <div className="p-2 bg-rose-600 text-white rounded-lg">
@@ -1385,7 +1401,7 @@ export default function AppAdminView({
         </div>
 
         {/* Paper Mockup style container */}
-        <div className="bg-amber-50/20 border border-amber-100 p-6 sm:p-8 rounded-2xl shadow-xs space-y-6 max-w-full overflow-hidden text-slate-800 select-none">
+        <div className="bg-amber-50/20 border border-amber-100 p-6 sm:p-8 rounded-2xl shadow-xs space-y-6 max-w-full overflow-hidden text-slate-800 select-none printable-document">
           
           {/* Letter Head (Kop Surat) */}
           <div className="text-center border-b-2 border-double border-slate-800 pb-3 space-y-1">

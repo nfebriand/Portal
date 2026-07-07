@@ -42,6 +42,14 @@ export default function CooperationPnbpView({
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedTypeFilter, setSelectedTypeFilter] = useState<string>('Semua');
   const [selectedStatusFilter, setSelectedStatusFilter] = useState<string>('Semua');
+  const [selectedRenstraPKId, setSelectedRenstraPKId] = useState<string>(() => {
+    return localStorage.getItem('swara_selected_renstra_pk_id') || 'ind-11';
+  });
+
+  const handleSetSelectedRenstraPKId = (val: string) => {
+    setSelectedRenstraPKId(val);
+    localStorage.setItem('swara_selected_renstra_pk_id', val);
+  };
   
   // Modal / Form state
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -90,6 +98,49 @@ export default function CooperationPnbpView({
     }
     return list;
   }, [agreements]);
+
+  // Find the dynamically selected PK level/indicator
+  const selectedRenstraPK = useMemo(() => {
+    for (const ag of agreements) {
+      const obj = ag.objectives.find(o => o.id === selectedRenstraPKId);
+      if (obj) {
+        return {
+          ...obj,
+          level: ag.level,
+          assignedToName: ag.assignedToName
+        };
+      }
+    }
+    if (pnbpIndicators.length > 0) {
+      const first = pnbpIndicators[0];
+      return {
+        id: first.id,
+        indicatorName: first.name,
+        target: first.target,
+        unit: first.unit,
+        level: first.owner,
+        assignedToName: first.owner,
+        parentIndicatorId: first.id === 'ind-11' ? 'ind-1' : undefined
+      };
+    }
+    return null;
+  }, [agreements, selectedRenstraPKId, pnbpIndicators]);
+
+  // Find parent cascade of selected PK
+  const parentIndicator = useMemo(() => {
+    if (!selectedRenstraPK || !selectedRenstraPK.parentIndicatorId) return null;
+    for (const ag of agreements) {
+      const obj = ag.objectives.find(o => o.id === selectedRenstraPK.parentIndicatorId);
+      if (obj) {
+        return {
+          ...obj,
+          level: ag.level,
+          assignedToName: ag.assignedToName
+        };
+      }
+    }
+    return null;
+  }, [agreements, selectedRenstraPK]);
 
   // Open modal for new contract
   const handleOpenAdd = () => {
@@ -174,10 +225,9 @@ export default function CooperationPnbpView({
     const totalRealized = contracts.reduce((sum, c) => sum + c.realizedPnbp, 0);
     const totalReceivable = totalValue - totalRealized;
     
-    // Find PNBP Target
-    const pnbpTargetObj = pnbpIndicators.find(i => i.id === 'ind-11');
-    const targetValue = pnbpTargetObj ? parseFloat(pnbpTargetObj.target) : 150;
-    const achievementPercent = Math.round((totalRealized / targetValue) * 100);
+    // Find PNBP Target using the dynamically selected PK level/indicator
+    const targetValue = selectedRenstraPK ? parseFloat(selectedRenstraPK.target) || 150 : 150;
+    const achievementPercent = targetValue > 0 ? Math.round((totalRealized / targetValue) * 100) : 0;
 
     return {
       totalValue,
@@ -186,7 +236,7 @@ export default function CooperationPnbpView({
       targetValue,
       achievementPercent
     };
-  }, [contracts, pnbpIndicators]);
+  }, [contracts, selectedRenstraPK]);
 
   // Filtered contracts
   const filteredContracts = useMemo(() => {
@@ -348,24 +398,56 @@ export default function CooperationPnbpView({
         </div>
 
         {/* Target Sasaran PK */}
-        <div className="bg-white p-5 rounded-2xl border border-slate-200/70 shadow-xs space-y-3">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-slate-500 uppercase font-mono">Target Renstra</span>
-            <div className="p-2 bg-purple-50 text-purple-600 rounded-lg">
-              <FileCheck className="w-4 h-4" />
+        <div className="bg-white p-5 rounded-2xl border border-slate-200/70 shadow-xs space-y-3 flex flex-col justify-between">
+          <div>
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold text-slate-500 uppercase font-mono">Target Renstra</span>
+              <div className="p-2 bg-purple-50 text-purple-600 rounded-lg">
+                <FileCheck className="w-4 h-4" />
+              </div>
+            </div>
+            <div className="space-y-1 mt-1">
+              <h3 className="text-xl font-extrabold text-slate-800">Rp {stats.targetValue.toFixed(1)} Juta</h3>
+              <p className="text-[10px] text-slate-400 font-medium line-clamp-2 min-h-[30px]">
+                Indikator: <span className="font-bold text-indigo-600">{selectedRenstraPK?.indicatorName || 'PNBP'}</span> ({selectedRenstraPK?.level})
+              </p>
             </div>
           </div>
-          <div className="space-y-1">
-            <h3 className="text-xl font-extrabold text-slate-800">Rp {stats.targetValue.toFixed(1)} Juta</h3>
-            <p className="text-[10px] text-slate-400 truncate">
-              IKU: {pnbpIndicators[0]?.name || 'PNBP'}
-            </p>
-          </div>
-          <div className="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
-            <div 
-              className="bg-purple-500 h-1.5 rounded-full"
-              style={{ width: `${Math.min(100, stats.achievementPercent)}%` }}
-            />
+
+          <div className="space-y-2 pt-2 border-t border-slate-100">
+            <div className="flex flex-col gap-1">
+              <label className="text-[8px] font-black text-slate-400 uppercase tracking-wider">Set PK Level / Indikator Aktif</label>
+              <select
+                value={selectedRenstraPKId}
+                onChange={(e) => handleSetSelectedRenstraPKId(e.target.value)}
+                className="w-full bg-slate-50 border border-slate-200 hover:border-slate-300 rounded-lg px-2 py-1 text-[10px] font-extrabold text-slate-700 focus:outline-hidden"
+              >
+                {/* Find all available objectives to pick from */}
+                {agreements
+                  .map(ag => (
+                    <optgroup key={ag.id} label={`${ag.level} (${ag.assignedToName}) [${ag.status}]`}>
+                      {ag.objectives.map(obj => (
+                        <option key={obj.id} value={obj.id}>
+                          {obj.id} - {obj.indicatorName} (Target: {obj.target} {obj.unit})
+                        </option>
+                      ))}
+                    </optgroup>
+                  ))}
+              </select>
+            </div>
+
+            <div className="space-y-1 pt-1">
+              <div className="flex justify-between text-[10px] font-bold text-slate-600">
+                <span>Progress Capaian</span>
+                <span>{stats.achievementPercent}%</span>
+              </div>
+              <div className="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
+                <div 
+                  className="bg-purple-500 h-1.5 rounded-full"
+                  style={{ width: `${Math.min(100, stats.achievementPercent)}%` }}
+                />
+              </div>
+            </div>
           </div>
         </div>
 
@@ -381,7 +463,7 @@ export default function CooperationPnbpView({
         </div>
         
         <p className="text-[11px] text-slate-600 mb-4 leading-relaxed">
-          Pendapatan kerjasama diinput oleh sub-koordinator LPU. Total realisasi di-roll up langsung ke sasaran kinerja Ketua Tim LPU (<span className="font-bold text-slate-800">ind-11</span>). Karena <span className="font-bold text-slate-800">ind-11</span> mendukung sasaran Kepala Stasiun (<span className="font-bold text-slate-800">ind-1</span>), maka pencapaian realisasi di level bawah akan mengkalkulasi ulang secara proporsional nilai kinerja Kepala Stasiun secara real-time!
+          Pendapatan kerjasama diinput oleh sub-koordinator LPU. Total realisasi di-roll up langsung ke sasaran kinerja terpilih (<span className="font-bold text-slate-800">{selectedRenstraPK?.id || 'ind-11'}</span>). Karena <span className="font-bold text-slate-800">{selectedRenstraPK?.id || 'ind-11'}</span> {parentIndicator ? `mendukung sasaran ${parentIndicator.level} (${parentIndicator.id})` : 'adalah sasaran utama'}, maka pencapaian realisasi di level bawah akan mengkalkulasi ulang secara proporsional nilai kinerja secara real-time menyesuaikan PK Aktif!
         </p>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-center">
@@ -390,7 +472,7 @@ export default function CooperationPnbpView({
           <div className="bg-white p-3.5 rounded-xl border border-indigo-100/80 shadow-2xs space-y-2">
             <div className="flex justify-between items-center text-[9px] uppercase font-bold text-slate-400">
               <span>Langkah 1: Input Kontrak</span>
-              <span className="text-indigo-600">Sumber</span>
+              <span className="text-indigo-600 font-black">Sumber</span>
             </div>
             <div className="space-y-1">
               <h4 className="text-[11px] font-bold text-slate-800">Kerjasama Kegiatan LPU</h4>
@@ -402,39 +484,39 @@ export default function CooperationPnbpView({
             </div>
           </div>
 
-          {/* Box 2: Sasaran Ketua Tim LPU (Level 2) */}
+          {/* Box 2: Sasaran Terpilih (Level 2/3) */}
           <div className="bg-white p-3.5 rounded-xl border border-indigo-100/80 shadow-2xs space-y-2 relative">
             <div className="absolute -left-3 top-1/2 -translate-y-1/2 hidden md:block">
               <ChevronRight className="w-5 h-5 text-indigo-400" />
             </div>
             <div className="flex justify-between items-center text-[9px] uppercase font-bold text-slate-400">
-              <span>Langkah 2: Roll-Up Level 2</span>
-              <span className="text-blue-600">Sasaran Tim</span>
+              <span>Langkah 2: Roll-Up Target</span>
+              <span className="text-blue-600 font-black">Sasaran Terpilih</span>
             </div>
             <div className="space-y-1">
-              <h4 className="text-[11px] font-bold text-slate-800 truncate">Ketua Tim Layanan PU</h4>
-              <p className="text-[10px] text-blue-600 font-medium">ind-11 Capaian PNBP Iklan</p>
+              <h4 className="text-[11px] font-bold text-slate-800 truncate">{selectedRenstraPK?.level || 'LPU'}</h4>
+              <p className="text-[10px] text-blue-600 font-medium truncate" title={selectedRenstraPK?.indicatorName}>{selectedRenstraPK?.id} {selectedRenstraPK?.indicatorName}</p>
               <div className="pt-1.5 flex justify-between items-end text-[10px]">
                 <span className="text-slate-400">Realisasi / Target:</span>
                 <span className="font-black text-slate-800">
-                  {stats.totalRealized} / {stats.targetValue} JT ({stats.achievementPercent}%)
+                  {stats.totalRealized} / {stats.targetValue} ({stats.achievementPercent}%)
                 </span>
               </div>
             </div>
           </div>
 
-          {/* Box 3: Kepala Stasiun (Level 1) */}
+          {/* Box 3: Parent Cascade (Level 1) */}
           <div className="bg-white p-3.5 rounded-xl border border-indigo-100/80 shadow-2xs space-y-2 relative">
             <div className="absolute -left-3 top-1/2 -translate-y-1/2 hidden md:block">
               <ChevronRight className="w-5 h-5 text-indigo-400" />
             </div>
             <div className="flex justify-between items-center text-[9px] uppercase font-bold text-slate-400">
-              <span>Langkah 3: Dampak Level 1</span>
-              <span className="text-purple-600">Kepala Stasiun</span>
+              <span>Langkah 3: Dampak Induk</span>
+              <span className="text-purple-600 font-black">Parent Cascade</span>
             </div>
             <div className="space-y-1">
-              <h4 className="text-[11px] font-bold text-slate-800">Kepala Stasiun RRI</h4>
-              <p className="text-[10px] text-purple-600 font-medium">ind-1 Kepuasan Layanan Publik</p>
+              <h4 className="text-[11px] font-bold text-slate-800 truncate">{parentIndicator ? parentIndicator.level : 'Induk Utama'}</h4>
+              <p className="text-[10px] text-purple-600 font-medium truncate" title={parentIndicator ? parentIndicator.indicatorName : 'Tidak ada induk di atas'}>{parentIndicator ? `${parentIndicator.id} ${parentIndicator.indicatorName}` : 'Tidak ada induk di atas'}</p>
               <div className="pt-1.5 flex justify-between items-end text-[10px]">
                 <span className="text-slate-400">Status Cascade:</span>
                 <span className="font-black text-purple-600 flex items-center gap-0.5">
