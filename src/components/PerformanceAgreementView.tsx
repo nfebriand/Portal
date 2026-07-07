@@ -23,7 +23,11 @@ import {
   Printer,
   ArrowUp,
   ArrowDown,
-  Edit2
+  Edit2,
+  Sparkles,
+  Brain,
+  BookOpen,
+  Copy
 } from 'lucide-react';
 import { Employee, InstitutionalIdentity, PerformanceAgreement, PerformanceIndicator, AppSettings, CriticalNotification, NewsReport, CooperationContract, ReporterTarget, IndicatorComment } from '../types';
 import SignaturePad from './SignaturePad';
@@ -184,6 +188,12 @@ export default function PerformanceAgreementView({
 
   const [evalPeriod, setEvalPeriod] = useState<'q1' | 'q2' | 'q3' | 'q4' | 's1' | 's2' | 'tahunan'>('tahunan');
   const [scaleTargets, setScaleTargets] = useState<boolean>(false);
+  const [sakipExpertData, setSakipExpertData] = useState<{
+    indicator: PerformanceIndicator;
+    agreementId: string;
+    assignedToName: string;
+    level: string;
+  } | null>(null);
 
   // Period helpers
   const isReportInPeriod = (r: NewsReport, period: string, year: number) => {
@@ -2144,8 +2154,21 @@ export default function PerformanceAgreementView({
                             </div>
 
                             {/* Circular/Badge Score Progress */}
-                            <div className="flex items-center gap-3 shrink-0 self-start md:self-center">
-                              <div className="w-24 bg-slate-100 rounded-full h-2 overflow-hidden">
+                            <div className="flex items-center gap-2.5 shrink-0 self-start md:self-center">
+                              <button
+                                type="button"
+                                onClick={() => setSakipExpertData({
+                                  indicator: rootObj,
+                                  agreementId: kepalaAg.id,
+                                  assignedToName: kepalaAg.assignedToName,
+                                  level: kepalaAg.level
+                                })}
+                                className="flex items-center gap-1 px-2.5 py-1 bg-amber-50 hover:bg-amber-100 border border-amber-200 text-amber-800 text-[10px] font-black rounded-lg transition-all hover:scale-[1.02] shadow-2xs shrink-0 cursor-pointer"
+                              >
+                                <Sparkles className="w-3 h-3 text-amber-500 animate-pulse" />
+                                <span>Pakar SAKIP</span>
+                              </button>
+                              <div className="w-20 bg-slate-100 rounded-full h-2 overflow-hidden hidden sm:block">
                                 <div 
                                   className={`h-full rounded-full transition-all duration-500 ${
                                     rootScore >= 90 ? 'bg-emerald-500' : rootScore >= 50 ? 'bg-amber-500' : 'bg-rose-500'
@@ -2153,7 +2176,7 @@ export default function PerformanceAgreementView({
                                   style={{ width: `${Math.min(100, rootScore)}%` }}
                                 />
                               </div>
-                              <span className={`px-3 py-1 rounded-full text-xs font-black border uppercase tracking-wider font-mono ${
+                              <span className={`px-2.5 py-1 rounded-full text-[10px] font-black border uppercase tracking-wider font-mono shrink-0 ${
                                 rootScore >= 90 ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 
                                 rootScore >= 50 ? 'bg-amber-50 text-amber-700 border-amber-200' : 
                                 'bg-rose-50 text-rose-700 border-rose-200'
@@ -2224,13 +2247,29 @@ export default function PerformanceAgreementView({
                                           </div>
                                         </div>
 
-                                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-black border shrink-0 font-mono ${
-                                          l2Score >= 90 ? 'bg-emerald-50/80 text-emerald-700 border-emerald-200' : 
-                                          l2Score >= 50 ? 'bg-amber-50/80 text-amber-700 border-amber-200' : 
-                                          'bg-rose-50/80 text-rose-700 border-rose-200'
-                                        }`}>
-                                          {l2Score}% Capaian
-                                        </span>
+                                        <div className="flex items-center gap-2 shrink-0">
+                                          <button
+                                            type="button"
+                                            onClick={() => setSakipExpertData({
+                                              indicator: l2Obj,
+                                              agreementId: l2Ag.id,
+                                              assignedToName: l2Ag.assignedToName,
+                                              level: l2Ag.level
+                                            })}
+                                            className="flex items-center gap-1 px-2 py-0.5 bg-amber-50 hover:bg-amber-100 border border-amber-200 text-amber-800 text-[9px] font-black rounded-md transition-all hover:scale-[1.02] shadow-2xs cursor-pointer select-none"
+                                            title="Buka Sistem Pakar SAKIP & ASN"
+                                          >
+                                            <Sparkles className="w-2.5 h-2.5 text-amber-500 animate-pulse" />
+                                            <span>Pakar SAKIP</span>
+                                          </button>
+                                          <span className={`px-2 py-0.5 rounded-full text-[10px] font-black border shrink-0 font-mono ${
+                                            l2Score >= 90 ? 'bg-emerald-50/80 text-emerald-700 border-emerald-200' : 
+                                            l2Score >= 50 ? 'bg-amber-50/80 text-amber-700 border-amber-200' : 
+                                            'bg-rose-50/80 text-rose-700 border-rose-200'
+                                          }`}>
+                                            {l2Score}% Capaian
+                                          </span>
+                                        </div>
                                       </div>
 
                                       {/* Level 3 Pegawai row list */}
@@ -2259,13 +2298,7 @@ export default function PerformanceAgreementView({
                                                       </div>
                                                     </div>
 
-                                                    <span className={`px-1.5 py-0.5 rounded-md text-[9px] font-black font-mono shrink-0 \${
-                                                      l3Score >= 90 ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' :
-                                                      l3Score >= 50 ? 'bg-amber-50 text-amber-700 border border-amber-200' :
-                                                      'bg-rose-50 text-rose-700 border-rose-200'
-                                                    }`}>
-                                                      {l3Score}%
-                                                    </span>
+                                                    <div className="flex flex-col items-end gap-1 shrink-0"><span className={`px-1.5 py-0.5 rounded-md text-[9px] font-black font-mono shrink-0 ${l3Score >= 90 ? "bg-emerald-50 text-emerald-700 border border-emerald-200" : l3Score >= 50 ? "bg-amber-50 text-amber-700 border border-amber-200" : "bg-rose-50 text-rose-700 border-rose-200"}`}>{l3Score}%</span><button type="button" onClick={() => setSakipExpertData({ indicator: l3Obj, agreementId: l3Ag.id, assignedToName: l3Ag.assignedToName, level: l3Ag.level })} className="flex items-center gap-0.5 px-1.5 py-0.5 bg-amber-50 hover:bg-amber-100 border border-amber-200 text-amber-800 text-[8px] font-bold rounded cursor-pointer select-none" title="Sistem Pakar SAKIP"><Sparkles className="w-2.5 h-2.5 text-amber-500 animate-pulse" /><span>Pakar</span></button></div>
                                                   </div>
 
                                                   {/* Level 3 Comments */}
@@ -2597,6 +2630,495 @@ export default function PerformanceAgreementView({
           </div>
         </div>
       )}
+
+      {/* SAKIP & ASN Performance Expert Assistant Modal */}
+      {sakipExpertData && (() => {
+        const ind = sakipExpertData.indicator;
+        const targetVal = parseFloat(ind.target) || 100;
+        const realVal = ind.achievement || 0;
+        const score = targetVal > 0 ? Math.min(120, Math.round((realVal / targetVal) * 100)) : 0;
+        const unit = ind.unit || '%';
+        const indName = ind.indicatorName;
+
+        // Calculate SAKIP Predicate
+        let sakipPred = 'B';
+        let sakipLabel = 'Baik';
+        let sakipColor = 'text-indigo-600 bg-indigo-50 border-indigo-200';
+        if (score >= 90) {
+          sakipPred = 'AA';
+          sakipLabel = 'Sangat Memuaskan';
+          sakipColor = 'text-emerald-700 bg-emerald-50 border-emerald-200';
+        } else if (score >= 80) {
+          sakipPred = 'A';
+          sakipLabel = 'Memuaskan';
+          sakipColor = 'text-teal-700 bg-teal-50 border-teal-200';
+        } else if (score >= 70) {
+          sakipPred = 'BB';
+          sakipLabel = 'Sangat Baik';
+          sakipColor = 'text-blue-700 bg-blue-50 border-blue-200';
+        } else if (score >= 60) {
+          sakipPred = 'B';
+          sakipLabel = 'Baik';
+          sakipColor = 'text-indigo-700 bg-indigo-50 border-indigo-200';
+        } else if (score >= 50) {
+          sakipPred = 'CC';
+          sakipLabel = 'Cukup';
+          sakipColor = 'text-amber-700 bg-amber-50 border-amber-200';
+        } else if (score >= 30) {
+          sakipPred = 'C';
+          sakipLabel = 'Kurang';
+          sakipColor = 'text-orange-700 bg-orange-50 border-orange-200';
+        } else {
+          sakipPred = 'D';
+          sakipLabel = 'Sangat Kurang';
+          sakipColor = 'text-rose-700 bg-rose-50 border-rose-200';
+        }
+
+        // Calculate ASN Predicate (Permenpan RB 6/2022)
+        let asnRating = 'BAIK';
+        let asnColor = 'bg-emerald-500 text-white';
+        let asnDesc = 'Hasil kerja sesuai dengan ekspektasi pimpinan dan kontribusi organisasi tercapai secara optimal.';
+        if (score >= 100) {
+          asnRating = 'SANGAT BAIK';
+          asnColor = 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white';
+          asnDesc = 'Hasil kerja secara konsisten melampaui ekspektasi pimpinan serta menginspirasi rekan kerja lainnya.';
+        } else if (score >= 80) {
+          asnRating = 'BAIK';
+          asnColor = 'bg-emerald-500 text-white';
+          asnDesc = 'Hasil kerja sesuai ekspektasi dan memberikan dampak positif langsung pada pencapaian target unit kerja.';
+        } else if (score >= 70) {
+          asnRating = 'BUTUH PERBAIKAN';
+          asnColor = 'bg-amber-500 text-white';
+          asnDesc = 'Sebagian hasil kerja belum sepenuhnya memenuhi ekspektasi pimpinan, diperlukan penyesuaian strategi.';
+        } else if (score >= 50) {
+          asnRating = 'KURANG';
+          asnColor = 'bg-orange-500 text-white';
+          asnDesc = 'Hasil kerja berada di bawah standar minimal ekspektasi pimpinan dan memerlukan pembinaan intensif.';
+        } else {
+          asnRating = 'SANGAT KURANG';
+          asnColor = 'bg-rose-600 text-white';
+          asnDesc = 'Hasil kerja jauh di bawah ekspektasi pimpinan dan merugikan capaian akuntabilitas unit organisasi.';
+        }
+
+        // Custom domain context matching
+        const isPnbp = indName.toLowerCase().includes('pnbp') || indName.toLowerCase().includes('pendapatan') || indName.toLowerCase().includes('usaha');
+        const isBerita = indName.toLowerCase().includes('berita') || indName.toLowerCase().includes('pemberitaan') || indName.toLowerCase().includes('konten') || indName.toLowerCase().includes('siaran');
+
+        // Dynamic Cascading division and weights
+        let cascadingList: { level: string; role: string; weight: number; reason: string }[] = [];
+        if (sakipExpertData.level === 'Kepala Stasiun') {
+          if (isPnbp) {
+            cascadingList = [
+              { level: 'Level 2', role: 'Ketua Tim Layanan Pengembangan Usaha', weight: 60, reason: 'Penanggung jawab utama pencarian mitra kerjasama dan penagihan piutang PNBP.' },
+              { level: 'Level 2', role: 'Ketua Tim Siaran', weight: 40, reason: 'Pemberi slot penyiaran / iklan layanan sebagai komoditas utama kerjasama.' }
+            ];
+          } else if (isBerita) {
+            cascadingList = [
+              { level: 'Level 2', role: 'Ketua Tim Pemberitaan', weight: 50, reason: 'Bertanggung jawab atas produksi berita radio harian dan akurasi informasi redaksi.' },
+              { level: 'Level 2', role: 'Ketua Tim Konten Media Baru', weight: 30, reason: 'Bertanggung jawab atas diseminasi berita ke portal online dan infografis media sosial.' },
+              { level: 'Level 2', role: 'Ketua Tim Teknologi dan Media Baru', weight: 20, reason: 'Menyediakan infrastruktur streaming dan pemeliharaan server portal berita.' }
+            ];
+          } else {
+            cascadingList = [
+              { level: 'Level 2', role: 'Kepala Bagian Tata Usaha (Kabid)', weight: 40, reason: 'Mendukung fasilitasi anggaran operasional dan administrasi seluruh program kerja.' },
+              { level: 'Level 2', role: 'Seluruh Ketua Tim Kerja', weight: 60, reason: 'Pelaksana taktis sasaran strategis sesuai pembagian divisi fungsional.' }
+            ];
+          }
+        } else {
+          // Cascading to Level 3 (Pegawai)
+          if (isPnbp) {
+            cascadingList = [
+              { level: 'Level 3', role: 'Staf Administrasi Kerjasama (PUPN)', weight: 50, reason: 'Melakukan penatausahaan kontrak mitra, rekonsiliasi billing, dan verifikasi setor kas negara.' },
+              { level: 'Level 3', role: 'Account Executive / Sales Staf', weight: 50, reason: 'Melakukan canvassing calon mitra, penyusunan proposal sewa aset, dan negosiasi tarif.' }
+            ];
+          } else if (isBerita) {
+            cascadingList = [
+              { level: 'Level 3', role: 'Reporter Jurnalis / Penyiar Utama', weight: 60, reason: 'Melakukan liputan langsung di lapangan dan penulisan naskah berita berkualitas.' },
+              { level: 'Level 3', role: 'Editor Audio Visual / Sosmed Officer', weight: 40, reason: 'Melakukan editing, layout grafis, penyuntingan bahasa, dan penjadwalan publish konten.' }
+            ];
+          } else {
+            cascadingList = [
+              { level: 'Level 3', role: 'Pranata Komputer / Teknis Fungsional', weight: 50, reason: 'Melakukan pemeliharaan sistem harian, penyusunan logbook eviden, dan troubleshooting.' },
+              { level: 'Level 3', role: 'Staf Pelaksana Umum / Pendukung', weight: 50, reason: 'Melakukan pengarsipan dokumen, entry data mentah, dan fasilitasi rapat evaluasi.' }
+            ];
+          }
+        }
+
+        // Dynamic periodic breakdown calculation
+        let periods: { label: string; code: string; calc: string; value: string }[] = [];
+        if (unit === '%' || unit.toLowerCase() === 'indeks') {
+          const baseNum = parseFloat(ind.target) || 90;
+          periods = [
+            { label: 'Bulanan (Jan - Des)', code: 'Bld', calc: 'Flat Target', value: `${baseNum} ${unit}` },
+            { label: 'Triwulan I', code: 'TW I', calc: 'Awal Kinerja', value: `${Math.round(baseNum * 0.95)} ${unit}` },
+            { label: 'Triwulan II', code: 'TW II', calc: 'Tengah Kinerja', value: `${baseNum} ${unit}` },
+            { label: 'Triwulan III', code: 'TW III', calc: 'Akselerasi', value: `${baseNum} ${unit}` },
+            { label: 'Triwulan IV', code: 'TW IV', calc: 'Puncak Target', value: `${baseNum} ${unit}` },
+            { label: 'Semester I', code: 'SM I', calc: 'Evaluasi Tengah', value: `${baseNum} ${unit}` },
+            { label: 'Semester II', code: 'SM II', calc: 'Evaluasi Akhir', value: `${baseNum} ${unit}` },
+            { label: 'Tahunan', code: 'THN', calc: 'Target Penuh', value: `${baseNum} ${unit}` }
+          ];
+        } else {
+          const totalCount = parseFloat(ind.target) || 120;
+          const monthlyStep = Math.round(totalCount / 12);
+          periods = [
+            { label: 'Bulanan (Rata-rata)', code: 'Bld', calc: `~${monthlyStep} per Bulan`, value: `+${monthlyStep} ${unit} / Bln` },
+            { label: 'Triwulan I (Akumulatif)', code: 'TW I', calc: '25% Akumulasi', value: `${Math.round(totalCount * 0.25)} ${unit}` },
+            { label: 'Triwulan II (Akumulatif)', code: 'TW II', calc: '50% Akumulasi', value: `${Math.round(totalCount * 0.50)} ${unit}` },
+            { label: 'Triwulan III (Akumulatif)', code: 'TW III', calc: '75% Akumulasi', value: `${Math.round(totalCount * 0.75)} ${unit}` },
+            { label: 'Triwulan IV (Akumulatif)', code: 'TW IV', calc: '100% Akumulasi', value: `${totalCount} ${unit}` },
+            { label: 'Semester I (Akumulatif)', code: 'SM I', calc: '50% Akumulasi', value: `${Math.round(totalCount * 0.50)} ${unit}` },
+            { label: 'Semester II (Akumulatif)', code: 'SM II', calc: '100% Akumulasi', value: `${totalCount} ${unit}` },
+            { label: 'Tahunan (Total)', code: 'THN', calc: 'Target Penuh', value: `${totalCount} ${unit}` }
+          ];
+        }
+
+        // Teks Analisis Generator
+        let pendorong = '';
+        let penghambat = '';
+        let tindakLanjut = '';
+
+        if (score >= 100) {
+          pendorong = isPnbp
+            ? 'Optimalisasi penetapan tarif sewa lahan menara bersama mitra strategis serta tertib administrasi billing tagihan SIMPONI yang dikawal secara berkala setiap bulan.'
+            : isBerita
+            ? 'Adanya mekanisme penugasan liputan jurnalis berbasis bento-grid yang disiplin, didukung ketersediaan kuota internet pelaporan mobile serta respons cepat tim penyuntingan konten multiplatform.'
+            : 'Tingginya komitmen pimpinan dalam memonitor pendelegasian tugas secara berkala, sinergi yang harmonis antar ketua tim kerja, serta pemanfaatan dashboard digital SAKIP secara real-time.';
+          
+          penghambat = isPnbp
+            ? 'Fluktuasi kurs mata uang asing yang mempengaruhi beberapa mitra sewa korporasi internasional, namun berhasil diantisipasi dengan penyesuaian skema invoice dinamis.'
+            : isBerita
+            ? 'Tingginya frekuensi agenda dinas mendadak (breaking news) daerah yang membagi fokus tim, namun dapat ditangani melalui sistem piket silang redaksi.'
+            : 'Kendala teknis minor pada stabilitas jaringan internet satelit di stasiun transmisi terpencil, yang untungnya cepat ditangani oleh tim darurat pemeliharaan.';
+          
+          tindakLanjut = isPnbp
+            ? 'Mempertahankan intensitas koordinasi dengan Kemenkeu terkait perizinan tarif PNBP baru serta memperluas segmentasi penawaran pemancar ke operator telekomunikasi lokal.'
+            : isBerita
+            ? 'Meningkatkan standar kualitas jurnalisme melalui pelatihan sertifikasi kompetensi dewan pers dan standarisasi perlengkapan audio-visual mobile jurnalis.'
+            : 'Melakukan standarisasi SOP keberhasilan triwulan ini agar menjadi panduan baku kinerja pada periode anggaran berikutnya.';
+        } else if (score >= 80) {
+          pendorong = isPnbp
+            ? 'Realisasi kontrak eksisting berjalan stabil sesuai jadwal pembayaran rutin dari mitra utama. Tim penagihan intens melakukan reminder secara ramah via e-mail.'
+            : isBerita
+            ? 'Tim peliputan berhasil menjaga kuantitas rilis berita radio reguler secara konsisten sesuai target harian yang dibebankan pimpinan redaksi.'
+            : 'Adanya komunikasi taktis mingguan yang berjalan lancar antara penanggung jawab kegiatan dengan atasan langsung untuk memecahkan hambatan administrasi di lapangan.';
+          
+          penghambat = isPnbp
+            ? 'Terdapat penundaan kelengkapan berkas administrasi kontrak sewa baru dari salah satu mitra, sehingga pembayaran baru tercatat di akhir siklus periode.'
+            : isBerita
+            ? 'Keterbatasan jumlah kamera portabel beresolusi tinggi yang siap pakai, memaksa beberapa reporter mengoptimalkan gawai pribadi masing-masing.'
+            : 'Alokasi anggaran operasional perjalanan dinas peliputan lapangan yang baru cair di pertengahan triwulan, menuntut efisiensi akomodasi rute.';
+          
+          tindakLanjut = isPnbp
+            ? 'Membuat sistem template pengingat pembayaran otomatis (automated billing alert) untuk meminimalisir keterlambatan administrasi dari pihak mitra.'
+            : isBerita
+            ? 'Mengajukan pengadaan paket upgrade peralatan peliputan taktis ringan (vlog kit) pada usulan revisi anggaran operasional triwulan depan.'
+            : 'Meningkatkan frekuensi monitoring capaian mingguan untuk mengantisipasi potensi keterlambatan target di triwulan berikutnya.';
+        } else {
+          pendorong = isPnbp
+            ? 'Adanya komitmen pembayaran cicilan tunggakan piutang dari sebagian mitra lama yang kooperatif meskipun bisnis sewa sedang melambat.'
+            : isBerita
+            ? 'Dedikasi tinggi beberapa staf pelaksana jurnalis yang bersedia lembur menyelesaikan penugasan program siaran di tengah keterbatasan fasilitas penunjang.'
+            : 'Masih terjaganya komunikasi administratif dasar dalam unit organisasi untuk mencatat setiap kendala pencapaian kaskade sasaran.';
+          
+          penghambat = isPnbp
+            ? 'Adanya pemutusan sewa kontrak sepihak dari dua mitra utama karena relokasi bisnis, diperparah belum ditetapkannya regulasi tarif layanan PNBP stasiun yang kompetitif.'
+            : isBerita
+            ? 'Kekurangan tenaga editor tersertifikasi dan rusaknya unit komputer editing utama, menyebabkan terjadinya bottleneck parah pada antrean rilis video konten.'
+            : 'Adanya refocusing alokasi anggaran operasional instansi secara masif di awal semester, menyebabkan pembatasan ketat jadwal dinas lapangan tim teknis.';
+          
+          tindakLanjut = isPnbp
+            ? 'Menyusun ulang strategi pricing sewa aset non-core, melakukan penagihan persuasif langsung ke direksi mitra menunggak, dan berkoordinasi aktif dengan KPKNL.'
+            : isBerita
+            ? 'Mengatur ulang pembagian tugas editor lintas bidang, menjajaki kerjasama magang dengan SMK/Universitas multimedia, serta mengusulkan servis komputer darurat.'
+            : 'Mengajukan revisi target kinerja yang lebih rasional sesuai ketersediaan anggaran riil pasca-refocusing kepada pimpinan melalui dewan evaluasi.';
+        }
+
+        // Combined drafted comment for posting
+        const combinedDraftText = `== DRAFT ANALISIS SAKIP & MANAJEMEN KINERJA ASN (PERMENPAN RB) ==
+Sasaran: ${indName}
+Capaian: ${score}% (Predikat SAKIP: ${sakipPred} - ${sakipLabel} | Nilai ASN: ${asnRating})
+
+1. FAKTOR PENDORONG:
+${pendorong}
+
+2. FAKTOR PENGHAMBAT:
+${penghambat}
+
+3. TINDAK LANJUT REKOMENDASI:
+${tindakLanjut}
+
+[Draft disusun otomatis oleh Sistem Pakar SAKIP pada ${new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}]`;
+
+        const handleApplyDraftToComments = () => {
+          handleAddComment(sakipExpertData.agreementId, ind.id, combinedDraftText);
+          alert("Sukses! Draft analisis SAKIP telah berhasil diposting sebagai Catatan Evaluasi & Feedback resmi untuk sasaran ini.");
+          setSakipExpertData(null);
+        };
+
+        const handleCopyText = () => {
+          navigator.clipboard.writeText(combinedDraftText);
+          alert("Draft analisis berhasil disalin ke clipboard!");
+        };
+
+        return (
+          <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
+            <div className="bg-white rounded-3xl max-w-4xl w-full p-6 border border-slate-150 shadow-2xl space-y-6 my-8 animate-in zoom-in-95 duration-150 text-slate-700 flex flex-col max-h-[90vh]">
+              
+              {/* Modal Header */}
+              <div className="flex justify-between items-start pb-4 border-b border-slate-100 shrink-0">
+                <div className="flex items-center gap-2.5">
+                  <div className="p-2 bg-amber-500 text-white rounded-xl shadow-xs">
+                    <Brain className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-black text-slate-800 flex items-center gap-1.5">
+                      Sistem Pakar SAKIP & ASN (Permenpan RB)
+                      <span className="px-1.5 py-0.5 rounded-full text-[8px] font-extrabold uppercase bg-amber-100 text-amber-800 border border-amber-200 font-mono tracking-wider">
+                        EXPERT SYSTEM
+                      </span>
+                    </h3>
+                    <p className="text-[10px] text-slate-400">Pemeriksaan akuntabilitas kinerja instansi pemerintah dan pendampingan manajemen kerja ASN fungsional.</p>
+                  </div>
+                </div>
+                <button 
+                  onClick={() => setSakipExpertData(null)}
+                  className="p-1 hover:bg-slate-100 text-slate-400 hover:text-slate-600 rounded-lg transition-colors cursor-pointer"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* Modal Content - Scrollable */}
+              <div className="flex-1 overflow-y-auto pr-1 space-y-5 text-xs">
+                
+                {/* Active Indicator Summary Card */}
+                <div className="bg-slate-50 p-4 rounded-2xl border border-slate-150 space-y-2">
+                  <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest block font-mono">Indikator Kinerja yang Diperiksa:</span>
+                  <p className="text-xs font-extrabold text-slate-800 leading-normal">{indName}</p>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 pt-2 border-t border-slate-150/60 text-[10px]">
+                    <div>
+                      <p className="text-slate-400 font-bold">Pegawai Bertanggung Jawab</p>
+                      <p className="font-extrabold text-slate-700 mt-0.5">{sakipExpertData.assignedToName}</p>
+                    </div>
+                    <div>
+                      <p className="text-slate-400 font-bold">Level Jabatan SAKIP</p>
+                      <p className="font-extrabold text-indigo-600 mt-0.5">{sakipExpertData.level}</p>
+                    </div>
+                    <div>
+                      <p className="text-slate-400 font-bold">Nilai Target</p>
+                      <p className="font-extrabold text-slate-700 mt-0.5">{ind.target} {unit}</p>
+                    </div>
+                    <div>
+                      <p className="text-slate-400 font-bold">Realisasi Riil</p>
+                      <p className="font-extrabold text-indigo-600 mt-0.5">{realVal} {unit}</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Grid for Cascading and Breakdown */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+                  
+                  {/* Module 1: Struktur Cascading (Logical Alignment) */}
+                  <div className="bg-white p-4 rounded-2xl border border-slate-200 space-y-3 flex flex-col justify-between">
+                    <div>
+                      <h4 className="text-xs font-black text-slate-800 uppercase tracking-wide flex items-center gap-1.5 border-b border-slate-100 pb-2">
+                        <GitFork className="w-4 h-4 text-indigo-500 shrink-0" />
+                        1. Struktur Cascading & Bobot (Permenpan)
+                      </h4>
+                      <p className="text-[10px] text-slate-400 leading-normal mt-1 mb-3">
+                        Rekomendasi penyelarasan target dari level <strong>{sakipExpertData.level}</strong> ke posisi subordinat di bawahnya berdasarkan prinsip cascading vertikal akuntabilitas.
+                      </p>
+                      
+                      <div className="space-y-3">
+                        {cascadingList.map((item, i) => (
+                          <div key={i} className="p-3 bg-indigo-50/20 border border-indigo-100/50 rounded-xl space-y-1.5">
+                            <div className="flex justify-between items-center">
+                              <span className="inline-flex items-center px-1.5 py-0.5 rounded-md text-[8px] font-black bg-indigo-100 text-indigo-800 uppercase tracking-wide">
+                                {item.level}
+                              </span>
+                              <span className="font-mono font-black text-indigo-600 bg-white border border-indigo-150 rounded px-1.5 text-[10px]">
+                                Bobot: {item.weight}%
+                              </span>
+                            </div>
+                            <p className="font-extrabold text-slate-700 text-[11px]">{item.role}</p>
+                            <p className="text-[10px] text-slate-400 leading-normal">{item.reason}</p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                    
+                    <div className="mt-3 bg-slate-50 p-2.5 rounded-xl text-[9px] text-slate-400 border border-dashed border-slate-200 leading-normal">
+                      <span className="font-bold text-slate-500 uppercase block">Prinsip Cascading:</span>
+                      Sesuai Permenpan RB No. 6/2022, pembobotan didasarkan pada tingkat korelasi langsung keberhasilan sasaran subordinat terhadap pencapaian sasaran unit kerja pimpinan.
+                    </div>
+                  </div>
+
+                  {/* Module 2: Breakdown Target Berkala (Cumulative Target) */}
+                  <div className="bg-white p-4 rounded-2xl border border-slate-200 space-y-3">
+                    <h4 className="text-xs font-black text-slate-800 uppercase tracking-wide flex items-center gap-1.5 border-b border-slate-100 pb-2">
+                      <TrendingUp className="w-4 h-4 text-emerald-500 shrink-0" />
+                      2. Breakdown Target Berkala (Akumulatif)
+                    </h4>
+                    <p className="text-[10px] text-slate-400 leading-normal mt-1 mb-3">
+                      Pembagian nilai target secara taktis berkelanjutan demi memastikan kelancaran evaluasi triwulanan dan semesteran instansi pemerintah.
+                    </p>
+
+                    <div className="border border-slate-150 rounded-2xl overflow-hidden bg-slate-50/30">
+                      <table className="w-full text-left text-[11px]">
+                        <thead>
+                          <tr className="bg-slate-50 text-[9px] font-extrabold text-slate-400 uppercase tracking-wider border-b border-slate-150">
+                            <th className="p-2.5">Periode Evaluasi</th>
+                            <th className="p-2.5 text-center">Metode Hitung</th>
+                            <th className="p-2.5 text-right font-mono">Nilai Target</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100">
+                          {periods.map((p, i) => (
+                            <tr key={i} className="hover:bg-slate-50/50 bg-white transition-colors">
+                              <td className="p-2.5 font-extrabold text-slate-700 flex items-center gap-1.5">
+                                <span className="inline-flex items-center justify-center bg-slate-100 text-slate-600 text-[8px] font-black w-10 h-4.5 rounded font-mono uppercase shrink-0">
+                                  {p.code}
+                                </span>
+                                <span>{p.label}</span>
+                              </td>
+                              <td className="p-2.5 text-center text-[10px] text-slate-400">{p.calc}</td>
+                              <td className="p-2.5 text-right font-mono font-extrabold text-indigo-600">{p.value}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+
+                </div>
+
+                {/* Module 3: Simulasi Penghitungan Capaian & Predikat */}
+                <div className="bg-white p-4 rounded-2xl border border-slate-200 space-y-4">
+                  <h4 className="text-xs font-black text-slate-800 uppercase tracking-wide flex items-center gap-1.5 border-b border-slate-100 pb-2">
+                    <Target className="w-4 h-4 text-indigo-500 shrink-0" />
+                    3. Simulasi & Predikat Kinerja ASN (Permenpan RB 6/2022)
+                  </h4>
+
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    
+                    {/* Formula box */}
+                    <div className="bg-slate-50 p-4 rounded-xl border border-slate-150 flex flex-col justify-center text-center space-y-2">
+                      <p className="text-[9px] font-black text-slate-400 uppercase tracking-wider font-mono">RUMUS CAPAIAN SAKIP</p>
+                      <div className="p-2 bg-white rounded-lg border border-slate-200 inline-block mx-auto font-mono text-xs font-bold text-slate-700 shadow-2xs">
+                        {"("} Realisasi / Target {")"} x 100
+                      </div>
+                      <p className="text-[10px] text-slate-400 font-mono mt-1 leading-normal">
+                        {"("} {realVal} / {targetVal} {")"} x 100 = <span className="font-black text-indigo-600 text-xs">{score}%</span>
+                      </p>
+                    </div>
+
+                    {/* SAKIP Predicate */}
+                    <div className="bg-slate-50 p-4 rounded-xl border border-slate-150 space-y-2">
+                      <p className="text-[9px] font-black text-slate-400 uppercase tracking-wider font-mono">PREDIKAT AKUNTABILITAS SAKIP</p>
+                      <div className="flex items-center gap-2">
+                        <span className={`px-2.5 py-1 rounded-lg text-lg font-black font-mono border ${sakipColor}`}>
+                          {sakipPred}
+                        </span>
+                        <div>
+                          <p className="font-extrabold text-slate-800 text-[11px] leading-none">{sakipLabel}</p>
+                          <p className="text-[9px] text-slate-400 mt-1">Nilai standard instansi pemerintah</p>
+                        </div>
+                      </div>
+                      <p className="text-[9px] text-slate-400 leading-normal">Predikat {sakipPred} menunjukkan efektivitas pemanfaatan anggaran yang {score >= 80 ? "sangat efisien dan berdampak luas" : "belum sepenuhnya optimal pada unit kerja ini"}.</p>
+                    </div>
+
+                    {/* ASN Performance Rating */}
+                    <div className="bg-slate-50 p-4 rounded-xl border border-slate-150 space-y-2">
+                      <p className="text-[9px] font-black text-slate-400 uppercase tracking-wider font-mono">RATING HASIL KERJA ASN</p>
+                      <div className="flex items-center gap-2">
+                        <span className={`px-2 py-1 rounded-lg text-[10px] font-black uppercase shrink-0 font-mono ${asnColor}`}>
+                          {asnRating}
+                        </span>
+                        <div>
+                          <p className="text-[9px] text-slate-400">Permenpan RB 6/2022</p>
+                        </div>
+                      </div>
+                      <p className="text-[10px] text-slate-400 leading-relaxed font-sans">{asnDesc}</p>
+                    </div>
+
+                  </div>
+                </div>
+
+                {/* Module 4: Generator Teks Analisis (LKE / LKjIP) */}
+                <div className="bg-white p-4 rounded-2xl border border-slate-200 space-y-3">
+                  <div className="flex justify-between items-center border-b border-slate-100 pb-2 flex-wrap gap-2">
+                    <h4 className="text-xs font-black text-slate-800 uppercase tracking-wide flex items-center gap-1.5">
+                      <BookOpen className="w-4 h-4 text-amber-500 shrink-0" />
+                      4. Generator Teks Analisis Realisasi Kinerja (LKE / LKjIP)
+                    </h4>
+                    
+                    <div className="flex gap-2">
+                      <button
+                        onClick={handleCopyText}
+                        className="flex items-center gap-1 px-2.5 py-1 hover:bg-slate-100 border border-slate-200 text-slate-600 text-[10px] font-bold rounded-lg transition-colors cursor-pointer"
+                        title="Salin Draft Analisis"
+                      >
+                        <Copy className="w-3.5 h-3.5" />
+                        <span>Salin Teks</span>
+                      </button>
+                      <button
+                        onClick={handleApplyDraftToComments}
+                        className="flex items-center gap-1 px-2.5 py-1 bg-indigo-600 hover:bg-indigo-500 text-white text-[10px] font-black rounded-lg transition-colors shadow-2xs cursor-pointer"
+                        title="Posting ke Catatan Evaluasi & Feedback"
+                      >
+                        <Plus className="w-3.5 h-3.5" />
+                        <span>Terapkan Sebagai Catatan</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  <p className="text-[10px] text-slate-400 leading-normal mt-1 mb-3">
+                    Draft kalimat analisis otomatis yang siap digunakan untuk mengisi formulir Lembar Kerja Evaluasi (LKE) dan Laporan Kinerja Instansi Pemerintah (LKjIP).
+                  </p>
+
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    
+                    <div className="p-3.5 bg-emerald-50/25 border border-emerald-100 rounded-xl space-y-1.5">
+                      <span className="text-[8px] font-black text-emerald-700 uppercase tracking-wider block font-mono">Faktor Pendorong (Sebab Sukses):</span>
+                      <p className="text-[10px] text-slate-600 leading-normal font-sans text-justify italic">{pendorong}</p>
+                    </div>
+
+                    <div className="p-3.5 bg-rose-50/25 border border-rose-100 rounded-xl space-y-1.5">
+                      <span className="text-[8px] font-black text-rose-700 uppercase tracking-wider block font-mono">Faktor Penghambat (Hambatan):</span>
+                      <p className="text-[10px] text-slate-600 leading-normal font-sans text-justify italic">{penghambat}</p>
+                    </div>
+
+                    <div className="p-3.5 bg-indigo-50/25 border border-indigo-100 rounded-xl space-y-1.5">
+                      <span className="text-[8px] font-black text-indigo-700 uppercase tracking-wider block font-mono">Tindak Lanjut & Rekomendasi:</span>
+                      <p className="text-[10px] text-slate-600 leading-normal font-sans text-justify italic">{tindakLanjut}</p>
+                    </div>
+
+                  </div>
+                </div>
+
+              </div>
+
+              {/* Modal Footer */}
+              <div className="flex gap-2 justify-end pt-4 border-t border-slate-100 shrink-0">
+                <button
+                  onClick={() => setSakipExpertData(null)}
+                  className="px-4 py-2 hover:bg-slate-50 text-slate-500 font-extrabold text-xs rounded-xl transition-all cursor-pointer"
+                >
+                  Tutup
+                </button>
+                <button
+                  onClick={handleApplyDraftToComments}
+                  className="flex items-center gap-1.5 px-4.5 py-2 bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-500 hover:to-indigo-600 text-white font-black text-xs rounded-xl shadow-xs transition-all cursor-pointer"
+                >
+                  <Sparkles className="w-3.5 h-3.5 text-amber-300 animate-pulse" /> Posting Draft Analisis Kinerja
+                </button>
+              </div>
+
+            </div>
+          </div>
+        );
+      })()}
 
     </div>
   );
