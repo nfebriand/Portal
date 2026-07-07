@@ -432,30 +432,6 @@ export default function DashboardView({
 
   return (
     <div className="space-y-6">
-      {/* Executive Welcome & Notification Warning Indicator */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
-        <div className="space-y-1">
-          <div className="flex items-center gap-2">
-            <span className="bg-amber-100 text-amber-800 text-[10px] font-bold px-2 py-0.5 rounded-full tracking-wider uppercase flex items-center gap-1">
-              <Sparkles className="w-3 h-3" /> Dashboard Real-Time
-            </span>
-          </div>
-          <h1 className="text-2xl font-bold text-slate-800 tracking-tight">Ikhtisar Kinerja Eksekutif</h1>
-          <p className="text-sm text-slate-500">Mendukung pengambilan keputusan pimpinan secara taktis dan terarah.</p>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-2">
-          {/* Quick Alert Trigger */}
-          <button
-            onClick={triggerAlertSimulation}
-            className="flex items-center gap-2 bg-rose-50 hover:bg-rose-100 text-rose-700 font-semibold px-4 py-2.5 rounded-xl text-xs transition-all border border-rose-100 shadow-xs"
-          >
-            <AlertTriangle className="w-4 h-4 animate-pulse" />
-            Kirim Notifikasi Kritis
-          </button>
-        </div>
-      </div>
-
       {/* SECTION VISUALISASI CAPAIAN IKP PER DIVISI (HALF CIRCLE GAUGES) */}
       <div id="trend-pimpinan-section" className="bg-white p-6 rounded-2xl border border-slate-100 shadow-xs space-y-6">
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-slate-100 pb-5">
