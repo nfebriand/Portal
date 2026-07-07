@@ -695,24 +695,24 @@ export default function App() {
         let fireAgreements: PerformanceAgreement[];
 
         if (!seeded) {
-          // First time database initialization: seed all default fallback collections
-          fireEmployees = INITIAL_EMPLOYEES;
+          // First time database initialization: seed empty arrays for dynamic entities
+          fireEmployees = [];
           fireSettings = INITIAL_SETTINGS;
           fireIdentity = INITIAL_IDENTITY;
-          fireNotifications = INITIAL_NOTIFICATIONS;
-          fireContracts = INITIAL_CONTRACTS;
-          fireTargets = INITIAL_REPORTER_TARGETS;
-          fireReports = INITIAL_NEWS_REPORTS;
-          fireAgreements = INITIAL_AGREEMENTS;
+          fireNotifications = [];
+          fireContracts = [];
+          fireTargets = [];
+          fireReports = [];
+          fireAgreements = [];
 
-          await saveCollectionList('employees', INITIAL_EMPLOYEES);
+          await saveCollectionList('employees', []);
           await saveDocument('settings', 'current', INITIAL_SETTINGS);
           await saveDocument('identity', 'current', INITIAL_IDENTITY);
-          await saveCollectionList('notifications', INITIAL_NOTIFICATIONS);
-          await saveCollectionList('contracts', INITIAL_CONTRACTS);
-          await saveCollectionList('reporterTargets', INITIAL_REPORTER_TARGETS);
-          await saveCollectionList('newsReports', INITIAL_NEWS_REPORTS);
-          await saveCollectionList('agreements', INITIAL_AGREEMENTS);
+          await saveCollectionList('notifications', []);
+          await saveCollectionList('contracts', []);
+          await saveCollectionList('reporterTargets', []);
+          await saveCollectionList('newsReports', []);
+          await saveCollectionList('agreements', []);
           
           await markSystemSeeded();
         } else {
