@@ -112,6 +112,7 @@ export default function PerformanceAgreementView({
     'ind-2': true,
     'ind-3': true
   });
+  const [expandedTrajectoryId, setExpandedTrajectoryId] = useState<string | null>(null);
 
   const toggleExpandIndicator = (id: string) => {
     setExpandedIndicators(prev => ({ ...prev, [id]: !prev[id] }));
@@ -636,6 +637,55 @@ export default function PerformanceAgreementView({
         return {
           ...ag,
           objectives: ag.objectives.map(o => o.id === indicatorId ? { ...o, achievement: value } : o)
+        };
+      }
+      return ag;
+    });
+    onUpdateAgreements(updated);
+  };
+
+  // Helper to safely resolve a 12-month trajectory array
+  const getSafeTrajectory = (indicator: PerformanceIndicator) => {
+    if (indicator.trajectory && indicator.trajectory.length === 12) {
+      return indicator.trajectory;
+    }
+    const targetNum = parseFloat(indicator.target) || 0;
+    const isPct = indicator.target.includes('%') || indicator.unit === '%';
+    if (isPct) {
+      return Array(12).fill(targetNum);
+    }
+    const share = Math.round((targetNum / 12) * 10) / 10;
+    return Array(12).fill(share);
+  };
+
+  // Handle updating target value
+  const handleUpdateTarget = (agreementId: string, indicatorId: string, newTarget: string) => {
+    const updated = agreements.map(ag => {
+      if (ag.id === agreementId) {
+        return {
+          ...ag,
+          objectives: ag.objectives.map(o => o.id === indicatorId ? { ...o, target: newTarget } : o)
+        };
+      }
+      return ag;
+    });
+    onUpdateAgreements(updated);
+  };
+
+  // Handle updating target trajectory per month
+  const handleUpdateTrajectory = (agreementId: string, indicatorId: string, monthIndex: number, value: number) => {
+    const updated = agreements.map(ag => {
+      if (ag.id === agreementId) {
+        return {
+          ...ag,
+          objectives: ag.objectives.map(o => {
+            if (o.id === indicatorId) {
+              const currentTrajectory = [...getSafeTrajectory(o)];
+              currentTrajectory[monthIndex] = value;
+              return { ...o, trajectory: currentTrajectory };
+            }
+            return o;
+          })
         };
       }
       return ag;
@@ -1283,7 +1333,16 @@ export default function PerformanceAgreementView({
                       <div className="flex items-center flex-wrap gap-4 text-xs">
                         <div className="bg-white border border-slate-200/60 rounded-xl px-2.5 py-1">
                           <span className="text-[9px] text-slate-400 block font-mono">TARGET</span>
-                          <span className="font-extrabold text-slate-700">{node.root.target} {node.root.unit}</span>
+                          <div className="flex items-center gap-1.5">
+                            <input 
+                              type="text"
+                              value={node.root.target}
+                              onChange={(e) => handleUpdateTarget(node.agreement.id, rootId, e.target.value)}
+                              disabled={!canEditAgreement('Kepala Stasiun')}
+                              className="w-16 bg-slate-50 border border-slate-200 rounded px-1 py-0.5 text-center font-extrabold text-slate-800 text-[11px] focus:outline-hidden focus:bg-white focus:ring-1 focus:ring-indigo-400 disabled:opacity-60 disabled:cursor-not-allowed"
+                            />
+                            <span className="text-[10px] text-slate-400 font-extrabold">{node.root.unit}</span>
+                          </div>
                         </div>
 
                         <div className="bg-white border border-slate-200/60 rounded-xl px-2.5 py-1">
@@ -1308,6 +1367,22 @@ export default function PerformanceAgreementView({
                           }`}>{rootScore}%</span>
                         </div>
 
+                        {/* Level 1 Trajectory Trigger Button */}
+                        <div className="text-center">
+                          <button
+                            onClick={() => setExpandedTrajectoryId(expandedTrajectoryId === rootId ? null : rootId)}
+                            className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg border transition-all text-[10px] font-black uppercase tracking-wide ${
+                              expandedTrajectoryId === rootId 
+                                ? 'bg-indigo-600 border-indigo-600 text-white shadow-sm' 
+                                : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100 hover:text-indigo-600'
+                            }`}
+                            title="Atur Proyeksi Trajectory Target Bulanan"
+                          >
+                            <TrendingUp className="w-3.5 h-3.5" />
+                            Trajectory {node.root.trajectory ? '✓' : ''}
+                          </button>
+                        </div>
+
                         {canEditAgreement('Kepala Stasiun') && (
                           <div className="flex items-center gap-1 border-l border-slate-200 pl-4">
                             <button
@@ -1328,6 +1403,59 @@ export default function PerformanceAgreementView({
 
                       </div>
                     </div>
+
+                    {/* Level 1 Trajectory Panel */}
+                    {expandedTrajectoryId === rootId && (
+                      <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-3 shadow-inner">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[10px] font-black uppercase tracking-wider text-slate-500 font-mono flex items-center gap-1.5">
+                            <TrendingUp className="w-3.5 h-3.5 text-indigo-500" />
+                            Trajectory & Proyeksi Target Bulanan (Tahun {selectedYear})
+                          </span>
+                          <button
+                            onClick={() => {
+                              const safe = getSafeTrajectory(node.root);
+                              const targetNum = parseFloat(node.root.target) || 0;
+                              const share = Math.round((targetNum / 12) * 10) / 10;
+                              const isPct = node.root.target.includes('%') || node.root.unit === '%';
+                              const distrib = Array(12).fill(isPct ? targetNum : share);
+                              
+                              const updated = agreements.map(ag => {
+                                if (ag.id === node.agreement.id) {
+                                  return {
+                                    ...ag,
+                                    objectives: ag.objectives.map(o => o.id === rootId ? { ...o, trajectory: distrib } : o)
+                                  };
+                                }
+                                return ag;
+                              });
+                              onUpdateAgreements(updated);
+                            }}
+                            className="text-[9px] font-black text-indigo-600 bg-indigo-50 hover:bg-indigo-100 px-2 py-0.5 rounded border border-indigo-200"
+                          >
+                            Bagi Rata Target
+                          </button>
+                        </div>
+                        <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-12 gap-1.5">
+                          {['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'].map((month, mIdx) => {
+                            const traj = getSafeTrajectory(node.root);
+                            const val = traj[mIdx];
+                            return (
+                              <div key={month} className="bg-white p-1.5 rounded-lg border border-slate-200 text-center flex flex-col justify-between">
+                                <span className="text-[9px] font-bold text-slate-400 font-mono uppercase">{month}</span>
+                                <input
+                                  type="number"
+                                  value={val}
+                                  onChange={(e) => handleUpdateTrajectory(node.agreement.id, rootId, mIdx, parseFloat(e.target.value) || 0)}
+                                  disabled={!canEditAgreement('Kepala Stasiun')}
+                                  className="w-full text-center font-extrabold text-slate-800 text-[11px] bg-slate-50 hover:bg-slate-100 focus:bg-white border-none p-0.5 rounded mt-0.5"
+                                />
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
 
                     {/* Children Cascading Section (Level 2 & 3) */}
                     {isExpanded && (
@@ -1441,7 +1569,16 @@ export default function PerformanceAgreementView({
                                   <div className="flex items-center flex-wrap gap-3 text-xs">
                                     <div className="bg-slate-50 border border-slate-150 rounded-lg px-2 py-0.5 text-center">
                                       <span className="text-[8px] text-slate-400 block font-mono leading-none">TARGET</span>
-                                      <span className="font-extrabold text-slate-700 text-[11px]">{l2.indicator.target} {l2.indicator.unit}</span>
+                                      <div className="flex items-center gap-1">
+                                        <input 
+                                          type="text"
+                                          value={l2.indicator.target}
+                                          onChange={(e) => handleUpdateTarget(l2.agreement.id, l2Id, e.target.value)}
+                                          disabled={!canEditAgreement(l2.agreement.level)}
+                                          className="w-14 bg-white border border-slate-200 rounded px-1 py-0 text-center font-bold text-slate-800 text-[10px] focus:outline-hidden disabled:opacity-60"
+                                        />
+                                        <span className="text-[9px] text-slate-400 font-extrabold">{l2.indicator.unit}</span>
+                                      </div>
                                     </div>
 
                                     <div className="bg-slate-50 border border-slate-150 rounded-lg px-2 py-0.5 text-center">
@@ -1451,7 +1588,7 @@ export default function PerformanceAgreementView({
                                           type="number"
                                           value={l2.indicator.achievement}
                                           onChange={(e) => handleUpdateAchievement(l2.agreement.id, l2Id, parseFloat(e.target.value) || 0)}
-                                          disabled={!canEditAgreement('Kabid Tata Usaha')}
+                                          disabled={!canEditAgreement(l2.agreement.level)}
                                           className="w-11 bg-white border border-slate-200 rounded px-1 py-0 text-center font-bold text-slate-800 text-[10px] focus:outline-hidden disabled:opacity-60 disabled:cursor-not-allowed"
                                         />
                                       </div>
@@ -1464,6 +1601,22 @@ export default function PerformanceAgreementView({
                                       }`}>{l2Score}%</span>
                                     </div>
 
+                                    {/* Level 2 Trajectory Trigger Button */}
+                                    <div>
+                                      <button
+                                        onClick={() => setExpandedTrajectoryId(expandedTrajectoryId === l2Id ? null : l2Id)}
+                                        className={`flex items-center gap-1 px-2 py-1 rounded-lg border transition-all text-[9px] font-bold uppercase tracking-wider ${
+                                          expandedTrajectoryId === l2Id 
+                                            ? 'bg-indigo-600 border-indigo-600 text-white shadow-xs' 
+                                            : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100 hover:text-indigo-600'
+                                        }`}
+                                        title="Atur Proyeksi Trajectory Target Bulanan"
+                                      >
+                                        <TrendingUp className="w-3 h-3" />
+                                        Trajectory {l2.indicator.trajectory ? '✓' : ''}
+                                      </button>
+                                    </div>
+
                                     <div className="flex items-center gap-1 border-l border-slate-150 pl-3">
                                       {canEditAgreement('Pegawai') && (
                                         <button
@@ -1474,7 +1627,7 @@ export default function PerformanceAgreementView({
                                           <Send className="w-2.5 h-2.5" /> Delegasi Staf
                                         </button>
                                       )}
-                                      {canEditAgreement('Kabid Tata Usaha') && (
+                                      {canEditAgreement(l2.agreement.level) && (
                                         <button
                                           onClick={() => handleDeleteIndicator(l2.agreement.id, l2Id)}
                                           className="p-1 hover:bg-rose-50 text-rose-500 rounded-md"
@@ -1486,6 +1639,60 @@ export default function PerformanceAgreementView({
                                   </div>
 
                                 </div>
+
+                                {/* Level 2 Trajectory Panel */}
+                                {expandedTrajectoryId === l2Id && (
+                                  <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-2 my-2 relative">
+                                    <div className="absolute -left-6 top-1/2 -translate-y-1/2 w-6 h-px bg-indigo-200" />
+                                    <div className="flex items-center justify-between">
+                                      <span className="text-[9px] font-black uppercase tracking-wider text-slate-500 font-mono flex items-center gap-1">
+                                        <TrendingUp className="w-3 h-3 text-indigo-500" />
+                                        Trajectory Bulanan (L2)
+                                      </span>
+                                      <button
+                                        onClick={() => {
+                                          const safe = getSafeTrajectory(l2.indicator);
+                                          const targetNum = parseFloat(l2.indicator.target) || 0;
+                                          const share = Math.round((targetNum / 12) * 10) / 10;
+                                          const isPct = l2.indicator.target.includes('%') || l2.indicator.unit === '%';
+                                          const distrib = Array(12).fill(isPct ? targetNum : share);
+                                          
+                                          const updated = agreements.map(ag => {
+                                            if (ag.id === l2.agreement.id) {
+                                              return {
+                                                ...ag,
+                                                objectives: ag.objectives.map(o => o.id === l2Id ? { ...o, trajectory: distrib } : o)
+                                              };
+                                            }
+                                            return ag;
+                                          });
+                                          onUpdateAgreements(updated);
+                                        }}
+                                        className="text-[8px] font-black text-indigo-600 bg-indigo-50 hover:bg-indigo-100 px-1.5 py-0.2 rounded border border-indigo-200"
+                                      >
+                                        Bagi Rata Target
+                                      </button>
+                                    </div>
+                                    <div className="grid grid-cols-4 sm:grid-cols-6 lg:grid-cols-12 gap-1">
+                                      {['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'].map((month, mIdx) => {
+                                        const traj = getSafeTrajectory(l2.indicator);
+                                        const val = traj[mIdx];
+                                        return (
+                                          <div key={month} className="bg-white p-1 rounded-md border border-slate-200 text-center">
+                                            <span className="text-[8px] font-bold text-slate-400 font-mono uppercase">{month}</span>
+                                            <input
+                                              type="number"
+                                              value={val}
+                                              onChange={(e) => handleUpdateTrajectory(l2.agreement.id, l2Id, mIdx, parseFloat(e.target.value) || 0)}
+                                              disabled={!canEditAgreement(l2.agreement.level)}
+                                              className="w-full text-center font-extrabold text-slate-800 text-[10px] bg-slate-50 hover:bg-slate-100 focus:bg-white border-none p-0.5 rounded mt-0.5"
+                                            />
+                                          </div>
+                                        );
+                                      })}
+                                    </div>
+                                  </div>
+                                )}
 
                                 {/* Level 3 - Pegawai Individual Target */}
                                 {isL2Expanded && (
@@ -1502,7 +1709,8 @@ export default function PerformanceAgreementView({
                                         const l3Score = Math.min(120, Math.round((l3Real / l3TargetVal) * 100));
 
                                         return (
-                                          <div key={l3Id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 bg-emerald-50/20 p-2.5 rounded-lg border border-emerald-100/50 text-xs relative">
+                                          <div key={l3Id} className="w-full space-y-1">
+                                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 bg-emerald-50/20 p-2.5 rounded-lg border border-emerald-100/50 text-xs relative">
                                             
                                             {/* Visual cascade horizontal connector */}
                                             <div className="absolute -left-8 top-1/2 -translate-y-1/2 w-8 h-px bg-indigo-100 border-dashed border-t" />
@@ -1586,7 +1794,16 @@ export default function PerformanceAgreementView({
                                             <div className="flex items-center gap-3">
                                               <div className="bg-white border border-slate-200 rounded px-1.5 py-0.5 text-center">
                                                 <span className="text-[7px] text-slate-400 block font-mono leading-none">TARGET</span>
-                                                <span className="font-bold text-slate-600 text-[10px]">{l3.indicator.target} {l3.indicator.unit}</span>
+                                                <div className="flex items-center gap-1">
+                                                  <input 
+                                                    type="text"
+                                                    value={l3.indicator.target}
+                                                    onChange={(e) => handleUpdateTarget(l3.agreement.id, l3Id, e.target.value)}
+                                                    disabled={!canEditAgreement('Pegawai')}
+                                                    className="w-12 bg-slate-50 border border-slate-200 rounded px-1 py-0.5 text-center font-bold text-slate-800 text-[10px] focus:outline-hidden disabled:opacity-60"
+                                                  />
+                                                  <span className="text-[8px] text-slate-400 font-extrabold">{l3.indicator.unit}</span>
+                                                </div>
                                               </div>
 
                                               <div className="bg-white border border-slate-200 rounded px-1.5 py-0.5 text-center">
@@ -1605,6 +1822,22 @@ export default function PerformanceAgreementView({
                                                 <span className="font-black text-emerald-600 text-[10px]">{l3Score}%</span>
                                               </div>
 
+                                              {/* Level 3 Trajectory Trigger Button */}
+                                              <div>
+                                                <button
+                                                  onClick={() => setExpandedTrajectoryId(expandedTrajectoryId === l3Id ? null : l3Id)}
+                                                  className={`flex items-center gap-1 px-1.5 py-0.5 rounded border transition-all text-[8px] font-bold uppercase tracking-wider ${
+                                                    expandedTrajectoryId === l3Id 
+                                                      ? 'bg-indigo-600 border-indigo-600 text-white shadow-xs' 
+                                                      : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100 hover:text-indigo-600'
+                                                  }`}
+                                                  title="Atur Proyeksi Trajectory Target Bulanan"
+                                                >
+                                                  <TrendingUp className="w-2.5 h-2.5" />
+                                                  Trajectory {l3.indicator.trajectory ? '✓' : ''}
+                                                </button>
+                                              </div>
+
                                               {canEditAgreement('Pegawai') && (
                                                 <button
                                                   onClick={() => handleDeleteIndicator(l3.agreement.id, l3Id)}
@@ -1614,6 +1847,60 @@ export default function PerformanceAgreementView({
                                                 </button>
                                               )}
                                             </div>
+                                          </div>
+
+                                            {/* Level 3 Trajectory Panel */}
+                                            {expandedTrajectoryId === l3Id && (
+                                              <div className="w-full mt-2 p-2 bg-slate-50 border border-slate-200 rounded-lg space-y-1.5 text-xs">
+                                                <div className="flex items-center justify-between">
+                                                  <span className="text-[8px] font-black uppercase tracking-wider text-slate-500 font-mono flex items-center gap-1">
+                                                    <TrendingUp className="w-2.5 h-2.5 text-indigo-500" />
+                                                    Trajectory Bulanan (L3)
+                                                  </span>
+                                                  <button
+                                                    onClick={() => {
+                                                      const safe = getSafeTrajectory(l3.indicator);
+                                                      const targetNum = parseFloat(l3.indicator.target) || 0;
+                                                      const share = Math.round((targetNum / 12) * 10) / 10;
+                                                      const isPct = l3.indicator.target.includes('%') || l3.indicator.unit === '%';
+                                                      const distrib = Array(12).fill(isPct ? targetNum : share);
+                                                      
+                                                      const updated = agreements.map(ag => {
+                                                        if (ag.id === l3.agreement.id) {
+                                                          return {
+                                                            ...ag,
+                                                            objectives: ag.objectives.map(o => o.id === l3Id ? { ...o, trajectory: distrib } : o)
+                                                          };
+                                                        }
+                                                        return ag;
+                                                      });
+                                                      onUpdateAgreements(updated);
+                                                    }}
+                                                    className="text-[7px] font-black text-indigo-600 bg-indigo-50 hover:bg-indigo-100 px-1 py-0.2 rounded border border-indigo-200"
+                                                  >
+                                                    Bagi Rata Target
+                                                  </button>
+                                                </div>
+                                                <div className="grid grid-cols-4 sm:grid-cols-6 lg:grid-cols-12 gap-1">
+                                                  {['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'].map((month, mIdx) => {
+                                                    const traj = getSafeTrajectory(l3.indicator);
+                                                    const val = traj[mIdx];
+                                                    return (
+                                                      <div key={month} className="bg-white p-1 rounded border border-slate-200 text-center">
+                                                        <span className="text-[8px] font-bold text-slate-400 font-mono uppercase">{month}</span>
+                                                        <input
+                                                          type="number"
+                                                          value={val}
+                                                          onChange={(e) => handleUpdateTrajectory(l3.agreement.id, l3Id, mIdx, parseFloat(e.target.value) || 0)}
+                                                          disabled={!canEditAgreement('Pegawai')}
+                                                          className="w-full text-center font-extrabold text-slate-800 text-[9px] bg-slate-50 hover:bg-slate-100 focus:bg-white border-none p-0.5 rounded mt-0.5"
+                                                        />
+                                                      </div>
+                                                    );
+                                                  })}
+                                                </div>
+                                              </div>
+                                            )}
 
                                           </div>
                                         );

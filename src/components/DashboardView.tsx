@@ -600,16 +600,16 @@ export default function DashboardView({
   return (
     <div className="space-y-3">
       {/* SECTION VISUALISASI CAPAIAN IKP PER DIVISI (HALF CIRCLE GAUGES) */}
-      <div id="trend-pimpinan-section" className="bg-white p-4 rounded-2xl border border-slate-100 shadow-xs space-y-4">
+      <div id="trend-pimpinan-section" className="bg-[#f0f4f8] p-5 rounded-2xl border border-slate-200/80 shadow-md space-y-4">
         
         {/* Header Dashboard / Drill Down */}
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-slate-100 pb-3">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-slate-200/60 pb-3">
           <div className="space-y-1">
             <div className="flex items-center gap-3">
               {drillDownActive && (
                 <button
                   onClick={() => setDrillDownActive(false)}
-                  className="p-1.5 hover:bg-slate-100 active:bg-slate-200 rounded-lg text-slate-600 transition-colors border border-slate-200"
+                  className="p-1.5 hover:bg-slate-200/80 active:bg-slate-300 rounded-lg text-slate-700 transition-colors border border-slate-300"
                   title="Kembali ke Dashboard 6 Bidang"
                 >
                   <ArrowLeft className="w-4 h-4" />
@@ -626,7 +626,7 @@ export default function DashboardView({
             {drillDownActive && (
               <button
                 onClick={() => setDrillDownActive(false)}
-                className="hidden sm:flex items-center gap-1.5 text-[10px] font-bold text-slate-600 hover:text-indigo-600 bg-slate-50 hover:bg-indigo-50 border border-slate-200 hover:border-indigo-200 px-2.5 py-1 rounded-lg transition-all"
+                className="hidden sm:flex items-center gap-1.5 text-[10px] font-bold text-slate-600 hover:text-indigo-600 bg-slate-100 hover:bg-indigo-50 border border-slate-300 px-2.5 py-1 rounded-lg transition-all"
               >
                 <ArrowLeft className="w-3 h-3" />
                 Kembali
@@ -638,7 +638,7 @@ export default function DashboardView({
               <select
                 value={selectedKpiPeriod}
                 onChange={(e) => setSelectedKpiPeriod(e.target.value)}
-                className="w-full bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1 text-xs font-bold text-slate-700 focus:ring-1 focus:ring-indigo-500 focus:outline-hidden hover:bg-slate-100 transition-colors cursor-pointer"
+                className="w-full bg-[#f8fafc] border border-slate-300/80 rounded-lg px-2.5 py-1 text-xs font-bold text-slate-700 focus:ring-1 focus:ring-indigo-500 focus:outline-hidden hover:bg-slate-100 transition-colors cursor-pointer"
               >
                 <option value="Tahunan">Tahunan (Jan - Des)</option>
                 <option value="Semester 1">Semester 1 (Jan - Jun)</option>
@@ -674,7 +674,7 @@ export default function DashboardView({
                     setSelectedKpiDivision(div.key);
                     setDrillDownActive(true);
                   }}
-                  className="relative bg-white p-5 rounded-xl border border-slate-150 hover:border-indigo-400 hover:ring-2 hover:ring-indigo-500/10 shadow-xs hover:shadow-md transition-all duration-300 cursor-pointer flex flex-col items-center justify-between space-y-4 select-none"
+                  className="relative bg-[#f8fafc] p-5 rounded-xl border border-slate-200/80 hover:border-indigo-400 hover:ring-2 hover:ring-indigo-500/10 shadow-xs hover:shadow-md transition-all duration-300 cursor-pointer flex flex-col items-center justify-between space-y-4 select-none"
                 >
                   {/* Top content */}
                   <div className="text-center w-full min-h-[36px] flex flex-col justify-center">
@@ -683,38 +683,38 @@ export default function DashboardView({
                     </span>
                   </div>
 
-                  {/* Elegant Gauge Half Circle */}
-                  <div className="relative w-full h-36 flex items-center justify-center overflow-hidden">
+                  {/* Elegant Gauge Half Circle - Enlarged for perfect readability */}
+                  <div className="relative w-full h-44 flex items-center justify-center overflow-hidden">
                     <ResponsiveContainer width="100%" height="100%">
-                      <PieChart margin={{ top: 8, left: 0, right: 0, bottom: 0 }}>
+                      <PieChart margin={{ top: 12, left: 0, right: 0, bottom: 0 }}>
                         <Pie
                           data={gaugeData}
                           cx="50%"
                           cy="95%"
                           startAngle={180}
                           endAngle={0}
-                          innerRadius={56}
-                          outerRadius={76}
+                          innerRadius={68}
+                          outerRadius={92}
                           paddingAngle={0}
                           dataKey="value"
                         >
                           <Cell fill={gaugeColor} />
-                          <Cell fill="#f1f5f9" />
+                          <Cell fill="#cbd5e1" />
                         </Pie>
                       </PieChart>
                     </ResponsiveContainer>
 
                     {/* Center label */}
-                    <div className="absolute inset-x-0 bottom-1 flex flex-col items-center">
-                      <span className="text-2xl font-black text-slate-800 font-mono tracking-tight leading-none">
+                    <div className="absolute inset-x-0 bottom-2 flex flex-col items-center">
+                      <span className="text-3xl font-black text-slate-800 font-mono tracking-tight leading-none">
                         {percentage}%
                       </span>
-                      <span className="text-[8px] text-slate-400 font-bold uppercase tracking-wider mt-0.5">Rerata Capaian</span>
+                      <span className="text-[9px] text-slate-500 font-extrabold uppercase tracking-widest mt-1">Rerata Capaian</span>
                     </div>
                   </div>
 
                   {/* Stasiun division info indicator */}
-                  <div className="w-full flex justify-between items-center text-[10px] text-slate-400 border-t border-slate-100 pt-2">
+                  <div className="w-full flex justify-between items-center text-[10px] text-slate-500 border-t border-slate-200/80 pt-2">
                     <span className="font-semibold">Lihat Rincian Indikator</span>
                     <ChevronRight className="w-3.5 h-3.5 text-indigo-500" />
                   </div>
@@ -725,9 +725,9 @@ export default function DashboardView({
         ) : (
           /* 2. DRILL DOWN VIEW: Level 3 Capaian Kinerja (Detail Grafik Capaian) */
           <div className="space-y-4">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 bg-slate-50 border border-slate-200 rounded-xl">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 bg-[#edf2f7] border border-slate-200 rounded-xl">
               <div className="flex items-center gap-3">
-                <div className="p-2 bg-white rounded-lg shadow-xs border border-slate-200 shrink-0">
+                <div className="p-2 bg-[#f8fafc] rounded-lg shadow-xs border border-slate-200 shrink-0">
                   {getDivisionIcon(selectedDivData?.iconName || '')}
                 </div>
                 <div>
@@ -742,22 +742,22 @@ export default function DashboardView({
               <div className="flex items-center gap-2 self-start sm:self-center">
                 <span className={`text-[9px] font-black px-2 py-0.5 rounded-full border uppercase ${
                   selectedDivData?.status === 'Aktif' 
-                    ? 'bg-emerald-50 text-emerald-700 border-emerald-200' 
+                    ? 'bg-emerald-100 text-emerald-800 border-emerald-300' 
                     : selectedDivData?.status === 'Evaluasi'
-                    ? 'bg-amber-50 text-amber-700 border-amber-200'
-                    : 'bg-slate-50 text-slate-600 border-slate-200'
+                    ? 'bg-amber-100 text-amber-800 border-amber-300'
+                    : 'bg-slate-100 text-slate-700 border-slate-300'
                 }`}>
                   PK: {selectedDivData?.status}
                 </span>
-                <span className="text-xs font-black text-indigo-600 font-mono bg-indigo-50 border border-indigo-200 px-2 py-0.5 rounded">
+                <span className="text-xs font-black text-indigo-600 font-mono bg-indigo-100 border border-indigo-300 px-2 py-0.5 rounded">
                   Rerata: {adjustedDivPercentage}%
                 </span>
               </div>
             </div>
 
-            {/* Custom spacious metrics grid list instead of the Recharts BarChart */}
-            <div className="bg-white p-5 rounded-xl border border-slate-150 shadow-xs space-y-4">
-              <div className="flex justify-between items-center border-b border-slate-100 pb-3">
+            {/* Custom spacious metrics grid list containing high-fidelity half circle gauges */}
+            <div className="bg-[#f0f4f8] p-5 rounded-xl border border-slate-200/80 shadow-xs space-y-4">
+              <div className="flex justify-between items-center border-b border-slate-200/60 pb-3">
                 <h4 className="text-xs font-extrabold text-slate-500 uppercase tracking-wider font-mono">
                   Daftar Ketercapaian Indikator (Level 3)
                 </h4>
@@ -773,58 +773,80 @@ export default function DashboardView({
                   </div>
                 ) : (
                   adjustedObjectives.map((obj) => {
-                    let barColor = 'bg-emerald-500';
+                    const objPercentage = obj.percentage || 0;
+                    const fillPct = Math.min(100, Math.max(0, objPercentage));
+                    const remPct = 100 - fillPct;
+                    const objGaugeData = [
+                      { value: fillPct },
+                      { value: remPct }
+                    ];
+
+                    let gaugeColor = '#10b981'; // emerald
                     let textColor = 'text-emerald-600';
-                    let bgColor = 'bg-emerald-50/20 border-emerald-100';
-                    
-                    if (obj.percentage < 50) {
-                      barColor = 'bg-rose-500';
+                    let strokeColor = 'border-emerald-200';
+                    let bgColor = 'bg-[#f4fbf7] border-emerald-200/60';
+                    if (objPercentage < 50) {
+                      gaugeColor = '#ef4444'; // rose
                       textColor = 'text-rose-600';
-                      bgColor = 'bg-rose-50/20 border-rose-100';
-                    } else if (obj.percentage < 90) {
-                      barColor = 'bg-amber-500';
+                      strokeColor = 'border-rose-200';
+                      bgColor = 'bg-[#fef5f5] border-rose-200/60';
+                    } else if (objPercentage < 90) {
+                      gaugeColor = '#f59e0b'; // amber
                       textColor = 'text-amber-600';
-                      bgColor = 'bg-amber-50/20 border-amber-100';
+                      strokeColor = 'border-amber-200';
+                      bgColor = 'bg-[#fffcf4] border-amber-200/60';
                     }
 
                     return (
                       <div 
                         key={obj.id} 
-                        className={`p-3.5 rounded-xl border ${bgColor} flex flex-col justify-between space-y-3 hover:shadow-xs transition-all duration-200`}
+                        className={`p-4 rounded-xl border ${bgColor} flex flex-col justify-between space-y-2 hover:shadow-sm transition-all duration-200`}
                       >
-                        {/* Title and Badge */}
-                        <div className="flex justify-between items-start gap-3">
-                          <div className="space-y-0.5 min-w-0">
-                            <span className="text-[8px] font-extrabold text-slate-400 font-mono tracking-wider block">INDIKATOR</span>
-                            <span className="text-xs font-bold text-slate-800 leading-snug line-clamp-2" title={obj.indicatorName}>
-                              {obj.indicatorName}
-                            </span>
-                          </div>
-                          <div className="text-right shrink-0">
-                            <span className="text-[8px] font-extrabold text-slate-400 font-mono tracking-wider block">CAPAIAN</span>
-                            <span className={`text-sm font-black font-mono ${textColor}`}>
-                              {obj.percentage}%
-                            </span>
-                          </div>
+                        {/* Title block */}
+                        <div className="space-y-0.5 min-w-0">
+                          <span className="text-[8px] font-extrabold text-slate-400 font-mono tracking-wider block">INDIKATOR SASARAN</span>
+                          <span className="text-xs font-bold text-slate-800 leading-snug line-clamp-2" title={obj.indicatorName}>
+                            {obj.indicatorName}
+                          </span>
                         </div>
 
-                        {/* Progress Bar */}
-                        <div className="space-y-1">
-                          <div className="w-full bg-slate-200/60 h-2 rounded-full overflow-hidden">
-                            <div 
-                              className={`${barColor} h-full rounded-full transition-all duration-500`} 
-                              style={{ width: `${obj.percentage}%` }} 
-                            />
+                        {/* Individual Half Circle Gauge instead of standard linear progress */}
+                        <div className="relative w-full h-28 flex items-center justify-center overflow-hidden">
+                          <ResponsiveContainer width="100%" height="100%">
+                            <PieChart margin={{ top: 4, left: 0, right: 0, bottom: 0 }}>
+                              <Pie
+                                data={objGaugeData}
+                                cx="50%"
+                                cy="95%"
+                                startAngle={180}
+                                endAngle={0}
+                                innerRadius={40}
+                                outerRadius={56}
+                                paddingAngle={0}
+                                dataKey="value"
+                              >
+                                <Cell fill={gaugeColor} />
+                                <Cell fill="#cbd5e1" />
+                              </Pie>
+                            </PieChart>
+                          </ResponsiveContainer>
+
+                          {/* Gauge center percentage */}
+                          <div className="absolute inset-x-0 bottom-1 flex flex-col items-center">
+                            <span className={`text-xl font-black font-mono tracking-tight leading-none ${textColor}`}>
+                              {objPercentage}%
+                            </span>
+                            <span className="text-[7px] text-slate-400 font-bold uppercase tracking-wider mt-0.5">TERCAPAI</span>
                           </div>
                         </div>
 
                         {/* Metrics footer */}
                         <div className="grid grid-cols-2 gap-2 border-t border-slate-200/30 pt-2 text-[10px]">
-                          <div className="bg-white/80 p-1.5 rounded border border-slate-100 min-w-0">
+                          <div className="bg-[#f8fafc] p-1.5 rounded border border-slate-200/60 min-w-0">
                             <span className="text-[8px] text-slate-400 block font-mono">TARGET</span>
                             <span className="font-extrabold text-slate-700 font-mono truncate block" title={obj.target}>{obj.target}</span>
                           </div>
-                          <div className="bg-white/80 p-1.5 rounded border border-slate-100 min-w-0">
+                          <div className="bg-[#f8fafc] p-1.5 rounded border border-slate-200/60 min-w-0">
                             <span className="text-[8px] text-slate-400 block font-mono">REALISASI</span>
                             <span className="font-extrabold text-slate-700 font-mono truncate block" title={`${obj.achievement} ${obj.unit}`}>{obj.achievement} {obj.unit}</span>
                           </div>
@@ -840,7 +862,7 @@ export default function DashboardView({
             <div className="flex justify-end">
               <button
                 onClick={() => setDrillDownActive(false)}
-                className="px-4 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-lg border border-slate-200 transition-all flex items-center gap-1.5"
+                className="px-4 py-1.5 bg-slate-200/80 hover:bg-slate-300 text-slate-700 font-bold text-xs rounded-lg border border-slate-300 transition-all flex items-center gap-1.5"
               >
                 <ArrowLeft className="w-3.5 h-3.5" />
                 Kembali ke Dashboard 6 Bidang

@@ -60,6 +60,7 @@ export interface PerformanceIndicator {
   achievement: number; // Realisasi, e.g. 90
   parentIndicatorId?: string; // Links back to parent target for cascading traceability
   comments?: IndicatorComment[];
+  trajectory?: number[]; // Proyeksi target per bulan (12 bulan, indeks 0 = Jan, 11 = Des)
 }
 
 export interface PerformanceAgreement {
