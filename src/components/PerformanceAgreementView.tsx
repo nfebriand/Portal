@@ -27,7 +27,10 @@ import {
   Sparkles,
   Brain,
   BookOpen,
-  Copy
+  Copy,
+  Calculator,
+  Table,
+  Save
 } from 'lucide-react';
 import { Employee, InstitutionalIdentity, PerformanceAgreement, PerformanceIndicator, AppSettings, CriticalNotification, NewsReport, CooperationContract, ReporterTarget, IndicatorComment } from '../types';
 import SignaturePad from './SignaturePad';
@@ -59,7 +62,7 @@ export default function PerformanceAgreementView({
   reporterTargets = []
 }: PerformanceAgreementViewProps) {
   const [selectedYear, setSelectedYear] = useState<number>(2026);
-  const [activeTab, setActiveTab] = useState<'pohon' | 'dokumen' | 'evaluasi'>('pohon');
+  const [activeTab, setActiveTab] = useState<'pohon' | 'dokumen' | 'evaluasi' | 'pakar'>('pohon');
 
   // Helper to check edit permissions for a specific agreement level
   const canEditAgreement = (agreementLevel: string) => {
@@ -117,6 +120,52 @@ export default function PerformanceAgreementView({
   // Renaming and Re-ordering State
   const [renamingIndicatorId, setRenamingIndicatorId] = useState<string | null>(null);
   const [renamingNameValue, setRenamingNameValue] = useState<string>('');
+
+  // Pakar SAKIP Interactive simulation states
+  const [simSelectedIndicatorId, setSimSelectedIndicatorId] = useState<string>('custom');
+  const [simCustomName, setSimCustomName] = useState<string>('Persentase efektivitas pengelolaan dan penyerapan PNBP penyiaran');
+  const [simTarget, setSimTarget] = useState<number>(100);
+  const [simRealization, setSimRealization] = useState<number>(85);
+  const [simUnit, setSimUnit] = useState<string>('%');
+  const [simLevel, setSimLevel] = useState<string>('Kepala Stasiun');
+  const [simTheme, setSimTheme] = useState<'pnbp' | 'berita' | 'tu' | 'umum'>('pnbp');
+
+  // List of all indicators for the select dropdown in SAKIP Expert tab
+  const allIndicatorsList = useMemo(() => {
+    const list: { indicator: PerformanceIndicator; agreement: PerformanceAgreement }[] = [];
+    agreements.forEach(ag => {
+      ag.objectives.forEach(ind => {
+        list.push({ indicator: ind, agreement: ag });
+      });
+    });
+    return list;
+  }, [agreements]);
+
+  const handleSelectIndicatorForSim = (id: string) => {
+    setSimSelectedIndicatorId(id);
+    if (id === 'custom') {
+      return;
+    }
+    const found = allIndicatorsList.find(item => item.indicator.id === id);
+    if (found) {
+      setSimCustomName(found.indicator.indicatorName);
+      setSimTarget(parseFloat(found.indicator.target) || 100);
+      setSimRealization(found.indicator.achievement || 0);
+      setSimUnit(found.indicator.unit || '%');
+      setSimLevel(found.agreement.level);
+      
+      const nameLower = found.indicator.indicatorName.toLowerCase();
+      if (nameLower.includes('pnbp') || nameLower.includes('pendapatan') || nameLower.includes('usaha')) {
+        setSimTheme('pnbp');
+      } else if (nameLower.includes('berita') || nameLower.includes('pemberitaan') || nameLower.includes('konten') || nameLower.includes('siaran')) {
+        setSimTheme('berita');
+      } else if (nameLower.includes('tata usaha') || nameLower.includes('arsip') || nameLower.includes('keuangan') || nameLower.includes('sdm')) {
+        setSimTheme('tu');
+      } else {
+        setSimTheme('umum');
+      }
+    }
+  };
 
   // List of Level 2 official levels
   const level2Options = [
@@ -1020,6 +1069,17 @@ export default function PerformanceAgreementView({
               }`}
             >
               Evaluasi Berkala (Triwulan/Semester)
+            </button>
+            <button
+              onClick={() => setActiveTab('pakar')}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold tracking-wide transition-all flex items-center gap-1.5 border border-dashed ${
+                activeTab === 'pakar' 
+                  ? 'bg-amber-600 text-white border-amber-500 shadow-xs' 
+                  : 'text-amber-400 border-amber-900/40 hover:text-amber-200 hover:border-amber-700'
+              }`}
+            >
+              <Brain className="w-3.5 h-3.5" />
+              <span>Pakar SAKIP & ASN</span>
             </button>
           </div>
         </div>
@@ -1962,7 +2022,7 @@ export default function PerformanceAgreementView({
           </div>
 
         </div>
-      ) : (
+      ) : activeTab === 'evaluasi' ? (
         // New Evaluasi Berkala Tab
         <div className="space-y-6">
           <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-xs space-y-6">
@@ -2341,6 +2401,653 @@ export default function PerformanceAgreementView({
                   </div>
                 );
               })()}
+            </div>
+
+          </div>
+        </div>
+      ) : (
+        // Pakar SAKIP & ASN Tab
+        <div className="space-y-6 animate-in fade-in duration-200">
+          {/* Header Card */}
+          <div className="bg-gradient-to-br from-amber-600 via-amber-700 to-indigo-900 text-white p-6 rounded-3xl border border-amber-500/30 shadow-md relative overflow-hidden">
+            <div className="absolute right-0 top-0 w-80 h-80 bg-white/5 rounded-full blur-3xl -mr-16 -mt-16 pointer-events-none" />
+            <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-4">
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <div className="p-2 bg-amber-500/20 backdrop-blur-md rounded-xl border border-amber-400/30">
+                    <Brain className="w-6 h-6 text-amber-300 animate-pulse" />
+                  </div>
+                  <span className="text-[10px] font-black uppercase tracking-widest bg-amber-500/20 px-2 py-0.5 rounded-md border border-amber-400/20 font-mono">Permenpan RB 6/2022</span>
+                </div>
+                <h3 className="text-xl font-black tracking-tight font-sans">Sistem Pakar SAKIP &amp; Manajemen Kinerja ASN</h3>
+                <p className="text-xs text-amber-100/90 max-w-2xl leading-relaxed">
+                  Asisten evaluasi taktis cerdas yang mensimulasikan nilai capaian SAKIP, mengkalkulasi predikat kinerja organisasi, menyelaraskan pembobotan kaskade tugas, serta menyusun draf laporan analisis LKE/LKjIP instansi secara otomatis.
+                </p>
+              </div>
+
+              {/* Status Indicator */}
+              <div className="bg-black/20 backdrop-blur-md px-4 py-3 rounded-2xl border border-white/10 flex items-center gap-3 self-start md:self-auto">
+                <div className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping" />
+                <div className="text-xs">
+                  <p className="font-extrabold text-amber-300">Sistem Pakar Online</p>
+                  <p className="text-[9px] text-white/60 font-mono">Versi 4.2 - Siap Analisis</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            
+            {/* Sidebar Controls: 5 cols */}
+            <div className="lg:col-span-5 bg-white p-5 rounded-3xl border border-slate-100 shadow-xs space-y-5 h-fit">
+              <div>
+                <h4 className="text-xs font-black text-slate-400 uppercase tracking-wider font-mono">Pusat Diagnosa Mandiri</h4>
+                <p className="text-[10px] text-slate-400">Pilih sasaran kerja dari dokumen PK yang ada untuk dianalisis, atau tentukan parameter simulasi kustom Anda sendiri.</p>
+              </div>
+
+              <div className="space-y-4">
+                {/* 1. Select target */}
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider block">1. Pilih Sasaran Kerja untuk Diperiksa:</label>
+                  <select
+                    value={simSelectedIndicatorId}
+                    onChange={(e) => handleSelectIndicatorForSim(e.target.value)}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs font-bold text-slate-700 focus:outline-hidden focus:bg-white focus:ring-2 focus:ring-indigo-400"
+                  >
+                    <option value="custom" className="font-bold text-slate-500">★ Custom / Ketik Manual Sendiri</option>
+                    {allIndicatorsList.map(item => (
+                      <option key={item.indicator.id} value={item.indicator.id}>
+                        [{item.agreement.assignedToName} - {item.agreement.level}] {item.indicator.indicatorName.substring(0, 60)}...
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* 2. Custom Name (if manual) */}
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider block">Nama Indikator Kinerja Utama (IKU):</label>
+                  <textarea
+                    value={simCustomName}
+                    onChange={(e) => {
+                      setSimCustomName(e.target.value);
+                      if (simSelectedIndicatorId !== 'custom') setSimSelectedIndicatorId('custom');
+                    }}
+                    placeholder="Ketik indikator sasaran di sini..."
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs font-bold text-slate-700 focus:outline-hidden focus:bg-white focus:ring-2 focus:ring-indigo-400 h-16 resize-none"
+                  />
+                </div>
+
+                {/* 3. Target and Realization controls */}
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider block">Target Kinerja</label>
+                    <input
+                      type="number"
+                      value={simTarget}
+                      onChange={(e) => {
+                        setSimTarget(parseFloat(e.target.value) || 0);
+                        if (simSelectedIndicatorId !== 'custom') setSimSelectedIndicatorId('custom');
+                      }}
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2 text-xs font-bold text-center focus:outline-hidden focus:bg-white focus:ring-2 focus:ring-indigo-400"
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider block">Realisasi Riil</label>
+                    <input
+                      type="number"
+                      value={simRealization}
+                      onChange={(e) => {
+                        setSimRealization(parseFloat(e.target.value) || 0);
+                        if (simSelectedIndicatorId !== 'custom') setSimSelectedIndicatorId('custom');
+                      }}
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2 text-xs font-bold text-center focus:outline-hidden focus:bg-white focus:ring-2 focus:ring-indigo-400"
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider block">Satuan Ukur</label>
+                    <input
+                      type="text"
+                      value={simUnit}
+                      onChange={(e) => {
+                        setSimUnit(e.target.value);
+                        if (simSelectedIndicatorId !== 'custom') setSimSelectedIndicatorId('custom');
+                      }}
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2 text-xs font-bold text-center focus:outline-hidden focus:bg-white focus:ring-2 focus:ring-indigo-400"
+                    />
+                  </div>
+                </div>
+
+                {/* Slider for realization for direct interactive fun! */}
+                <div className="space-y-1.5 bg-slate-50 p-3 rounded-2xl border border-slate-150">
+                  <div className="flex justify-between text-[10px] text-slate-500 font-bold">
+                    <span>Geser Realisasi (Simulasi Interaktif):</span>
+                    <span className="text-indigo-600 font-extrabold">{Math.round((simRealization / (simTarget || 1)) * 100)}% Capaian</span>
+                  </div>
+                  <input
+                    type="range"
+                    min="0"
+                    max={simTarget * 1.2 || 120}
+                    step={simTarget ? simTarget / 100 : 1}
+                    value={simRealization}
+                    onChange={(e) => {
+                      setSimRealization(parseFloat(e.target.value));
+                      if (simSelectedIndicatorId !== 'custom') setSimSelectedIndicatorId('custom');
+                    }}
+                    className="w-full accent-indigo-600 cursor-pointer h-1.5 bg-slate-200 rounded-lg appearance-none"
+                  />
+                  <p className="text-[9px] text-slate-400 text-center italic">Seret penggeser di atas untuk melihat predikat dan kalimat draf analisis terperinci berubah secara langsung!</p>
+                </div>
+
+                {/* 4. Level Organisasi */}
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider block">Level Pertanggungjawaban:</label>
+                  <div className="grid grid-cols-3 gap-1">
+                    {['Kepala Stasiun', 'Kabid / Ketua Tim', 'Pegawai'].map(lvl => (
+                      <button
+                        key={lvl}
+                        type="button"
+                        onClick={() => {
+                          setSimLevel(lvl);
+                          if (simSelectedIndicatorId !== 'custom') setSimSelectedIndicatorId('custom');
+                        }}
+                        className={`py-2 px-1 rounded-xl text-[10px] font-extrabold text-center transition-all border ${
+                          simLevel === lvl
+                            ? 'bg-indigo-600 text-white border-indigo-600 shadow-2xs'
+                            : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
+                        }`}
+                      >
+                        {lvl === 'Kabid / Ketua Tim' ? 'Level 2' : lvl === 'Pegawai' ? 'Level 3' : 'Level 1'}
+                        <span className="block text-[8px] opacity-75 font-normal mt-0.5">{lvl}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* 5. Tema Bidang */}
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider block">Tema Evaluasi / Klasifikasi Tugas:</label>
+                  <div className="grid grid-cols-2 gap-2">
+                    {[
+                      { id: 'pnbp', label: 'PNBP / Kerjasama', desc: 'Sewa pemancar &amp; reklame' },
+                      { id: 'berita', label: 'Berita / Konten', desc: 'Siaran, pemberitaan, medsos' },
+                      { id: 'tu', label: 'Tata Usaha / Umum', desc: 'SDM, arsip, keuangan, TU' },
+                      { id: 'umum', label: 'Lainnya / Umum', desc: 'Indikator strategis stasiun' }
+                    ].map(theme => (
+                      <button
+                        key={theme.id}
+                        type="button"
+                        onClick={() => {
+                          setSimTheme(theme.id as any);
+                          if (simSelectedIndicatorId !== 'custom') setSimSelectedIndicatorId('custom');
+                        }}
+                        className={`p-2.5 rounded-xl text-left transition-all border flex flex-col justify-between ${
+                          simTheme === theme.id
+                            ? 'bg-amber-50 text-amber-900 border-amber-300 ring-1 ring-amber-200 shadow-2xs'
+                            : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
+                        }`}
+                      >
+                        <p className="text-[10.5px] font-black leading-tight">{theme.label}</p>
+                        <p className={`text-[8.5px] leading-tight mt-0.5 ${simTheme === theme.id ? 'text-amber-700' : 'text-slate-400'}`}>{theme.desc}</p>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+              </div>
+            </div>
+
+            {/* Diagnostic Center Outputs: 7 cols */}
+            <div className="lg:col-span-7 space-y-6">
+              
+              {(() => {
+                // RUN SAKIP CALCULATOR ENGINE
+                const score = simTarget > 0 ? Math.min(120, Math.round((simRealization / simTarget) * 100)) : 0;
+                
+                // Calculate SAKIP Predicate
+                let sakipPred = 'B';
+                let sakipLabel = 'Baik';
+                let sakipColor = 'text-indigo-600 bg-indigo-50 border-indigo-200';
+                if (score >= 90) {
+                  sakipPred = 'AA';
+                  sakipLabel = 'Sangat Memuaskan';
+                  sakipColor = 'text-emerald-700 bg-emerald-50 border-emerald-200';
+                } else if (score >= 80) {
+                  sakipPred = 'A';
+                  sakipLabel = 'Memuaskan';
+                  sakipColor = 'text-teal-700 bg-teal-50 border-teal-200';
+                } else if (score >= 70) {
+                  sakipPred = 'BB';
+                  sakipLabel = 'Sangat Baik';
+                  sakipColor = 'text-blue-700 bg-blue-50 border-blue-200';
+                } else if (score >= 60) {
+                  sakipPred = 'B';
+                  sakipLabel = 'Baik';
+                  sakipColor = 'text-indigo-700 bg-indigo-50 border-indigo-200';
+                } else if (score >= 50) {
+                  sakipPred = 'CC';
+                  sakipLabel = 'Cukup';
+                  sakipColor = 'text-amber-700 bg-amber-50 border-amber-200';
+                } else if (score >= 30) {
+                  sakipPred = 'C';
+                  sakipLabel = 'Kurang';
+                  sakipColor = 'text-orange-700 bg-orange-50 border-orange-200';
+                } else {
+                  sakipPred = 'D';
+                  sakipLabel = 'Sangat Kurang';
+                  sakipColor = 'text-rose-700 bg-rose-50 border-rose-200';
+                }
+
+                // Calculate ASN Rating (Permenpan RB 6/2022)
+                let asnRating = 'BAIK';
+                let asnColor = 'bg-emerald-500';
+                let asnBadgeColor = 'bg-emerald-50 border-emerald-200 text-emerald-800';
+                let asnDesc = 'Hasil kerja sesuai ekspektasi pimpinan dan kontribusi organisasi tercapai secara optimal.';
+                if (score >= 100) {
+                  asnRating = 'SANGAT BAIK';
+                  asnColor = 'bg-teal-600';
+                  asnBadgeColor = 'bg-teal-50 border-teal-200 text-teal-800';
+                  asnDesc = 'Hasil kerja secara konsisten melampaui ekspektasi pimpinan serta menginspirasi rekan kerja lainnya.';
+                } else if (score >= 80) {
+                  asnRating = 'BAIK';
+                  asnColor = 'bg-emerald-500';
+                  asnBadgeColor = 'bg-emerald-50 border-emerald-200 text-emerald-800';
+                  asnDesc = 'Hasil kerja sesuai ekspektasi dan memberikan dampak positif langsung pada pencapaian target unit kerja.';
+                } else if (score >= 70) {
+                  asnRating = 'BUTUH PERBAIKAN';
+                  asnColor = 'bg-amber-500';
+                  asnBadgeColor = 'bg-amber-50 border-amber-200 text-amber-800';
+                  asnDesc = 'Sebagian hasil kerja belum sepenuhnya memenuhi ekspektasi pimpinan, diperlukan penyesuaian strategi.';
+                } else if (score >= 50) {
+                  asnRating = 'KURANG';
+                  asnColor = 'bg-orange-500';
+                  asnBadgeColor = 'bg-orange-50 border-orange-200 text-orange-800';
+                  asnDesc = 'Hasil kerja berada di bawah standar minimal ekspektasi pimpinan dan memerlukan pembinaan intensif.';
+                } else {
+                  asnRating = 'SANGAT KURANG';
+                  asnColor = 'bg-rose-600';
+                  asnBadgeColor = 'bg-rose-50 border-rose-200 text-rose-800';
+                  asnDesc = 'Hasil kerja jauh di bawah ekspektasi pimpinan dan merugikan capaian akuntabilitas unit organisasi.';
+                }
+
+                // Dynamic Cascading division and weights
+                let cascadingList: { level: string; role: string; weight: number; reason: string }[] = [];
+                if (simLevel === 'Kepala Stasiun' || simLevel === 'Level 1') {
+                  if (simTheme === 'pnbp') {
+                    cascadingList = [
+                      { level: 'Level 2', role: 'Ketua Tim Layanan Pengembangan Usaha', weight: 60, reason: 'Penanggung jawab utama pencarian mitra kerjasama dan penagihan piutang PNBP.' },
+                      { level: 'Level 2', role: 'Ketua Tim Siaran', weight: 40, reason: 'Pemberi slot penyiaran / iklan layanan sebagai komoditas utama kerjasama.' }
+                    ];
+                  } else if (simTheme === 'berita') {
+                    cascadingList = [
+                      { level: 'Level 2', role: 'Ketua Tim Pemberitaan', weight: 50, reason: 'Bertanggung jawab atas produksi berita radio harian dan akurasi informasi redaksi.' },
+                      { level: 'Level 2', role: 'Ketua Tim Konten Media Baru', weight: 30, reason: 'Bertanggung jawab atas diseminasi berita ke portal online dan infografis media sosial.' },
+                      { level: 'Level 2', role: 'Ketua Tim Teknologi dan Media Baru', weight: 20, reason: 'Menyediakan infrastruktur streaming dan pemeliharaan server portal berita.' }
+                    ];
+                  } else {
+                    cascadingList = [
+                      { level: 'Level 2', role: 'Kepala Bagian Tata Usaha (Kabid)', weight: 40, reason: 'Mendukung fasilitasi anggaran operasional dan administrasi seluruh program kerja.' },
+                      { level: 'Level 2', role: 'Seluruh Ketua Tim Kerja', weight: 60, reason: 'Pelaksana taktis sasaran strategis sesuai pembagian divisi fungsional.' }
+                    ];
+                  }
+                } else {
+                  // Cascading to Level 3 (Pegawai)
+                  if (simTheme === 'pnbp') {
+                    cascadingList = [
+                      { level: 'Level 3', role: 'Staf Administrasi Kerjasama (PUPN)', weight: 50, reason: 'Melakukan penatausahaan kontrak mitra, rekonsiliasi billing, dan verifikasi setor kas negara.' },
+                      { level: 'Level 3', role: 'Account Executive / Sales Staf', weight: 50, reason: 'Melakukan canvassing calon mitra, penyusunan proposal sewa aset, dan negosiasi tarif.' }
+                    ];
+                  } else if (simTheme === 'berita') {
+                    cascadingList = [
+                      { level: 'Level 3', role: 'Reporter Jurnalis / Penyiar Utama', weight: 60, reason: 'Melakukan liputan langsung di lapangan dan penulisan naskah berita berkualitas.' },
+                      { level: 'Level 3', role: 'Editor Audio Visual / Sosmed Officer', weight: 40, reason: 'Melakukan editing, layout grafis, penyuntingan bahasa, dan penjadwalan publish konten.' }
+                    ];
+                  } else {
+                    cascadingList = [
+                      { level: 'Level 3', role: 'Pranata Komputer / Teknis Fungsional', weight: 50, reason: 'Melakukan pemeliharaan sistem harian, penyusunan logbook eviden, dan troubleshooting.' },
+                      { level: 'Level 3', role: 'Staf Pelaksana Umum / Pendukung', weight: 50, reason: 'Melakukan pengarsipan dokumen, entry data mentah, dan fasilitasi rapat evaluasi.' }
+                    ];
+                  }
+                }
+
+                // Dynamic periodic breakdown calculation
+                let periods: { label: string; code: string; calc: string; value: string }[] = [];
+                if (simUnit === '%' || simUnit.toLowerCase() === 'indeks') {
+                  const baseNum = simTarget || 90;
+                  periods = [
+                    { label: 'Bulanan (Jan - Des)', code: 'Bld', calc: 'Flat Target', value: `${baseNum} ${simUnit}` },
+                    { label: 'Triwulan I', code: 'TW I', calc: 'Awal Kinerja', value: `${Math.round(baseNum * 0.95)} ${simUnit}` },
+                    { label: 'Triwulan II', code: 'TW II', calc: 'Tengah Kinerja', value: `${baseNum} ${simUnit}` },
+                    { label: 'Triwulan III', code: 'TW III', calc: 'Akselerasi', value: `${baseNum} ${simUnit}` },
+                    { label: 'Triwulan IV', code: 'TW IV', calc: 'Puncak Target', value: `${baseNum} ${simUnit}` },
+                    { label: 'Semester I', code: 'SM I', calc: 'Evaluasi Tengah', value: `${baseNum} ${simUnit}` },
+                    { label: 'Semester II', code: 'SM II', calc: 'Evaluasi Akhir', value: `${baseNum} ${simUnit}` },
+                    { label: 'Tahunan', code: 'THN', calc: 'Target Penuh', value: `${baseNum} ${simUnit}` }
+                  ];
+                } else {
+                  const totalCount = simTarget || 120;
+                  const monthlyStep = Math.round(totalCount / 12);
+                  periods = [
+                    { label: 'Bulanan (Rata-rata)', code: 'Bld', calc: `~${monthlyStep} per Bulan`, value: `+${monthlyStep} ${simUnit} / Bln` },
+                    { label: 'Triwulan I (Akumulatif)', code: 'TW I', calc: '25% Akumulasi', value: `${Math.round(totalCount * 0.25)} ${simUnit}` },
+                    { label: 'Triwulan II (Akumulatif)', code: 'TW II', calc: '50% Akumulasi', value: `${Math.round(totalCount * 0.50)} ${simUnit}` },
+                    { label: 'Triwulan III (Akumulatif)', code: 'TW III', calc: '75% Akumulasi', value: `${Math.round(totalCount * 0.75)} ${simUnit}` },
+                    { label: 'Triwulan IV (Akumulatif)', code: 'TW IV', calc: '100% Akumulasi', value: `${totalCount} ${simUnit}` },
+                    { label: 'Semester I (Akumulatif)', code: 'SM I', calc: '50% Akumulasi', value: `${Math.round(totalCount * 0.50)} ${simUnit}` },
+                    { label: 'Semester II (Akumulatif)', code: 'SM II', calc: '100% Akumulasi', value: `${totalCount} ${simUnit}` },
+                    { label: 'Tahunan (Total)', code: 'THN', calc: 'Target Penuh', value: `${totalCount} ${simUnit}` }
+                  ];
+                }
+
+                // Teks Analisis Generator
+                let pendorong = '';
+                let penghambat = '';
+                let tindakLanjut = '';
+
+                if (score >= 100) {
+                  pendorong = simTheme === 'pnbp'
+                    ? 'Optimalisasi penetapan tarif sewa lahan menara bersama mitra strategis serta tertib administrasi billing tagihan SIMPONI yang dikawal secara berkala setiap bulan.'
+                    : simTheme === 'berita'
+                    ? 'Adanya mekanisme penugasan liputan jurnalis berbasis bento-grid yang disiplin, didukung ketersediaan kuota internet pelaporan mobile serta respons cepat tim penyuntingan konten multiplatform.'
+                    : simTheme === 'tu'
+                    ? 'Tertib administrasi perkantoran digital berbasis srikandi, pengarsipan otomatis tanpa keterlambatan, serta pelatihan penyusunan logbook kerja yang dipandu tim TU.'
+                    : 'Tingginya komitmen pimpinan dalam memonitor pendelegasian tugas secara berkala, sinergi yang harmonis antar ketua tim kerja, serta pemanfaatan dashboard digital SAKIP secara real-time.';
+                  
+                  penghambat = simTheme === 'pnbp'
+                    ? 'Fluktuasi kurs mata uang asing yang mempengaruhi beberapa mitra sewa korporasi internasional, namun berhasil diantisipasi dengan penyesuaian skema invoice dinamis.'
+                    : simTheme === 'berita'
+                    ? 'Tingginya frekuensi agenda dinas mendadak (breaking news) daerah yang membagi fokus tim, namun dapat ditangani melalui sistem piket silang redaksi.'
+                    : simTheme === 'tu'
+                    ? 'Adanya mutasi personil mendadak di pertengahan bulan namun cepat diantisipasi dengan pemetaan ulang peran staf administrasi fungsional.'
+                    : 'Kendala teknis minor pada stabilitas jaringan internet satelit di stasiun transmisi terpencil, yang untungnya cepat ditangani oleh tim darurat pemeliharaan.';
+                  
+                  tindakLanjut = simTheme === 'pnbp'
+                    ? 'Mempertahankan intensitas koordinasi dengan Kemenkeu terkait perizinan tarif PNBP baru serta memperluas segmentasi penawaran pemancar ke operator telekomunikasi lokal.'
+                    : simTheme === 'berita'
+                    ? 'Meningkatkan standar kualitas jurnalisme melalui pelatihan sertifikasi kompetensi dewan pers dan standarisasi perlengkapan audio-visual mobile jurnalis.'
+                    : simTheme === 'tu'
+                    ? 'Melakukan standarisasi operasional prosedur pengisian SPJ secara online untuk mempercepat pencairan anggaran sisa kuartal.'
+                    : 'Melakukan standarisasi SOP keberhasilan triwulan ini agar menjadi panduan baku kinerja pada periode anggaran berikutnya.';
+                } else if (score >= 80) {
+                  pendorong = simTheme === 'pnbp'
+                    ? 'Realisasi kontrak eksisting berjalan stabil sesuai jadwal pembayaran rutin dari mitra utama. Tim penagihan intens melakukan reminder secara ramah via e-mail.'
+                    : simTheme === 'berita'
+                    ? 'Tim peliputan berhasil menjaga kuantitas rilis berita radio reguler secara konsisten sesuai target harian yang dibebankan pimpinan redaksi.'
+                    : simTheme === 'tu'
+                    ? 'Keaktifan absensi pegawai dan kelancaran sirkulasi memo dinas harian mendukung kelancaran administrasi kerja.'
+                    : 'Adanya komunikasi taktis mingguan yang berjalan lancar antara penanggung jawab kegiatan dengan atasan langsung untuk memecahkan hambatan administrasi di lapangan.';
+                  
+                  penghambat = simTheme === 'pnbp'
+                    ? 'Terdapat penundaan kelengkapan berkas administrasi kontrak sewa baru dari salah satu mitra, sehingga pembayaran baru tercatat di akhir siklus periode.'
+                    : simTheme === 'berita'
+                    ? 'Keterbatasan jumlah kamera portabel beresolusi tinggi yang siap pakai, memaksa beberapa reporter mengoptimalkan gawai pribadi masing-masing.'
+                    : simTheme === 'tu'
+                    ? 'Keterlambatan penyampaian laporan pertanggungjawaban kegiatan teknis luar daerah dari unit fungsional lain kepada seksi tata usaha.'
+                    : 'Alokasi anggaran operasional perjalanan dinas peliputan lapangan yang baru cair di pertengahan triwulan, menuntut efisiensi akomodasi rute.';
+                  
+                  tindakLanjut = simTheme === 'pnbp'
+                    ? 'Membuat sistem template pengingat pembayaran otomatis (automated billing alert) untuk meminimalisir keterlambatan administrasi dari pihak mitra.'
+                    : simTheme === 'berita'
+                    ? 'Mengajukan pengadaan paket upgrade peralatan peliputan taktis ringan (vlog kit) pada usulan revisi anggaran operasional triwulan depan.'
+                    : simTheme === 'tu'
+                    ? 'Menyelenggarakan klinik e-SPJ singkat setiap akhir bulan guna memangkas durasi verifikasi berkas keuangan pelaksana.'
+                    : 'Meningkatkan frekuensi monitoring capaian mingguan untuk mengantisipasi potensi keterlambatan target di triwulan berikutnya.';
+                } else {
+                  pendorong = simTheme === 'pnbp'
+                    ? 'Adanya komitmen pembayaran cicilan tunggakan piutang dari sebagian mitra lama yang kooperatif meskipun bisnis sewa sedang melambat.'
+                    : simTheme === 'berita'
+                    ? 'Dedikasi tinggi beberapa staf pelaksana jurnalis yang bersedia lembur menyelesaikan penugasan program siaran di tengah keterbatasan fasilitas penunjang.'
+                    : simTheme === 'tu'
+                    ? 'Masih berjalannya layanan kepegawaian standar seperti pelaporan LHKPN dan rekapitulasi data e-kinerja bulanan.'
+                    : 'Masih terjaganya komunikasi administratif dasar dalam unit organisasi untuk mencatat setiap kendala pencapaian kaskade sasaran.';
+                  
+                  penghambat = simTheme === 'pnbp'
+                    ? 'Adanya pemutusan sewa kontrak sepihak dari dua mitra utama karena relokasi bisnis, diperparah belum ditetapkannya regulasi tarif layanan PNBP stasiun yang kompetitif.'
+                    : simTheme === 'berita'
+                    ? 'Kekurangan tenaga editor tersertifikasi dan rusaknya unit komputer editing utama, menyebabkan terjadinya bottleneck parah pada antrean rilis video konten.'
+                    : simTheme === 'tu'
+                    ? 'Proses penyusunan anggaran RKAKL stasiun yang membutuhkan banyak revisi manual karena perubahan nomenklatur di kementerian pusat.'
+                    : 'Adanya refocusing alokasi anggaran operasional instansi secara masif di awal semester, menyebabkan pembatasan ketat jadwal dinas lapangan tim teknis.';
+                  
+                  tindakLanjut = simTheme === 'pnbp'
+                    ? 'Menyusun ulang strategi pricing sewa aset non-core, melakukan penagihan persuasif langsung ke direksi mitra menunggak, dan berkoordinasi aktif dengan KPKNL.'
+                    : simTheme === 'berita'
+                    ? 'Mengatur ulang pembagian tugas editor lintas bidang, menjajaki kerjasama magang dengan SMK/Universitas multimedia, serta mengusulkan servis komputer darurat.'
+                    : simTheme === 'tu'
+                    ? 'Mengoptimalkan pengisian sisa anggaran belanja operasional secara bertahap dan melakukan koordinasi terpusat dengan biro perencanaan.'
+                    : 'Mengajukan revisi target kinerja yang lebih rasional sesuai ketersediaan anggaran riil pasca-refocusing kepada pimpinan melalui dewan evaluasi.';
+                }
+
+                const combinedDraftText = `== DRAFT ANALISIS SAKIP & MANAJEMEN KINERJA ASN (PERMENPAN RB) ==
+Sasaran: ${simCustomName}
+Capaian: ${score}% (Predikat SAKIP: ${sakipPred} - ${sakipLabel} | Nilai ASN: ${asnRating})
+
+1. FAKTOR PENDORONG:
+${pendorong}
+
+2. FAKTOR PENGHAMBAT:
+${penghambat}
+
+3. TINDAK LANJUT REKOMENDASI:
+${tindakLanjut}
+
+[Draft disusun otomatis oleh Sistem Pakar SAKIP pada ${new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}]`;
+
+                const handleCopyText = () => {
+                  navigator.clipboard.writeText(combinedDraftText);
+                  if (onAddNotification) {
+                    onAddNotification({
+                      id: `notif-copy-${Date.now()}`,
+                      title: 'Salin Berhasil',
+                      message: 'Draf analisis SAKIP berhasil disalin ke clipboard!',
+                      type: 'info',
+                      timestamp: new Date().toLocaleDateString('id-ID', { hour: '2-digit', minute: '2-digit' }),
+                      isRead: false
+                    });
+                  }
+                };
+
+                const handleSaveAsComment = () => {
+                  if (simSelectedIndicatorId === 'custom') {
+                    if (onAddNotification) {
+                      onAddNotification({
+                        id: `notif-warn-${Date.now()}`,
+                        title: 'Butuh Rujukan',
+                        message: 'Harap pilih salah satu sasaran kinerja rujukan terlebih dahulu untuk menyimpan sebagai catatan resmi.',
+                        type: 'warning',
+                        timestamp: new Date().toLocaleDateString('id-ID', { hour: '2-digit', minute: '2-digit' }),
+                        isRead: false
+                      });
+                    }
+                    return;
+                  }
+                  const found = allIndicatorsList.find(item => item.indicator.id === simSelectedIndicatorId);
+                  if (found) {
+                    handleAddComment(found.agreement.id, found.indicator.id, combinedDraftText);
+                    if (onAddNotification) {
+                      onAddNotification({
+                        id: `notif-save-${Date.now()}`,
+                        title: 'Catatan Diposting',
+                        message: `Berhasil memposting draf analisis Sistem Pakar sebagai komentar resmi pada "${found.indicator.indicatorName}"!`,
+                        type: 'info',
+                        timestamp: new Date().toLocaleDateString('id-ID', { hour: '2-digit', minute: '2-digit' }),
+                        isRead: false
+                      });
+                    }
+                  }
+                };
+
+                return (
+                  <div className="space-y-6">
+                    
+                    {/* Module 3: SAKIP Predicate & ASN Rating */}
+                    <div className="bg-white p-5 rounded-3xl border border-slate-100 shadow-2xs space-y-4">
+                      <div className="flex items-center gap-2">
+                        <Calculator className="w-4 h-4 text-indigo-600" />
+                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest font-mono">Modul 3: Simulasi Capaian &amp; Predikat Akuntabilitas</span>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        {/* Math box */}
+                        <div className="bg-slate-50 p-4 rounded-2xl border border-slate-150 flex flex-col justify-between">
+                          <span className="text-[9px] font-bold text-slate-400 uppercase">Rumus Capaian</span>
+                          <div className="my-2">
+                            <p className="text-[10px] text-slate-500">Realisasi / Target × 100%</p>
+                            <p className="text-xl font-black font-mono text-slate-800 mt-1">
+                              {simRealization} / {simTarget}
+                            </p>
+                          </div>
+                          <span className="text-[9px] text-slate-400 font-mono leading-none">Maksimal dihitung 120%</span>
+                        </div>
+
+                        {/* SAKIP badge */}
+                        <div className={`p-4 rounded-2xl border flex flex-col justify-between ${sakipColor}`}>
+                          <span className="text-[9px] font-bold uppercase tracking-wider">Predikat SAKIP Organisasi</span>
+                          <div className="my-2">
+                            <p className="text-2xl font-black font-mono leading-none">{score}%</p>
+                            <p className="text-xs font-black mt-1">Predikat: {sakipPred}</p>
+                          </div>
+                          <span className="text-[9px] font-mono leading-normal font-bold">({sakipLabel})</span>
+                        </div>
+
+                        {/* ASN badge */}
+                        <div className={`p-4 rounded-2xl border text-white flex flex-col justify-between ${asnColor}`}>
+                          <span className="text-[9px] font-bold text-white/80 uppercase tracking-wider">Rating Kinerja ASN (Permenpan)</span>
+                          <div className="my-2">
+                            <p className="text-base font-black leading-tight">{asnRating}</p>
+                            <p className="text-[8.5px] leading-tight text-white/95 mt-1">{asnDesc.substring(0, 75)}...</p>
+                          </div>
+                          <span className="text-[9px] text-white/70 font-mono leading-none">Standar Permenpan RB 6/2022</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Module 1: Cascading & Weight Recommended */}
+                    <div className="bg-white p-5 rounded-3xl border border-slate-100 shadow-2xs space-y-4">
+                      <div className="flex items-center gap-2">
+                        <Layers className="w-4 h-4 text-indigo-600" />
+                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest font-mono">Modul 1: Struktur Cascading &amp; Bobot (Rekomendasi Pakar)</span>
+                      </div>
+
+                      <div className="space-y-2.5">
+                        <p className="text-xs text-slate-500 leading-relaxed">
+                          Berdasarkan kaskade vertikal, indikator di tingkat <strong>{simLevel}</strong> direkomendasikan untuk didelegasikan kepada pelaksana subordinat dengan rincian bobot pembagian berikut:
+                        </p>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                          {cascadingList.map((item, idx) => (
+                            <div key={idx} className="p-3 bg-slate-50/50 border border-slate-150 rounded-2xl flex flex-col justify-between gap-2 text-xs">
+                              <div className="flex items-center justify-between gap-2">
+                                <span className="px-1.5 py-0.5 rounded-md bg-indigo-50 border border-indigo-100 text-[9px] font-black text-indigo-700 font-mono">{item.level}</span>
+                                <span className="font-extrabold text-indigo-600 font-mono text-[11px]">Bobot: {item.weight}%</span>
+                              </div>
+                              <div>
+                                <p className="font-black text-slate-800">{item.role}</p>
+                                <p className="text-[10px] text-slate-400 mt-1 leading-relaxed">{item.reason}</p>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Module 2: Periodic Target Breakdown */}
+                    <div className="bg-white p-5 rounded-3xl border border-slate-100 shadow-2xs space-y-4">
+                      <div className="flex items-center gap-2">
+                        <Table className="w-4 h-4 text-indigo-600" />
+                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest font-mono">Modul 2: Breakdown Pembagian Target Berkala (Akumulatif)</span>
+                      </div>
+
+                      <div className="overflow-x-auto border border-slate-150 rounded-2xl bg-slate-50/30">
+                        <table className="w-full text-xs text-left">
+                          <thead>
+                            <tr className="bg-slate-50 text-[10px] font-extrabold text-slate-500 border-b border-slate-150 uppercase tracking-wider">
+                              <th className="p-3">Periode Evaluasi</th>
+                              <th className="p-3">Kode</th>
+                              <th className="p-3">Logika Penghitungan</th>
+                              <th className="p-3 text-right">Nilai Target</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-slate-150 bg-white">
+                            {periods.map((p, i) => (
+                              <tr key={i} className="hover:bg-slate-50/50 transition-colors">
+                                <td className="p-3 font-bold text-slate-700">{p.label}</td>
+                                <td className="p-3 font-mono font-extrabold text-indigo-600">{p.code}</td>
+                                <td className="p-3 text-slate-400 text-[10px]">{p.calc}</td>
+                                <td className="p-3 text-right font-black font-mono text-slate-800">{p.value}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+
+                    {/* Module 4: Teks Analisis Generator */}
+                    <div className="bg-white p-5 rounded-3xl border border-slate-100 shadow-2xs space-y-4">
+                      <div className="flex items-center justify-between gap-4 flex-wrap">
+                        <div className="flex items-center gap-2">
+                          <FileText className="w-4 h-4 text-indigo-600" />
+                          <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest font-mono">Modul 4: Draft Analisis Evaluasi (LKE &amp; LKjIP)</span>
+                        </div>
+
+                        <div className="flex gap-2">
+                          <button
+                            type="button"
+                            onClick={handleCopyText}
+                            className="flex items-center gap-1 px-3 py-1.5 hover:bg-slate-100 border border-slate-200 text-slate-700 text-xs font-extrabold rounded-xl transition-all cursor-pointer"
+                          >
+                            <Copy className="w-3.5 h-3.5" />
+                            <span>Salin Draft</span>
+                          </button>
+                          
+                          <button
+                            type="button"
+                            onClick={handleSaveAsComment}
+                            disabled={simSelectedIndicatorId === 'custom'}
+                            className={`flex items-center gap-1 px-3.5 py-1.5 text-white text-xs font-black rounded-xl transition-all shadow-xs cursor-pointer ${
+                              simSelectedIndicatorId === 'custom'
+                                ? 'bg-indigo-300 cursor-not-allowed opacity-60'
+                                : 'bg-indigo-600 hover:bg-indigo-500'
+                            }`}
+                          >
+                            <Save className="w-3.5 h-3.5" />
+                            <span>Posting Catatan Resmi</span>
+                          </button>
+                        </div>
+                      </div>
+
+                      {simSelectedIndicatorId === 'custom' && (
+                        <p className="text-[10px] text-amber-600 font-extrabold bg-amber-50 p-2.5 rounded-xl border border-amber-100">
+                          💡 Catatan: Pilih sasaran rujukan di sidebar untuk mengaktifkan tombol "Posting Catatan Resmi" guna menempelkan hasil analisis ini langsung ke database evaluasi indikator!
+                        </p>
+                      )}
+
+                      <div className="grid grid-cols-1 gap-4">
+                        {/* Pendorong */}
+                        <div className="p-4 bg-emerald-50/20 border border-emerald-100 rounded-2xl space-y-1">
+                          <span className="text-[9px] font-black text-emerald-700 uppercase tracking-wider font-mono">Faktor Pendorong (Sebab Sukses)</span>
+                          <p className="text-xs text-slate-700 leading-relaxed font-bold">{pendorong}</p>
+                        </div>
+
+                        {/* Penghambat */}
+                        <div className="p-4 bg-rose-50/20 border border-rose-100 rounded-2xl space-y-1">
+                          <span className="text-[9px] font-black text-rose-700 uppercase tracking-wider font-mono">Faktor Penghambat (Hambatan)</span>
+                          <p className="text-xs text-slate-700 leading-relaxed font-bold">{penghambat}</p>
+                        </div>
+
+                        {/* Tindak Lanjut */}
+                        <div className="p-4 bg-indigo-50/20 border border-indigo-100 rounded-2xl space-y-1">
+                          <span className="text-[9px] font-black text-indigo-700 uppercase tracking-wider font-mono">Tindak Lanjut &amp; Rekomendasi</span>
+                          <p className="text-xs text-slate-700 leading-relaxed font-bold">{tindakLanjut}</p>
+                        </div>
+                      </div>
+                    </div>
+
+                  </div>
+                );
+              })()}
+
             </div>
 
           </div>

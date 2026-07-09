@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell, BarChart, Bar } from 'recharts';
 import { Employee, CriticalNotification, CooperationContract, PerformanceAgreement, ReporterTarget, NewsReport } from '../types';
 import { 
   Users, 
@@ -22,7 +22,8 @@ import {
   Award,
   Share2,
   Globe,
-  GitFork
+  GitFork,
+  ArrowLeft
 } from 'lucide-react';
 
 interface DashboardViewProps {
@@ -52,7 +53,8 @@ export default function DashboardView({
   const [selectedGenderFilter, setSelectedGenderFilter] = useState<string>('Semua');
   const [selectedDivisionFilter, setSelectedDivisionFilter] = useState<string>('Semua');
   const [selectedKpiDivision, setSelectedKpiDivision] = useState<string>('Pemberitaan');
-  const [selectedKpiPeriod, setSelectedKpiPeriod] = useState<string>('Tahunan');
+  const [selectedKpiPeriod, setSelectedKpiPeriod] = useState<string>('Triwulan 4');
+  const [drillDownActive, setDrillDownActive] = useState<boolean>(false);
   const [hoveredDataPoint, setHoveredDataPoint] = useState<{ month: string; value: number } | null>(null);
   const [hoveredDonutSegment, setHoveredDonutSegment] = useState<string | null>(null);
 
@@ -312,7 +314,7 @@ export default function DashboardView({
     return [
       {
         key: 'Pemberitaan',
-        name: 'Pemberitaan & Media Baru',
+        name: 'Pemberitaan',
         level: 'Ketua Tim Pemberitaan',
         agreement: pmbAg,
         pic: pmbAg?.assignedToName || 'Ketua Tim Pemberitaan',
@@ -389,6 +391,72 @@ export default function DashboardView({
   const selectedDivData = useMemo(() => {
     return activeDivisionsData.find(d => d.key === selectedKpiDivision) || activeDivisionsData[0];
   }, [activeDivisionsData, selectedKpiDivision]);
+
+  // Calculate dynamic adjusted percentages for all 6 divisions based on the selected period
+  const adjustedDivisionsPercentages = useMemo(() => {
+    const percentages: Record<string, number> = {};
+    
+    activeDivisionsData.forEach(div => {
+      if (!div.agreement || !div.agreement.objectives || div.agreement.objectives.length === 0) {
+        percentages[div.key] = 0;
+        return;
+      }
+      
+      let sum = 0;
+      div.agreement.objectives.forEach(obj => {
+        const numMatch = obj.target.match(/([\d\.,]+)/);
+        const numValue = numMatch ? parseFloat(numMatch[1].replace(/,/g, '')) : 100;
+        
+        let targetFactor = 1.0;
+        let achievementFactor = 1.0;
+
+        switch (selectedKpiPeriod) {
+          case 'Triwulan 1':
+            targetFactor = 0.25;
+            achievementFactor = 0.22;
+            break;
+          case 'Triwulan 2':
+            targetFactor = 0.50;
+            achievementFactor = 0.45;
+            break;
+          case 'Triwulan 3':
+            targetFactor = 0.75;
+            achievementFactor = 0.68;
+            break;
+          case 'Triwulan 4':
+            targetFactor = 1.0;
+            achievementFactor = 0.95;
+            break;
+          case 'Semester 1':
+            targetFactor = 0.50;
+            achievementFactor = 0.47;
+            break;
+          case 'Semester 2':
+            targetFactor = 1.0;
+            achievementFactor = 0.92;
+            break;
+          case 'Tahunan':
+          default:
+            targetFactor = 1.0;
+            achievementFactor = 1.0;
+            break;
+        }
+
+        const adjustedTargetVal = numValue * targetFactor;
+        const adjustedAchievementVal = obj.achievement * achievementFactor;
+
+        const pct = adjustedTargetVal > 0
+          ? Math.round((adjustedAchievementVal / adjustedTargetVal) * 100)
+          : 0;
+        
+        sum += Math.min(100, Math.max(0, pct));
+      });
+      
+      percentages[div.key] = Math.round(sum / div.agreement.objectives.length);
+    });
+    
+    return percentages;
+  }, [activeDivisionsData, selectedKpiPeriod]);
 
   // Adjust objectives based on the selected period
   const adjustedObjectives = useMemo(() => {
@@ -507,829 +575,280 @@ export default function DashboardView({
     setSelectedDivisionFilter('Semua');
   };
 
+  const getGaugeColor = (key: string | undefined) => {
+    if (key === 'Pemberitaan') return '#0ea5e9'; // Sky
+    if (key === 'Layanan Pengembangan Usaha') return '#6366f1'; // Indigo
+    if (key === 'Teknologi dan Media Baru') return '#10b981'; // Emerald
+    if (key === 'Konten Media Baru') return '#ec4899'; // Pink
+    if (key === 'Siaran') return '#f59e0b'; // Amber
+    if (key === 'Tata Usaha / Umum') return '#8b5cf6'; // Violet
+    return '#4f46e5';
+  };
+
+  const getDivisionIcon = (iconName: string) => {
+    switch (iconName) {
+      case 'Pemberitaan': return <Globe className="w-5 h-5 text-sky-500" />;
+      case 'Layanan Pengembangan Usaha': return <Handshake className="w-5 h-5 text-indigo-500" />;
+      case 'Teknologi dan Media Baru': return <Layers className="w-5 h-5 text-emerald-500" />;
+      case 'Konten Media Baru': return <Sparkles className="w-5 h-5 text-pink-500" />;
+      case 'Siaran': return <Target className="w-5 h-5 text-amber-500" />;
+      case 'Tata Usaha / Umum': return <Users className="w-5 h-5 text-violet-500" />;
+      default: return <FileText className="w-5 h-5 text-slate-500" />;
+    }
+  };
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-3">
       {/* SECTION VISUALISASI CAPAIAN IKP PER DIVISI (HALF CIRCLE GAUGES) */}
-      <div id="trend-pimpinan-section" className="bg-white p-6 rounded-2xl border border-slate-100 shadow-xs space-y-6">
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-slate-100 pb-5">
-          <div className="space-y-1">
-            <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2">
-              <Target className="w-5 h-5 text-indigo-600 animate-pulse" />
-              Capaian Indikator Kinerja Program (IKP) per Divisi/Bagian (PK Aktif)
-            </h2>
-            <p className="text-xs text-slate-500">
-              Visualisasi persentase ketercapaian target IKP per bidang kerja yang disinkronisasi langsung dari Perjanjian Kinerja (PK) yang aktif di sistem.
-            </p>
-          </div>
-        </div>
-
-        {/* Controls at the top of Section */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-4 bg-slate-50 rounded-xl border border-slate-100">
-          <div className="space-y-1">
-            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Pilih Bagian/Bidang Kerja</label>
-            <select
-              value={selectedKpiDivision}
-              onChange={(e) => setSelectedKpiDivision(e.target.value)}
-              className="w-full bg-white border border-slate-200 rounded-lg px-3 py-1.5 text-xs font-bold text-slate-700 focus:ring-1 focus:ring-indigo-500 focus:outline-hidden"
-            >
-              <option value="Pemberitaan">Pemberitaan & Media Baru</option>
-              <option value="Layanan Pengembangan Usaha">Layanan Pengembangan Usaha (LPU)</option>
-              <option value="Teknologi dan Media Baru">Teknologi & Media Baru (TMB)</option>
-              <option value="Konten Media Baru">Konten Media Baru (KMB)</option>
-              <option value="Siaran">Siaran</option>
-              <option value="Tata Usaha / Umum">Tata Usaha / Umum</option>
-            </select>
-          </div>
-
-          <div className="space-y-1">
-            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Pilih Periode Capaian</label>
-            <select
-              value={selectedKpiPeriod}
-              onChange={(e) => setSelectedKpiPeriod(e.target.value)}
-              className="w-full bg-white border border-slate-200 rounded-lg px-3 py-1.5 text-xs font-bold text-slate-700 focus:ring-1 focus:ring-indigo-500 focus:outline-hidden"
-            >
-              <option value="Tahunan">Tahunan (Januari - Desember)</option>
-              <option value="Semester 1">Semester 1 (Januari - Juni)</option>
-              <option value="Semester 2">Semester 2 (Juli - Desember)</option>
-              <option value="Triwulan 1">Triwulan 1 (Januari - Maret)</option>
-              <option value="Triwulan 2">Triwulan 2 (April - Juni)</option>
-              <option value="Triwulan 3">Triwulan 3 (Juli - September)</option>
-              <option value="Triwulan 4">Triwulan 4 (Oktober - Desember)</option>
-            </select>
-          </div>
-        </div>
-
-        {/* Single Selected Division Display */}
-        {(() => {
-          const div = selectedDivData;
-          if (!div) return null;
-
-          const getDivisionIcon = (iconName: string) => {
-            switch (iconName) {
-              case 'Pemberitaan': return <Globe className="w-5 h-5 text-sky-500" />;
-              case 'Layanan Pengembangan Usaha': return <Handshake className="w-5 h-5 text-indigo-500" />;
-              case 'Teknologi dan Media Baru': return <Layers className="w-5 h-5 text-emerald-500" />;
-              case 'Konten Media Baru': return <Sparkles className="w-5 h-5 text-pink-500" />;
-              case 'Siaran': return <Target className="w-5 h-5 text-amber-500" />;
-              case 'Tata Usaha / Umum': return <Users className="w-5 h-5 text-violet-500" />;
-              default: return <FileText className="w-5 h-5 text-slate-500" />;
-            }
-          };
-
-          const statusColor = div.status === 'Aktif' 
-            ? 'bg-emerald-50 text-emerald-700 border-emerald-200' 
-            : div.status === 'Evaluasi'
-            ? 'bg-amber-50 text-amber-700 border-amber-200'
-            : 'bg-slate-50 text-slate-600 border-slate-200';
-
-          return (
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
-              
-              {/* Left sidebar info of division */}
-              <div className="lg:col-span-4 bg-slate-50/50 p-6 rounded-2xl border border-slate-150 flex flex-col justify-between space-y-4">
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between gap-2 border-b border-slate-100 pb-3">
-                    <div className="flex items-center gap-2.5">
-                      <div className="p-2 bg-white rounded-xl shadow-xs border border-slate-100">
-                        {getDivisionIcon(div.iconName)}
-                      </div>
-                      <div>
-                        <h3 className="text-xs font-black text-slate-800 uppercase tracking-wider">
-                          {div.name}
-                        </h3>
-                        <span className="text-[10px] text-slate-400 font-bold block mt-0.5">PK AKTIF LEVEL</span>
-                      </div>
-                    </div>
-                    <span className={`text-[10px] font-black px-2.5 py-0.5 rounded-full border uppercase ${statusColor}`}>
-                      {div.status}
-                    </span>
-                  </div>
-
-                  <div className="space-y-2">
-                    <div className="flex justify-between text-xs">
-                      <span className="text-slate-400 font-medium">Penanggung Jawab:</span>
-                      <span className="font-extrabold text-slate-700">{div.pic}</span>
-                    </div>
-                    <div className="flex justify-between text-xs">
-                      <span className="text-slate-400 font-medium">Periode Tampilan:</span>
-                      <span className="font-extrabold text-indigo-600 uppercase tracking-wider">{selectedKpiPeriod}</span>
-                    </div>
-                    <div className="flex justify-between text-xs items-center">
-                      <span className="text-slate-400 font-medium">Rerata Capaian:</span>
-                      <span className="text-sm font-black text-indigo-600 font-mono bg-indigo-50 px-2 py-0.5 rounded-lg border border-indigo-100">
-                        {adjustedDivPercentage}%
-                      </span>
-                    </div>
-                  </div>
-
-                  <p className="text-xs text-slate-500 leading-relaxed pt-2 border-t border-slate-100">
-                    {div.description}
-                  </p>
-                </div>
-
-                <div className="text-[10px] text-slate-400 italic bg-white p-3 rounded-xl border border-slate-150/70">
-                  ⚠️ Nilai target dan realisasi dihitung proporsional mengikuti timeline filter periode <strong className="text-indigo-600">{selectedKpiPeriod}</strong>.
-                </div>
-              </div>
-
-              {/* Right area displaying gauges */}
-              <div className="lg:col-span-8 bg-white p-6 rounded-2xl border border-slate-150 flex flex-col justify-center">
-                <h4 className="text-xs font-black text-slate-400 uppercase tracking-wider mb-4 font-mono">Daftar Indikator Kinerja Program (IKP)</h4>
-                
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  {adjustedObjectives.length === 0 ? (
-                    <div className="col-span-2 py-12 text-center text-xs text-slate-400 italic bg-slate-50 rounded-2xl border border-dashed border-slate-200">
-                      Belum ada target PK atau indikator aktif untuk divisi ini
-                    </div>
-                  ) : (
-                    adjustedObjectives.map((obj) => {
-                      const percentage = obj.percentage;
-                      const fillPercentage = Math.min(100, Math.max(0, percentage));
-                      const remaining = 100 - fillPercentage;
-
-                      let gaugeColor = '#10b981'; // Emerald
-                      if (percentage < 50) {
-                        gaugeColor = '#f43f5e'; // Rose
-                      } else if (percentage < 90) {
-                        gaugeColor = '#f59e0b'; // Amber
-                      }
-
-                      const gaugeData = [
-                        { value: fillPercentage },
-                        { value: remaining }
-                      ];
-
-                      return (
-                        <div key={obj.id} className="bg-slate-50/50 p-4 rounded-xl border border-slate-150/70 flex flex-col items-center justify-between space-y-3 hover:border-slate-300 transition-all">
-                          <div className="text-center w-full min-h-[36px] flex flex-col justify-center">
-                            <span className="text-xs font-extrabold text-slate-700 line-clamp-2 leading-tight" title={obj.indicatorName}>
-                              {obj.indicatorName}
-                            </span>
-                          </div>
-
-                          {/* Recharts Half Circle */}
-                          <div className="relative w-full h-24 flex items-center justify-center overflow-hidden">
-                            <ResponsiveContainer width="100%" height="100%">
-                              <PieChart margin={{ top: 8, left: 0, right: 0, bottom: 0 }}>
-                                <Pie
-                                  data={gaugeData}
-                                  cx="50%"
-                                  cy="95%"
-                                  startAngle={180}
-                                  endAngle={0}
-                                  innerRadius={38}
-                                  outerRadius={54}
-                                  paddingAngle={0}
-                                  dataKey="value"
-                                >
-                                  <Cell fill={gaugeColor} />
-                                  <Cell fill="#e2e8f0" />
-                                </Pie>
-                              </PieChart>
-                            </ResponsiveContainer>
-
-                            {/* Center-bottom label inside the gauge */}
-                            <div className="absolute inset-x-0 bottom-1 flex flex-col items-center">
-                              <span className="text-base font-black text-slate-800 font-mono tracking-tight leading-none">
-                                {percentage}%
-                              </span>
-                              <span className="text-[8px] text-slate-400 font-bold uppercase tracking-wider mt-0.5">Capaian</span>
-                            </div>
-                          </div>
-
-                          <div className="w-full grid grid-cols-2 gap-1 text-center border-t border-slate-200/60 pt-3 text-xs">
-                            <div className="flex flex-col min-w-0">
-                              <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wide">Realisasi</span>
-                              <span className="font-extrabold text-indigo-600 font-mono truncate">
-                                {obj.achievement} <span className="text-[9px] font-medium text-slate-500 font-sans">{obj.unit}</span>
-                              </span>
-                            </div>
-                            <div className="flex flex-col border-l border-slate-200 min-w-0">
-                              <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wide">Target</span>
-                              <span className="font-extrabold text-slate-700 font-mono truncate">
-                                {obj.target}
-                              </span>
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    })
-                  )}
-                </div>
-              </div>
-            </div>
-          );
-        })()}
-      </div>
-
-      {/* Two Column Layout: Left (Pemberitaan), Right (LPU) */}
-      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+      <div id="trend-pimpinan-section" className="bg-white p-4 rounded-2xl border border-slate-100 shadow-xs space-y-4">
         
-        {/* LEFT COLUMN: Capaian Kinerja Pemberitaan & Media Baru */}
-        <div className="bg-gradient-to-br from-rose-50/60 via-white to-white p-6 rounded-2xl border border-slate-100 shadow-sm space-y-6 flex flex-col justify-between">
-          <div className="space-y-4">
-            <div className="flex justify-between items-start gap-4">
-              <div className="space-y-1">
-                <h2 className="text-base font-bold text-slate-800 flex items-center gap-2">
-                  <Share2 className="w-5 h-5 text-rose-500" />
-                  Capaian Kinerja Pemberitaan
-                </h2>
-                <p className="text-[11px] text-slate-500">
-                  Realisasi produksi berita harian, konten media sosial kreatif, dan kontribusi reporter.
-                </p>
-              </div>
-              <span className="bg-rose-50 text-rose-700 text-[10px] font-semibold px-2 py-0.5 rounded-full border border-rose-100 shrink-0">
-                Pemberitaan & Media Baru
-              </span>
-            </div>
-
-            {/* Stats Row inside left column */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
-                <span className="text-[9px] font-bold tracking-wider text-slate-400 uppercase">Total Produksi</span>
-                <p className="text-sm font-extrabold text-slate-800 font-mono mt-0.5">{newsStats.totalReports} Konten</p>
-              </div>
-              <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
-                <span className="text-[9px] font-bold tracking-wider text-slate-400 uppercase">Komposisi</span>
-                <p className="text-xs font-bold text-slate-700 font-mono mt-0.5">{newsStats.newsCount} Berita • {newsStats.socialCount} Medsos</p>
-              </div>
-              <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
-                <span className="text-[9px] font-bold tracking-wider text-slate-400 uppercase">Rerata Harian</span>
-                <p className="text-sm font-extrabold text-slate-800 font-mono mt-0.5">{newsStats.avgDaily} Rilis</p>
-              </div>
-            </div>
-
-            {/* Progress Radial Gauge & Quick Explanation */}
-            <div className="flex flex-col sm:flex-row items-center gap-6 p-4 bg-slate-50/60 rounded-xl border border-slate-100">
-              <div className="relative flex items-center justify-center shrink-0">
-                <svg width="100" height="100" className="transform -rotate-90">
-                  {(() => {
-                    const radius = 38;
-                    const circumference = 2 * Math.PI * radius;
-                    const progressStroke = (Math.min(120, newsStats.monthlyPct) / 100) * circumference;
-                    return (
-                      <>
-                        <circle cx="50" cy="50" r={radius} fill="transparent" stroke="#f1f5f9" strokeWidth="10" />
-                        <circle cx="50" cy="50" r={radius} fill="transparent" stroke="#f43f5e" strokeWidth="10" strokeDasharray={`${progressStroke} ${circumference}`} strokeLinecap="round" className="transition-all duration-500" />
-                      </>
-                    );
-                  })()}
-                </svg>
-                <div className="absolute inset-0 flex flex-col items-center justify-center">
-                  <span className="text-sm font-black text-slate-800 font-mono">{newsStats.monthlyPct}%</span>
-                  <span className="text-[8px] text-slate-400 uppercase tracking-wider font-bold">Capaian</span>
-                </div>
-              </div>
-              <div className="space-y-1">
-                <h4 className="text-xs font-bold text-slate-700">Rasio Kontribusi Sasaran</h4>
-                <p className="text-[11px] text-slate-500 leading-relaxed">
-                  Telah terbit <strong className="text-rose-600 font-mono">{newsStats.totalReports} konten</strong> dari target bulanan gabungan stasiun sebesar <strong className="text-slate-700 font-mono">{newsStats.totalMonthlyTarget} konten</strong>.
-                </p>
-              </div>
-            </div>
-
-            {/* Reporter Progress Section */}
-            <div className="space-y-2 pt-1">
-              <h4 className="text-xs font-bold text-slate-700">Realisasi & Kontribusi per Reporter</h4>
-              <div className="space-y-2.5 max-h-48 overflow-y-auto pr-1">
-                {newsStats.reporterProgress.length === 0 ? (
-                  <div className="text-center py-4 text-xs text-slate-400 italic">Belum ada target reporter terdaftar</div>
-                ) : (
-                  newsStats.reporterProgress.map((rep) => (
-                    <div key={rep.id} className="space-y-1">
-                      <div className="flex justify-between items-center text-[11px]">
-                        <span className="font-semibold text-slate-600">{rep.name}</span>
-                        <span className="font-bold text-slate-800 font-mono">
-                          {rep.count} / {rep.target} <span className="text-[10px] text-slate-400 font-normal">({rep.percentage}%)</span>
-                        </span>
-                      </div>
-                      <div className="w-full bg-slate-200 h-2 rounded-full overflow-hidden">
-                        <div className="bg-rose-500 h-full rounded-full transition-all duration-500" style={{ width: `${Math.min(100, rep.percentage)}%` }} />
-                      </div>
-                    </div>
-                  ))
-                )}
-              </div>
-            </div>
-          </div>
-          
-          <div className="text-[10px] text-slate-400 border-t border-slate-100 pt-3 flex items-center gap-1 mt-2">
-            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
-            <span>Kontribusi publikasi mengalir langsung ke Sasaran Strategis level 1</span>
-          </div>
-        </div>
-
-        {/* RIGHT COLUMN: Capaian LPU */}
-        <div className="bg-gradient-to-br from-indigo-50/60 via-white to-white p-6 rounded-2xl border border-slate-100 shadow-sm space-y-6 flex flex-col justify-between">
-          <div className="space-y-4">
-            <div className="flex justify-between items-start gap-4">
-              <div className="space-y-1">
-                <h2 className="text-base font-bold text-slate-800 flex items-center gap-2">
-                  <Handshake className="w-5 h-5 text-indigo-600" />
-                  Capaian Kinerja LPU
-                </h2>
-                <p className="text-[11px] text-slate-500">
-                  Analisis realisasi Pendapatan Negara Bukan Pajak (PNBP) Layanan Pengembangan Usaha.
-                </p>
-              </div>
-              <span className="bg-indigo-50 text-indigo-700 text-[10px] font-semibold px-2 py-0.5 rounded-full border border-indigo-100 shrink-0">
-                Pengembangan Usaha (LPU)
-              </span>
-            </div>
-
-            {/* Stats Row inside right column */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
-                <span className="text-[9px] font-bold tracking-wider text-slate-400 uppercase">Realisasi PNBP</span>
-                <p className="text-sm font-extrabold text-slate-800 font-mono mt-0.5">Rp {lpuStats.totalRealisasi} Jt</p>
-              </div>
-              <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
-                <span className="text-[9px] font-bold tracking-wider text-slate-400 uppercase">Kontrak Mitra</span>
-                <p className="text-sm font-extrabold text-slate-800 font-mono mt-0.5">{lpuStats.totalContracts} Mitra</p>
-              </div>
-              <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
-                <span className="text-[9px] font-bold tracking-wider text-slate-400 uppercase">Sisa Target</span>
-                <p className="text-xs font-bold text-indigo-600 font-mono mt-0.5 truncate">
-                  {lpuStats.targetCapaian > lpuStats.totalRealisasi ? `Rp ${lpuStats.targetCapaian - lpuStats.totalRealisasi} Jt` : 'Tercapai! 🎉'}
-                </p>
-              </div>
-            </div>
-
-            {/* Progress Radial Gauge & Quick Explanation */}
-            <div className="flex flex-col sm:flex-row items-center gap-6 p-4 bg-slate-50/60 rounded-xl border border-slate-100">
-              <div className="relative flex items-center justify-center shrink-0">
-                <svg width="100" height="100" className="transform -rotate-90">
-                  {(() => {
-                    const radius = 38;
-                    const circumference = 2 * Math.PI * radius;
-                    const progressStroke = (Math.min(120, lpuStats.achievementPercentage) / 100) * circumference;
-                    return (
-                      <>
-                        <circle cx="50" cy="50" r={radius} fill="transparent" stroke="#f1f5f9" strokeWidth="10" />
-                        <circle cx="50" cy="50" r={radius} fill="transparent" stroke="#4f46e5" strokeWidth="10" strokeDasharray={`${progressStroke} ${circumference}`} strokeLinecap="round" className="transition-all duration-500" />
-                      </>
-                    );
-                  })()}
-                </svg>
-                <div className="absolute inset-0 flex flex-col items-center justify-center">
-                  <span className="text-sm font-black text-slate-800 font-mono">{lpuStats.achievementPercentage}%</span>
-                  <span className="text-[8px] text-slate-400 uppercase tracking-wider font-bold">Tercapai</span>
-                </div>
-              </div>
-              <div className="space-y-1">
-                <h4 className="text-xs font-bold text-slate-700">Rasio PNBP Tahun 2026</h4>
-                <p className="text-[11px] text-slate-500 leading-relaxed">
-                  Tercapai <strong className="text-indigo-600 font-mono">Rp {lpuStats.totalRealisasi} Jt</strong> dari target APBN stasiun sebesar <strong className="text-slate-700 font-mono">Rp {lpuStats.targetCapaian} Jt</strong>.
-                </p>
-              </div>
-            </div>
-
-            {/* Contribution by Type */}
-            <div className="space-y-2 pt-1">
-              <h4 className="text-xs font-bold text-slate-700">Kontribusi Pendapatan LPU</h4>
-              <div className="space-y-2.5">
-                {['Iklan/Siar Layanan', 'Sewa Lahan/Menara', 'Sponsorship Acara'].map((type) => {
-                  const amount = lpuStats.contributionByType[type] || 0;
-                  const percentage = lpuStats.totalRealisasi > 0 ? Math.round((amount / lpuStats.totalRealisasi) * 100) : 0;
-                  let barColor = 'bg-indigo-600';
-                  if (type === 'Sewa Lahan/Menara') barColor = 'bg-sky-500';
-                  if (type === 'Sponsorship Acara') barColor = 'bg-emerald-500';
-                  
-                  return (
-                    <div key={type} className="space-y-1">
-                      <div className="flex justify-between items-center text-[11px]">
-                        <span className="font-semibold text-slate-600">{type}</span>
-                        <span className="font-bold text-slate-800 font-mono">
-                          Rp {amount} Jt <span className="text-[10px] text-slate-400 font-normal">({percentage}%)</span>
-                        </span>
-                      </div>
-                      <div className="w-full bg-slate-200 h-2 rounded-full overflow-hidden">
-                        <div className={`${barColor} h-full rounded-full transition-all duration-500`} style={{ width: `${percentage}%` }} />
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
+        {/* Header Dashboard / Drill Down */}
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-slate-100 pb-3">
+          <div className="space-y-1">
+            <div className="flex items-center gap-3">
+              {drillDownActive && (
+                <button
+                  onClick={() => setDrillDownActive(false)}
+                  className="p-1.5 hover:bg-slate-100 active:bg-slate-200 rounded-lg text-slate-600 transition-colors border border-slate-200"
+                  title="Kembali ke Dashboard 6 Bidang"
+                >
+                  <ArrowLeft className="w-4 h-4" />
+                </button>
+              )}
+              <h2 className="text-base font-extrabold text-slate-800 flex items-center gap-2">
+                <Target className="w-4 h-4 text-indigo-600 animate-pulse" />
+                Capaian Indikator Kinerja Program
+              </h2>
             </div>
           </div>
 
-          <div className="text-[10px] text-slate-400 border-t border-slate-100 pt-3 flex items-center gap-1 mt-2">
-            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
-            <span>Target PNBP disinkronisasikan berkala dengan laporan KPPN</span>
-          </div>
-        </div>
-
-      </div>
-
-      {/* Capaian Bidang Operasional Lainnya: TMB, KMB, Siaran, Tata Usaha */}
-      <div className="space-y-4 pt-2">
-        <div className="space-y-1">
-          <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2">
-            <GitFork className="w-5 h-5 text-indigo-600" />
-            Capaian Kinerja Bidang Operasional Lainnya
-          </h2>
-          <p className="text-xs text-slate-500">
-            Realisasi dan status pencapaian target berdasarkan Perjanjian Kerja (PK) yang didelegasikan pada masing-masing bidang.
-          </p>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          
-          {/* Card TMB */}
-          <div className="bg-gradient-to-br from-emerald-50/60 via-white to-white p-5 rounded-2xl border border-slate-100 shadow-sm space-y-4 flex flex-col justify-between">
-            <div className="space-y-3">
-              <div className="flex justify-between items-start gap-4">
-                <div className="space-y-1">
-                  <h3 className="text-sm font-extrabold text-slate-800 flex items-center gap-1.5">
-                    <span className="w-2.5 h-2.5 bg-emerald-500 rounded-full" />
-                    Teknologi dan Media Baru (TMB)
-                  </h3>
-                  <span className="text-[10px] text-slate-400 block font-medium">PIC: {divisionAgreementsStats.tmb.PIC}</span>
-                </div>
-                <span className="bg-emerald-50 text-emerald-700 text-xs font-bold px-2 py-1 rounded-md font-mono shrink-0">
-                  {divisionAgreementsStats.tmb.percentage}% Capaian
-                </span>
-              </div>
-
-              <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
-                <div className="bg-emerald-500 h-full rounded-full transition-all duration-500" style={{ width: `${divisionAgreementsStats.tmb.percentage}%` }} />
-              </div>
-
-              <div className="space-y-2.5 pt-1">
-                {divisionAgreementsStats.tmb.objectives.length === 0 ? (
-                  <div className="text-[11px] text-slate-400 italic">Belum ada target kinerja aktif</div>
-                ) : (
-                  divisionAgreementsStats.tmb.objectives.map((obj) => {
-                    const pct = parseFloat(obj.target) > 0 ? Math.round((obj.achievement / parseFloat(obj.target)) * 100) : 0;
-                    return (
-                      <div key={obj.id} className="p-2.5 bg-slate-50/80 rounded-lg border border-slate-100 space-y-1">
-                        <div className="flex justify-between items-start text-[11px] gap-2">
-                          <span className="font-semibold text-slate-600 leading-snug">{obj.indicatorName}</span>
-                          <span className="font-extrabold text-slate-800 font-mono whitespace-nowrap">
-                            {obj.achievement}{obj.unit} / {obj.target}{obj.unit}
-                          </span>
-                        </div>
-                        <div className="flex justify-between items-center text-[10px] text-slate-400">
-                          <span>Realisasi</span>
-                          <span className="font-bold text-emerald-600 font-mono">{pct}%</span>
-                        </div>
-                      </div>
-                    );
-                  })
-                )}
-              </div>
-            </div>
-            <div className="text-[10px] text-slate-400 border-t border-slate-100/60 pt-2 shrink-0">
-              Sinergi keandalan transmisi, pemancar FM, dan infrastruktur streaming.
-            </div>
-          </div>
-
-          {/* Card KMB */}
-          <div className="bg-gradient-to-br from-pink-50/60 via-white to-white p-5 rounded-2xl border border-slate-100 shadow-sm space-y-4 flex flex-col justify-between">
-            <div className="space-y-3">
-              <div className="flex justify-between items-start gap-4">
-                <div className="space-y-1">
-                  <h3 className="text-sm font-extrabold text-slate-800 flex items-center gap-1.5">
-                    <span className="w-2.5 h-2.5 bg-pink-500 rounded-full" />
-                    Konten Media Baru (KMB)
-                  </h3>
-                  <span className="text-[10px] text-slate-400 block font-medium">PIC: {divisionAgreementsStats.kmb.PIC}</span>
-                </div>
-                <span className="bg-pink-50 text-pink-700 text-xs font-bold px-2 py-1 rounded-md font-mono shrink-0">
-                  {divisionAgreementsStats.kmb.percentage}% Capaian
-                </span>
-              </div>
-
-              <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
-                <div className="bg-pink-500 h-full rounded-full transition-all duration-500" style={{ width: `${divisionAgreementsStats.kmb.percentage}%` }} />
-              </div>
-
-              <div className="space-y-2.5 pt-1">
-                {divisionAgreementsStats.kmb.objectives.length === 0 ? (
-                  <div className="text-[11px] text-slate-400 italic">Belum ada target kinerja aktif</div>
-                ) : (
-                  divisionAgreementsStats.kmb.objectives.map((obj) => {
-                    const pct = parseFloat(obj.target) > 0 ? Math.round((obj.achievement / parseFloat(obj.target)) * 100) : 0;
-                    return (
-                      <div key={obj.id} className="p-2.5 bg-slate-50/80 rounded-lg border border-slate-100 space-y-1">
-                        <div className="flex justify-between items-start text-[11px] gap-2">
-                          <span className="font-semibold text-slate-600 leading-snug">{obj.indicatorName}</span>
-                          <span className="font-extrabold text-slate-800 font-mono whitespace-nowrap">
-                            {obj.achievement}{obj.unit} / {obj.target}{obj.unit}
-                          </span>
-                        </div>
-                        <div className="flex justify-between items-center text-[10px] text-slate-400">
-                          <span>Realisasi</span>
-                          <span className="font-bold text-pink-600 font-mono">{pct}%</span>
-                        </div>
-                      </div>
-                    );
-                  })
-                )}
-              </div>
-            </div>
-            <div className="text-[10px] text-slate-400 border-t border-slate-100/60 pt-2 shrink-0">
-              Produksi konten infografis, video kreatif, dan interaksi publik multi-platform.
-            </div>
-          </div>
-
-          {/* Card Siaran */}
-          <div className="bg-gradient-to-br from-sky-50/60 via-white to-white p-5 rounded-2xl border border-slate-100 shadow-sm space-y-4 flex flex-col justify-between">
-            <div className="space-y-3">
-              <div className="flex justify-between items-start gap-4">
-                <div className="space-y-1">
-                  <h3 className="text-sm font-extrabold text-slate-800 flex items-center gap-1.5">
-                    <span className="w-2.5 h-2.5 bg-sky-500 rounded-full" />
-                    Siaran
-                  </h3>
-                  <span className="text-[10px] text-slate-400 block font-medium">PIC: {divisionAgreementsStats.siaran.PIC}</span>
-                </div>
-                <span className="bg-sky-50 text-sky-700 text-xs font-bold px-2 py-1 rounded-md font-mono shrink-0">
-                  {divisionAgreementsStats.siaran.percentage}% Capaian
-                </span>
-              </div>
-
-              <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
-                <div className="bg-sky-500 h-full rounded-full transition-all duration-500" style={{ width: `${divisionAgreementsStats.siaran.percentage}%` }} />
-              </div>
-
-              <div className="space-y-2.5 pt-1">
-                {divisionAgreementsStats.siaran.objectives.length === 0 ? (
-                  <div className="text-[11px] text-slate-400 italic">Belum ada target kinerja aktif</div>
-                ) : (
-                  divisionAgreementsStats.siaran.objectives.map((obj) => {
-                    const pct = parseFloat(obj.target) > 0 ? Math.round((obj.achievement / parseFloat(obj.target)) * 100) : 0;
-                    return (
-                      <div key={obj.id} className="p-2.5 bg-slate-50/80 rounded-lg border border-slate-100 space-y-1">
-                        <div className="flex justify-between items-start text-[11px] gap-2">
-                          <span className="font-semibold text-slate-600 leading-snug">{obj.indicatorName}</span>
-                          <span className="font-extrabold text-slate-800 font-mono whitespace-nowrap">
-                            {obj.achievement}{obj.unit} / {obj.target}{obj.unit}
-                          </span>
-                        </div>
-                        <div className="flex justify-between items-center text-[10px] text-slate-400">
-                          <span>Realisasi</span>
-                          <span className="font-bold text-sky-600 font-mono">{pct}%</span>
-                        </div>
-                      </div>
-                    );
-                  })
-                )}
-              </div>
-            </div>
-            <div className="text-[10px] text-slate-400 border-t border-slate-100/60 pt-2 shrink-0">
-              Pemantauan mutu on-air, penyusunan rundown, dan pengawasan regulasi penyiaran stasiun.
-            </div>
-          </div>
-
-          {/* Card Tata Usaha */}
-          <div className="bg-gradient-to-br from-purple-50/60 via-white to-white p-5 rounded-2xl border border-slate-100 shadow-sm space-y-4 flex flex-col justify-between">
-            <div className="space-y-3">
-              <div className="flex justify-between items-start gap-4">
-                <div className="space-y-1">
-                  <h3 className="text-sm font-extrabold text-slate-800 flex items-center gap-1.5">
-                    <span className="w-2.5 h-2.5 bg-purple-500 rounded-full" />
-                    Tata Usaha / Umum
-                  </h3>
-                  <span className="text-[10px] text-slate-400 block font-medium">PIC: {divisionAgreementsStats.tu.PIC}</span>
-                </div>
-                <span className="bg-purple-50 text-purple-700 text-xs font-bold px-2 py-1 rounded-md font-mono shrink-0">
-                  {divisionAgreementsStats.tu.percentage}% Capaian
-                </span>
-              </div>
-
-              <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
-                <div className="bg-purple-500 h-full rounded-full transition-all duration-500" style={{ width: `${divisionAgreementsStats.tu.percentage}%` }} />
-              </div>
-
-              <div className="space-y-2.5 pt-1">
-                {divisionAgreementsStats.tu.objectives.length === 0 ? (
-                  <div className="text-[11px] text-slate-400 italic">Belum ada target kinerja aktif</div>
-                ) : (
-                  divisionAgreementsStats.tu.objectives.slice(0, 3).map((obj) => {
-                    const pct = parseFloat(obj.target) > 0 ? Math.round((obj.achievement / parseFloat(obj.target)) * 100) : 0;
-                    return (
-                      <div key={obj.id} className="p-2.5 bg-slate-50/80 rounded-lg border border-slate-100 space-y-1">
-                        <div className="flex justify-between items-start text-[11px] gap-2">
-                          <span className="font-semibold text-slate-600 leading-snug">{obj.indicatorName}</span>
-                          <span className="font-extrabold text-slate-800 font-mono whitespace-nowrap">
-                            {obj.achievement}{obj.unit} / {obj.target}{obj.unit}
-                          </span>
-                        </div>
-                        <div className="flex justify-between items-center text-[10px] text-slate-400">
-                          <span>Realisasi</span>
-                          <span className="font-bold text-purple-600 font-mono">{pct}%</span>
-                        </div>
-                      </div>
-                    );
-                  })
-                )}
-              </div>
-            </div>
-            <div className="text-[10px] text-slate-400 border-t border-slate-100/60 pt-2 shrink-0">
-              Pelayanan ketatausahaan, fasilitasi logistik umum, dan pertanggungjawaban anggaran DIPA.
-            </div>
-          </div>
-
-        </div>
-      </div>
-
-
-
-
-
-
-
-      {/* Main Stats Charts Grid (Gender, Division, Education) */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        
-        {/* Gender Distribution Donut Chart */}
-        <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm flex flex-col justify-between">
-          <div>
-            <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2">
-              <User className="w-4.5 h-4.5 text-sky-500" />
-              Rasio Gender Pegawai
-            </h3>
-            <p className="text-xs text-slate-400">Distribusi gender pegawai berdasarkan data terpilih.</p>
-          </div>
-
-          <div className="relative py-6 flex items-center justify-center">
-            {filteredEmployees.length === 0 ? (
-              <div className="h-44 flex items-center justify-center text-xs text-slate-400 italic">
-                Tidak ada data tersedia
-              </div>
-            ) : (
-              <>
-                <svg width="180" height="180" className="transform -rotate-90">
-                  {(() => {
-                    const radius = 65;
-                    const circumference = 2 * Math.PI * radius;
-                    
-                    const malePct = genderStats.malePct;
-                    const maleStroke = (malePct / 100) * circumference;
-                    const femaleStroke = circumference - maleStroke;
-
-                    return (
-                      <>
-                        {/* Background track */}
-                        <circle
-                          cx="90"
-                          cy="90"
-                          r={radius}
-                          fill="transparent"
-                          stroke="#f1f5f9"
-                          strokeWidth="22"
-                        />
-
-                        {/* Male Slice */}
-                        <circle
-                          cx="90"
-                          cy="90"
-                          r={radius}
-                          fill="transparent"
-                          stroke="#0ea5e9" // sky-500
-                          strokeWidth={hoveredDonutSegment === 'Laki-laki' ? '26' : '22'}
-                          strokeDasharray={`${maleStroke} ${circumference}`}
-                          onMouseEnter={() => setHoveredDonutSegment('Laki-laki')}
-                          onMouseLeave={() => setHoveredDonutSegment(null)}
-                          className="transition-all duration-200 cursor-pointer"
-                        />
-
-                        {/* Female Slice */}
-                        <circle
-                          cx="90"
-                          cy="90"
-                          r={radius}
-                          fill="transparent"
-                          stroke="#ec4899" // pink-500
-                          strokeWidth={hoveredDonutSegment === 'Perempuan' ? '26' : '22'}
-                          strokeDasharray={`${femaleStroke} ${circumference}`}
-                          strokeDashoffset={-maleStroke}
-                          onMouseEnter={() => setHoveredDonutSegment('Perempuan')}
-                          onMouseLeave={() => setHoveredDonutSegment(null)}
-                          className="transition-all duration-200 cursor-pointer"
-                        />
-                      </>
-                    );
-                  })()}
-                </svg>
-
-                {/* Donut Center Label */}
-                <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                  <span className="text-2xl font-extrabold text-slate-800 font-mono">
-                    {hoveredDonutSegment === 'Laki-laki' ? `${genderStats.malePct}%` : 
-                     hoveredDonutSegment === 'Perempuan' ? `${genderStats.femalePct}%` : 
-                     `${filteredEmployees.length}`}
-                  </span>
-                  <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">
-                    {hoveredDonutSegment ? hoveredDonutSegment : 'Total Pegawai'}
-                  </span>
-                </div>
-              </>
+          <div className="flex items-center gap-3 self-end lg:self-center">
+            {drillDownActive && (
+              <button
+                onClick={() => setDrillDownActive(false)}
+                className="hidden sm:flex items-center gap-1.5 text-[10px] font-bold text-slate-600 hover:text-indigo-600 bg-slate-50 hover:bg-indigo-50 border border-slate-200 hover:border-indigo-200 px-2.5 py-1 rounded-lg transition-all"
+              >
+                <ArrowLeft className="w-3 h-3" />
+                Kembali
+              </button>
             )}
-          </div>
 
-          <div className="border-t border-slate-50 pt-3 flex justify-around text-xs">
-            <div className="flex items-center gap-2">
-              <span className="w-3 h-3 bg-sky-500 rounded-xs" />
-              <div>
-                <p className="font-semibold text-slate-700">Laki-laki</p>
-                <p className="text-[10px] text-slate-400 font-mono">{genderStats.male} pegawai ({genderStats.malePct}%)</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="w-3 h-3 bg-pink-500 rounded-xs" />
-              <div>
-                <p className="font-semibold text-slate-700">Perempuan</p>
-                <p className="text-[10px] text-slate-400 font-mono">{genderStats.female} pegawai ({genderStats.femalePct}%)</p>
-              </div>
+            {/* Period Filter Control */}
+            <div className="w-48 space-y-1">
+              <select
+                value={selectedKpiPeriod}
+                onChange={(e) => setSelectedKpiPeriod(e.target.value)}
+                className="w-full bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1 text-xs font-bold text-slate-700 focus:ring-1 focus:ring-indigo-500 focus:outline-hidden hover:bg-slate-100 transition-colors cursor-pointer"
+              >
+                <option value="Tahunan">Tahunan (Jan - Des)</option>
+                <option value="Semester 1">Semester 1 (Jan - Jun)</option>
+                <option value="Semester 2">Semester 2 (Jul - Des)</option>
+                <option value="Triwulan 1">Triwulan 1 (Jan - Mar)</option>
+                <option value="Triwulan 2">Triwulan 2 (Apr - Jun)</option>
+                <option value="Triwulan 3">Triwulan 3 (Jul - Sep)</option>
+                <option value="Triwulan 4">Triwulan 4 (Okt - Des)</option>
+              </select>
             </div>
           </div>
         </div>
 
-        {/* Division Stats (Progress bars with dynamic numbers) */}
-        <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm flex flex-col justify-between">
-          <div>
-            <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2">
-              <Layers className="w-4.5 h-4.5 text-emerald-500" />
-              Kekuatan Divisi Pegawai
-            </h3>
-            <p className="text-xs text-slate-400">Distribusi personel pada masing-masing bidang.</p>
-          </div>
+        {/* View Router */}
+        {!drillDownActive ? (
+          /* 1. MAIN GRID: 6 Half Circle Gauge Grid (2 rows of 3 columns) */
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {activeDivisionsData.map((div) => {
+              const percentage = adjustedDivisionsPercentages[div.key] || 0;
+              const fillPercentage = Math.min(100, Math.max(0, percentage));
+              const remaining = 100 - fillPercentage;
+              const gaugeColor = getGaugeColor(div.key);
 
-          <div className="py-4 space-y-3.5">
-            {divisionStats.map((div, i) => (
-              <div key={i} className="space-y-1">
-                <div className="flex justify-between items-center text-xs">
-                  <span className="font-medium text-slate-700">{div.name}</span>
-                  <span className="font-bold text-slate-800 font-mono">{div.count} <span className="text-[10px] text-slate-400 font-normal">Pegawai</span></span>
-                </div>
-                <div className="w-full bg-slate-100 h-2.5 rounded-full overflow-hidden">
-                  <div 
-                    className="bg-emerald-500 h-full rounded-full transition-all duration-500"
-                    style={{ width: `${div.percentage}%` }}
-                  />
-                </div>
-              </div>
-            ))}
-          </div>
-
-          <div className="border-t border-slate-50 pt-2 text-[11px] text-slate-400 text-center">
-            Pimpinan dapat melacak rasio kekuatan sdm operasional.
-          </div>
-        </div>
-
-        {/* Education Level vertical bar chart */}
-        <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm flex flex-col justify-between">
-          <div>
-            <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2">
-              <GraduationCap className="w-4.5 h-4.5 text-purple-500" />
-              Pendidikan Terakhir SDM
-            </h3>
-            <p className="text-xs text-slate-400">Statistik jenjang kualifikasi formal pegawai.</p>
-          </div>
-
-          <div className="h-44 w-full flex items-end justify-between px-3 pt-6 pb-2">
-            {educationStats.map((edu, idx) => {
-              const maxCount = Math.max(...educationStats.map(e => e.count), 1);
-              const barHeight = Math.max((edu.count / maxCount) * 100, 8); // minimal height for visibility
+              const gaugeData = [
+                { value: fillPercentage },
+                { value: remaining }
+              ];
 
               return (
-                <div key={idx} className="flex flex-col items-center gap-2 flex-1 group">
-                  <div className="relative w-full flex justify-center">
-                    {/* Tooltip on hover */}
-                    <span className="absolute -top-7 scale-0 group-hover:scale-100 bg-slate-800 text-white text-[10px] font-bold px-2 py-0.5 rounded-sm transition-transform duration-150">
-                      {edu.count} Pegawai
-                    </span>
-                    <span className="text-xs font-bold text-slate-700 font-mono group-hover:text-purple-600 transition-colors">
-                      {edu.count}
+                <div
+                  key={div.key}
+                  onClick={() => {
+                    setSelectedKpiDivision(div.key);
+                    setDrillDownActive(true);
+                  }}
+                  className="relative bg-white p-5 rounded-xl border border-slate-150 hover:border-indigo-400 hover:ring-2 hover:ring-indigo-500/10 shadow-xs hover:shadow-md transition-all duration-300 cursor-pointer flex flex-col items-center justify-between space-y-4 select-none"
+                >
+                  {/* Top content */}
+                  <div className="text-center w-full min-h-[36px] flex flex-col justify-center">
+                    <span className="text-xs md:text-sm font-black text-slate-800 uppercase tracking-tight leading-tight line-clamp-2">
+                      {div.name}
                     </span>
                   </div>
-                  
-                  {/* Visual Bar */}
-                  <div className="w-8 bg-slate-100 rounded-t-lg overflow-hidden flex flex-col justify-end h-28">
-                    <div 
-                      className="bg-purple-500 group-hover:bg-purple-600 rounded-t-lg transition-all duration-300"
-                      style={{ height: `${barHeight}%` }}
-                    />
+
+                  {/* Elegant Gauge Half Circle */}
+                  <div className="relative w-full h-36 flex items-center justify-center overflow-hidden">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart margin={{ top: 8, left: 0, right: 0, bottom: 0 }}>
+                        <Pie
+                          data={gaugeData}
+                          cx="50%"
+                          cy="95%"
+                          startAngle={180}
+                          endAngle={0}
+                          innerRadius={56}
+                          outerRadius={76}
+                          paddingAngle={0}
+                          dataKey="value"
+                        >
+                          <Cell fill={gaugeColor} />
+                          <Cell fill="#f1f5f9" />
+                        </Pie>
+                      </PieChart>
+                    </ResponsiveContainer>
+
+                    {/* Center label */}
+                    <div className="absolute inset-x-0 bottom-1 flex flex-col items-center">
+                      <span className="text-2xl font-black text-slate-800 font-mono tracking-tight leading-none">
+                        {percentage}%
+                      </span>
+                      <span className="text-[8px] text-slate-400 font-bold uppercase tracking-wider mt-0.5">Rerata Capaian</span>
+                    </div>
                   </div>
-                  
-                  <span className="text-xs font-bold text-slate-500 group-hover:text-slate-800 transition-colors">
-                    {edu.level}
-                  </span>
+
+                  {/* Stasiun division info indicator */}
+                  <div className="w-full flex justify-between items-center text-[10px] text-slate-400 border-t border-slate-100 pt-2">
+                    <span className="font-semibold">Lihat Rincian Indikator</span>
+                    <ChevronRight className="w-3.5 h-3.5 text-indigo-500" />
+                  </div>
                 </div>
               );
             })}
           </div>
+        ) : (
+          /* 2. DRILL DOWN VIEW: Level 3 Capaian Kinerja (Detail Grafik Capaian) */
+          <div className="space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 bg-slate-50 border border-slate-200 rounded-xl">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-white rounded-lg shadow-xs border border-slate-200 shrink-0">
+                  {getDivisionIcon(selectedDivData?.iconName || '')}
+                </div>
+                <div>
+                  <span className="text-[9px] font-bold text-indigo-600 uppercase tracking-wider block font-mono">
+                    PENANGGUNG JAWAB: {selectedDivData?.pic}
+                  </span>
+                  <h3 className="text-sm font-black text-slate-800 uppercase tracking-tight">
+                    {selectedDivData?.name}
+                  </h3>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 self-start sm:self-center">
+                <span className={`text-[9px] font-black px-2 py-0.5 rounded-full border uppercase ${
+                  selectedDivData?.status === 'Aktif' 
+                    ? 'bg-emerald-50 text-emerald-700 border-emerald-200' 
+                    : selectedDivData?.status === 'Evaluasi'
+                    ? 'bg-amber-50 text-amber-700 border-amber-200'
+                    : 'bg-slate-50 text-slate-600 border-slate-200'
+                }`}>
+                  PK: {selectedDivData?.status}
+                </span>
+                <span className="text-xs font-black text-indigo-600 font-mono bg-indigo-50 border border-indigo-200 px-2 py-0.5 rounded">
+                  Rerata: {adjustedDivPercentage}%
+                </span>
+              </div>
+            </div>
 
-          <div className="border-t border-slate-50 pt-3 text-[11px] text-slate-400 text-center">
-            Persentase kualifikasi minimal berfokus pada S1 & D3.
+            {/* Custom spacious metrics grid list instead of the Recharts BarChart */}
+            <div className="bg-white p-5 rounded-xl border border-slate-150 shadow-xs space-y-4">
+              <div className="flex justify-between items-center border-b border-slate-100 pb-3">
+                <h4 className="text-xs font-extrabold text-slate-500 uppercase tracking-wider font-mono">
+                  Daftar Ketercapaian Indikator (Level 3)
+                </h4>
+                <span className="text-[10px] text-indigo-600 bg-indigo-50 font-bold font-mono px-2.5 py-1 rounded-md">
+                  Periode: {selectedKpiPeriod}
+                </span>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                {adjustedObjectives.length === 0 ? (
+                  <div className="text-center py-12 text-sm text-slate-400 italic col-span-full bg-slate-50 rounded-xl border border-dashed border-slate-200">
+                    Belum ada target PK aktif untuk periode {selectedKpiPeriod}
+                  </div>
+                ) : (
+                  adjustedObjectives.map((obj) => {
+                    let barColor = 'bg-emerald-500';
+                    let textColor = 'text-emerald-600';
+                    let bgColor = 'bg-emerald-50/20 border-emerald-100';
+                    
+                    if (obj.percentage < 50) {
+                      barColor = 'bg-rose-500';
+                      textColor = 'text-rose-600';
+                      bgColor = 'bg-rose-50/20 border-rose-100';
+                    } else if (obj.percentage < 90) {
+                      barColor = 'bg-amber-500';
+                      textColor = 'text-amber-600';
+                      bgColor = 'bg-amber-50/20 border-amber-100';
+                    }
+
+                    return (
+                      <div 
+                        key={obj.id} 
+                        className={`p-3.5 rounded-xl border ${bgColor} flex flex-col justify-between space-y-3 hover:shadow-xs transition-all duration-200`}
+                      >
+                        {/* Title and Badge */}
+                        <div className="flex justify-between items-start gap-3">
+                          <div className="space-y-0.5 min-w-0">
+                            <span className="text-[8px] font-extrabold text-slate-400 font-mono tracking-wider block">INDIKATOR</span>
+                            <span className="text-xs font-bold text-slate-800 leading-snug line-clamp-2" title={obj.indicatorName}>
+                              {obj.indicatorName}
+                            </span>
+                          </div>
+                          <div className="text-right shrink-0">
+                            <span className="text-[8px] font-extrabold text-slate-400 font-mono tracking-wider block">CAPAIAN</span>
+                            <span className={`text-sm font-black font-mono ${textColor}`}>
+                              {obj.percentage}%
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Progress Bar */}
+                        <div className="space-y-1">
+                          <div className="w-full bg-slate-200/60 h-2 rounded-full overflow-hidden">
+                            <div 
+                              className={`${barColor} h-full rounded-full transition-all duration-500`} 
+                              style={{ width: `${obj.percentage}%` }} 
+                            />
+                          </div>
+                        </div>
+
+                        {/* Metrics footer */}
+                        <div className="grid grid-cols-2 gap-2 border-t border-slate-200/30 pt-2 text-[10px]">
+                          <div className="bg-white/80 p-1.5 rounded border border-slate-100 min-w-0">
+                            <span className="text-[8px] text-slate-400 block font-mono">TARGET</span>
+                            <span className="font-extrabold text-slate-700 font-mono truncate block" title={obj.target}>{obj.target}</span>
+                          </div>
+                          <div className="bg-white/80 p-1.5 rounded border border-slate-100 min-w-0">
+                            <span className="text-[8px] text-slate-400 block font-mono">REALISASI</span>
+                            <span className="font-extrabold text-slate-700 font-mono truncate block" title={`${obj.achievement} ${obj.unit}`}>{obj.achievement} {obj.unit}</span>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex justify-end">
+              <button
+                onClick={() => setDrillDownActive(false)}
+                className="px-4 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-lg border border-slate-200 transition-all flex items-center gap-1.5"
+              >
+                <ArrowLeft className="w-3.5 h-3.5" />
+                Kembali ke Dashboard 6 Bidang
+              </button>
+            </div>
           </div>
-        </div>
-
+        )}
       </div>
-
-
     </div>
   );
 }

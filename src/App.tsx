@@ -647,6 +647,7 @@ const recalculateCascade = (
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<'dashboard' | 'kepegawaian' | 'aplikasi' | 'pk' | 'lpu' | 'pemberitaan' | 'tmb'>('dashboard');
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(true);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isSyncing, setIsSyncing] = useState(true);
   const [employees, setEmployees] = useState<Employee[]>([]);
@@ -1102,7 +1103,7 @@ export default function App() {
     <div className="min-h-screen bg-slate-50 flex flex-col md:flex-row text-slate-800 font-sans antialiased">
       
       {/* Navigation Sidebar - Desktop */}
-      <aside className="hidden md:flex flex-col w-64 bg-slate-900 text-white shrink-0 shadow-lg select-none">
+      <aside className={`${isSidebarCollapsed ? 'hidden' : 'hidden md:flex'} flex-col w-64 bg-slate-900 text-white shrink-0 shadow-lg select-none`}>
         
         {/* Brand Header */}
         <div className="p-5 border-b border-slate-800 flex items-center gap-3">
@@ -1115,8 +1116,36 @@ export default function App() {
           </div>
         </div>
 
+        {/* User Profile Widget in Sidebar */}
+        <div className="px-5 py-4 border-b border-slate-800/60 bg-slate-950/20 flex items-center gap-3">
+          {currentUser.photo ? (
+            <img 
+              src={currentUser.photo} 
+              alt={currentUser.name} 
+              className="w-10 h-10 rounded-full object-cover border-2 border-indigo-500/30 shadow-sm"
+              referrerPolicy="no-referrer"
+            />
+          ) : (
+            <div className="w-10 h-10 bg-indigo-600/20 text-indigo-300 rounded-full flex items-center justify-center font-bold text-xs border border-indigo-500/30">
+              {currentUser.name.substring(0, 2).toUpperCase()}
+            </div>
+          )}
+          <div className="min-w-0 flex-1">
+            <p className="text-xs font-bold text-slate-100 truncate">{currentUser.name}</p>
+            <p className="text-[9px] font-bold text-indigo-400 tracking-wider font-mono uppercase truncate mt-0.5">
+              {currentUser.role === 'Superadmin' 
+                ? 'SUPERADMIN' 
+                : currentUser.role === 'Ketua Bidang'
+                ? `KABID - ${currentUser.division}`
+                : currentUser.role === 'Kepala' 
+                ? 'KEPALA STASIUN' 
+                : `STAFF - ${currentUser.division || ''}`}
+            </p>
+          </div>
+        </div>
+
         {/* Navigation Tabs List */}
-        <nav className="flex-1 p-4 space-y-1.5 pt-6 flex flex-col h-[calc(100%-100px)]">
+        <nav className="flex-1 p-4 space-y-1.5 pt-4 flex flex-col">
           <button
             onClick={() => setActiveTab('dashboard')}
             className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-semibold tracking-wide transition-all ${
@@ -1126,11 +1155,11 @@ export default function App() {
             }`}
           >
             <LayoutDashboard className="w-4 h-4" />
-            {currentUser.role === 'Kepala' ? 'Dashboard Utama' : 'Dashboard Bidang'}
+            {currentUser.role === 'Kepala' ? 'Capaian Indikator Kinerja Program' : 'Dashboard Bidang'}
           </button>
 
           {/* Administrasi Kepegawaian (Kepala or Tata Usaha) */}
-          {(currentUser.role === 'Kepala' || currentUser.division === 'Tata Usaha / Umum') && (
+          {currentUser.role !== 'Kepala' && (currentUser.role === 'Kepala' || currentUser.division === 'Tata Usaha / Umum') && (
             <button
               onClick={() => setActiveTab('kepegawaian')}
               className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-semibold tracking-wide transition-all ${
@@ -1160,7 +1189,7 @@ export default function App() {
           )}
 
           {/* Kerjasama & PNBP (LPU) (Kepala or Layanan Pengembangan Usaha) */}
-          {(currentUser.role === 'Kepala' || currentUser.division === 'Layanan Pengembangan Usaha') && (
+          {currentUser.role !== 'Kepala' && (currentUser.role === 'Kepala' || currentUser.division === 'Layanan Pengembangan Usaha') && (
             <button
               onClick={() => setActiveTab('lpu')}
               className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-semibold tracking-wide transition-all ${
@@ -1175,7 +1204,7 @@ export default function App() {
           )}
 
           {/* Pemberitaan & Media Baru (Kepala or Pemberitaan or Konten Media Baru) */}
-          {(currentUser.role === 'Kepala' || currentUser.division === 'Pemberitaan' || currentUser.division === 'Konten Media Baru') && (
+          {currentUser.role !== 'Kepala' && (currentUser.role === 'Kepala' || currentUser.division === 'Pemberitaan' || currentUser.division === 'Konten Media Baru') && (
             <button
               onClick={() => setActiveTab('pemberitaan')}
               className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-semibold tracking-wide transition-all ${
@@ -1185,12 +1214,12 @@ export default function App() {
               }`}
             >
               <Share2 className="w-4 h-4" />
-              Pemberitaan & Media Baru
+              Pemberitaan
             </button>
           )}
 
           {/* Dashboard TMB */}
-          {(currentUser.role === 'Kepala' || currentUser.role === 'Superadmin' || currentUser.division === 'Teknik' || currentUser.division === 'Teknologi & Media Baru') && (
+          {currentUser.role !== 'Kepala' && (currentUser.role === 'Kepala' || currentUser.role === 'Superadmin' || currentUser.division === 'Teknik' || currentUser.division === 'Teknologi & Media Baru') && (
             <button
               onClick={() => setActiveTab('tmb')}
               className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-semibold tracking-wide transition-all ${
@@ -1274,10 +1303,10 @@ export default function App() {
             }`}
           >
             <LayoutDashboard className="w-4 h-4" />
-            {currentUser.role === 'Kepala' ? 'Dashboard Utama' : 'Dashboard Bidang'}
+            {currentUser.role === 'Kepala' ? 'Capaian Indikator Kinerja Program' : 'Dashboard Bidang'}
           </button>
 
-          {(currentUser.role === 'Kepala' || currentUser.division === 'Tata Usaha / Umum') && (
+          {currentUser.role !== 'Kepala' && (currentUser.role === 'Kepala' || currentUser.division === 'Tata Usaha / Umum') && (
             <button
               onClick={() => { setActiveTab('kepegawaian'); setIsMobileMenuOpen(false); }}
               className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-semibold tracking-wide transition-colors ${
@@ -1289,6 +1318,7 @@ export default function App() {
             </button>
           )}
 
+          {/* Perjanjian Kinerja (PK) */}
           {currentUser.role === 'Kepala' && (
             <button
               onClick={() => { setActiveTab('pk'); setIsMobileMenuOpen(false); }}
@@ -1301,7 +1331,7 @@ export default function App() {
             </button>
           )}
 
-          {(currentUser.role === 'Kepala' || currentUser.division === 'Layanan Pengembangan Usaha') && (
+          {currentUser.role !== 'Kepala' && (currentUser.role === 'Kepala' || currentUser.division === 'Layanan Pengembangan Usaha') && (
             <button
               onClick={() => { setActiveTab('lpu'); setIsMobileMenuOpen(false); }}
               className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-semibold tracking-wide transition-colors ${
@@ -1313,7 +1343,7 @@ export default function App() {
             </button>
           )}
 
-          {(currentUser.role === 'Kepala' || currentUser.division === 'Pemberitaan' || currentUser.division === 'Konten Media Baru') && (
+          {currentUser.role !== 'Kepala' && (currentUser.role === 'Kepala' || currentUser.division === 'Pemberitaan' || currentUser.division === 'Konten Media Baru') && (
             <button
               onClick={() => { setActiveTab('pemberitaan'); setIsMobileMenuOpen(false); }}
               className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-semibold tracking-wide transition-colors ${
@@ -1321,12 +1351,12 @@ export default function App() {
               }`}
             >
               <Share2 className="w-4 h-4" />
-              Pemberitaan & Media Baru
+              Pemberitaan
             </button>
           )}
 
           {/* Dashboard TMB */}
-          {(currentUser.role === 'Kepala' || currentUser.role === 'Superadmin' || currentUser.division === 'Teknik' || currentUser.division === 'Teknologi & Media Baru') && (
+          {currentUser.role !== 'Kepala' && (currentUser.role === 'Kepala' || currentUser.role === 'Superadmin' || currentUser.division === 'Teknik' || currentUser.division === 'Teknologi & Media Baru') && (
             <button
               onClick={() => { setActiveTab('tmb'); setIsMobileMenuOpen(false); }}
               className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-semibold tracking-wide transition-colors ${
@@ -1366,46 +1396,26 @@ export default function App() {
         
         {/* Workspace Top Header (Desktop only) */}
         <header className="hidden md:flex justify-between items-center px-8 py-4 bg-white border-b border-slate-100 select-none">
-          <div className="flex items-center gap-2">
-            <span className="w-2.5 h-2.5 bg-indigo-600 rounded-full animate-pulse" />
-            <span className="text-[10px] font-bold text-slate-400 font-mono tracking-wider uppercase">
-              JARINGAN OPERASIONAL AKTIF • {settings.namaInstansi.toUpperCase()}
-            </span>
-          </div>
-
           <div className="flex items-center gap-4">
-            {/* User Executive Profil */}
-            <div className="flex items-center gap-2.5 pl-4 border-l border-slate-200">
-              <div className="text-right">
-                <p className="text-xs font-bold text-slate-800">{currentUser.name}</p>
-                <p className="text-[9px] font-bold text-slate-400 tracking-wider font-mono uppercase">
-                  {currentUser.role === 'Superadmin' 
-                    ? 'SUPERADMIN' 
-                    : currentUser.role === 'Ketua Bidang'
-                    ? `KETUA BIDANG - ${currentUser.division}`
-                    : currentUser.role === 'Kepala' 
-                    ? 'KEPALA STASIUN' 
-                    : `STAFF - ${currentUser.division || ''}`}
-                </p>
-              </div>
-              {currentUser.photo ? (
-                <img 
-                  src={currentUser.photo} 
-                  alt={currentUser.name} 
-                  className="w-8.5 h-8.5 rounded-full object-cover border border-slate-200"
-                  referrerPolicy="no-referrer"
-                />
-              ) : (
-                <div className="w-8.5 h-8.5 bg-indigo-100 text-indigo-700 rounded-full flex items-center justify-center font-bold text-xs border border-indigo-200">
-                  {currentUser.name.substring(0, 2).toUpperCase()}
-                </div>
-              )}
+            <button
+              onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+              className="p-1.5 hover:bg-slate-100 active:bg-slate-200 rounded-lg text-slate-600 border border-slate-200 flex items-center gap-2 transition-colors"
+              title={isSidebarCollapsed ? "Tampilkan Sidebar" : "Sembunyikan Sidebar"}
+            >
+              <Menu className="w-4 h-4 text-indigo-600" />
+              <span className="text-[10px] font-extrabold text-slate-700">MENU</span>
+            </button>
+            <div className="flex items-center gap-2">
+              <span className="w-2.5 h-2.5 bg-indigo-600 rounded-full animate-pulse" />
+              <span className="text-[10px] font-bold text-slate-400 font-mono tracking-wider uppercase">
+                {settings.namaInstansi.toUpperCase()}
+              </span>
             </div>
           </div>
         </header>
 
         {/* Content Workspace with clean padding */}
-        <div className="flex-1 p-4 md:p-8 overflow-y-auto">
+        <div className="flex-1 p-4 md:p-4 overflow-y-auto">
           {activeTab === 'dashboard' && (
             currentUser.role === 'Kepala' ? (
               <DashboardView
