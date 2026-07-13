@@ -1230,20 +1230,18 @@ export default function App() {
             </button>
           )}
 
-          {/* Pemberitaan & Media Baru (Kepala or Pemberitaan or Konten Media Baru) */}
-          {currentUser.role !== 'Kepala' && (currentUser.role === 'Kepala' || currentUser.division === 'Pemberitaan' || currentUser.division === 'Konten Media Baru') && (
-            <button
-              onClick={() => setActiveTab('pemberitaan')}
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-semibold tracking-wide transition-all ${
-                activeTab === 'pemberitaan' 
-                  ? 'bg-indigo-600 text-white shadow-xs shadow-indigo-600/25' 
-                  : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
-              }`}
-            >
-              <Share2 className="w-4 h-4" />
-              Pemberitaan
-            </button>
-          )}
+          {/* Pemberitaan & Media Baru (Accessible to all roles and divisions) */}
+          <button
+            onClick={() => setActiveTab('pemberitaan')}
+            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-semibold tracking-wide transition-all ${
+              activeTab === 'pemberitaan' 
+                ? 'bg-indigo-600 text-white shadow-xs shadow-indigo-600/25' 
+                : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
+            }`}
+          >
+            <Share2 className="w-4 h-4" />
+            Pemberitaan
+          </button>
 
           {/* Dashboard TMB */}
           {currentUser.role !== 'Kepala' && (currentUser.role === 'Kepala' || currentUser.role === 'Superadmin' || currentUser.division === 'Teknik' || currentUser.division === 'Teknologi & Media Baru') && (
@@ -1370,17 +1368,16 @@ export default function App() {
             </button>
           )}
 
-          {currentUser.role !== 'Kepala' && (currentUser.role === 'Kepala' || currentUser.division === 'Pemberitaan' || currentUser.division === 'Konten Media Baru') && (
-            <button
-              onClick={() => { setActiveTab('pemberitaan'); setIsMobileMenuOpen(false); }}
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-semibold tracking-wide transition-colors ${
-                activeTab === 'pemberitaan' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:bg-slate-800'
-              }`}
-            >
-              <Share2 className="w-4 h-4" />
-              Pemberitaan
-            </button>
-          )}
+          {/* Pemberitaan & Media Baru (Accessible to all roles and divisions) */}
+          <button
+            onClick={() => { setActiveTab('pemberitaan'); setIsMobileMenuOpen(false); }}
+            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-semibold tracking-wide transition-colors ${
+              activeTab === 'pemberitaan' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:bg-slate-800'
+            }`}
+          >
+            <Share2 className="w-4 h-4" />
+            Pemberitaan
+          </button>
 
           {/* Dashboard TMB */}
           {currentUser.role !== 'Kepala' && (currentUser.role === 'Kepala' || currentUser.role === 'Superadmin' || currentUser.division === 'Teknik' || currentUser.division === 'Teknologi & Media Baru') && (
