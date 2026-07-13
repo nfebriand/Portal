@@ -306,11 +306,26 @@ export default function PerformanceAgreementView({
       reportCountsByEmployee[r.employeeId] = (reportCountsByEmployee[r.employeeId] || 0) + 1;
     });
 
-    // Calculate direct Level 3 (Pegawai) achievements
+    const getMonthIndicesForPeriod = (period: string): number[] => {
+      switch (period) {
+        case 'q1': return [0, 1, 2];
+        case 'q2': return [3, 4, 5];
+        case 'q3': return [6, 7, 8];
+        case 'q4': return [9, 10, 11];
+        case 's1': return [0, 1, 2, 3, 4, 5];
+        case 's2': return [6, 7, 8, 9, 10, 11];
+        case 'tahunan':
+        default:
+          return [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11];
+      }
+    };
+
+    // Calculate direct Level 3 (Pegawai) and other base level achievements
     let tempAgs = yearAgs.map(ag => {
       const objectives = ag.objectives.map(obj => {
         let achievement = obj.achievement;
         let targetVal = parseFloat(obj.target) || 100;
+        const isUsingTrajectory = !!obj.trajectory && obj.trajectory.length === 12;
 
         if (obj.id === 'ind-11' || obj.indicatorName.toLowerCase().includes('pnbp')) {
           achievement = totalPnbpForPeriod;
@@ -325,9 +340,33 @@ export default function PerformanceAgreementView({
           }
         }
 
-        // Apply target scaling if checked
+        // Apply trajectory calculations if configured
+        if (isUsingTrajectory) {
+          const activeMonths = getMonthIndicesForPeriod(evalPeriod);
+          const type = obj.trajectoryType || (obj.unit === '%' || obj.indicatorName.toLowerCase().includes('ikpa') || obj.indicatorName.toLowerCase().includes('nilai') ? 'constant' : 'cumulative');
+
+          if (type === 'constant') {
+            // Target is average of the period
+            const sumTargets = activeMonths.reduce((sum, idx) => sum + (obj.trajectory?.[idx] ?? 0), 0);
+            targetVal = sumTargets / activeMonths.length;
+
+            if (obj.monthlyAchievements && obj.monthlyAchievements.length === 12) {
+              const sumAch = activeMonths.reduce((sum, idx) => sum + (obj.monthlyAchievements?.[idx] ?? 0), 0);
+              achievement = sumAch / activeMonths.length;
+            }
+          } else {
+            // Cumulative: target is sum of the period
+            targetVal = activeMonths.reduce((sum, idx) => sum + (obj.trajectory?.[idx] ?? 0), 0);
+
+            if (obj.monthlyAchievements && obj.monthlyAchievements.length === 12) {
+              achievement = activeMonths.reduce((sum, idx) => sum + (obj.monthlyAchievements?.[idx] ?? 0), 0);
+            }
+          }
+        }
+
+        // Apply target scaling if checked (only if not using trajectory)
         let targetString = obj.target;
-        if (scaleTargets) {
+        if (scaleTargets && !isUsingTrajectory) {
           const fraction = evalPeriod.startsWith('q') ? 0.25 : evalPeriod.startsWith('s') ? 0.5 : 1.0;
           const scaledVal = targetVal * fraction;
           if (obj.target.includes('%')) {
@@ -338,9 +377,20 @@ export default function PerformanceAgreementView({
             targetString = `${Math.round(scaledVal)}${unitStr}`;
           }
           targetVal = scaledVal;
+        } else if (isUsingTrajectory) {
+          if (obj.target.includes('%') || obj.unit === '%') {
+            targetString = `${Math.round(targetVal)}%`;
+          } else {
+            targetString = `${Math.round(targetVal)} ${obj.unit}`;
+          }
         }
 
-        return { ...obj, _scaledTargetVal: targetVal, _scaledTargetString: targetString, achievement };
+        return { 
+          ...obj, 
+          _scaledTargetVal: targetVal, 
+          _scaledTargetString: targetString, 
+          achievement: Math.round(achievement * 10) / 10 
+        };
       });
       return { ...ag, objectives };
     });
@@ -349,6 +399,11 @@ export default function PerformanceAgreementView({
     tempAgs = tempAgs.map(ag => {
       if (ag.level !== 'Kepala Stasiun' && ag.level !== 'Pegawai') {
         const objectives = ag.objectives.map(l2Obj => {
+          // If Direct Intervention is enabled (manual), use Level 2's direct value instead of rolling up
+          if (l2Obj.calculationType === 'manual') {
+            return l2Obj;
+          }
+
           const l3Objectives: { achievement: number; target: number; unit: string }[] = [];
           tempAgs.forEach(otherAg => {
             if (otherAg.level === 'Pegawai') {
@@ -368,7 +423,7 @@ export default function PerformanceAgreementView({
             const isAbsolute = ['berita', 'konten', 'laporan', 'dokumen', 'video'].some(u => l2Obj.unit.toLowerCase().includes(u));
             if (isAbsolute) {
               const sumAchievement = l3Objectives.reduce((sum, child) => sum + child.achievement, 0);
-              return { ...l2Obj, achievement: sumAchievement };
+              return { ...l2Obj, achievement: Math.round(sumAchievement * 10) / 10 };
             } else {
               const totalProgress = l3Objectives.reduce((sum, child) => {
                 const progress = child.target > 0 ? (child.achievement / child.target) * 100 : 0;
@@ -431,15 +486,15 @@ export default function PerformanceAgreementView({
     let sumAchievement = 0;
     let activePks = 0;
 
-    agreements.filter(a => a.year === selectedYear).forEach(a => {
+    periodAgreements.forEach(a => {
       if (a.objectives.length > 0) {
         if (a.status === 'Aktif') activePks++;
         a.objectives.forEach(obj => {
           totalIndicators++;
           // Calculate achievement percentage (realisasi / target * 100, capped at 120%)
-          const targetVal = parseFloat(obj.target) || 100;
+          const targetVal = obj._scaledTargetVal !== undefined ? obj._scaledTargetVal : (parseFloat(obj.target) || 100);
           const real = obj.achievement || 0;
-          const score = Math.min(120, Math.round((real / targetVal) * 100));
+          const score = Math.min(120, Math.round((real / (targetVal || 1)) * 100));
           sumAchievement += score;
         });
       }
@@ -451,14 +506,13 @@ export default function PerformanceAgreementView({
       totalIndicators,
       avgAchievement,
       activePks,
-      totalPks: agreements.filter(a => a.year === selectedYear && a.objectives.length > 0).length
+      totalPks: periodAgreements.filter(a => a.objectives.length > 0).length
     };
-  }, [agreements, selectedYear]);
+  }, [periodAgreements]);
 
-  // Cascading tree indexing
+  // Cascading tree indexing (uses resolved periodAgreements for complete parity)
   const treeData = useMemo(() => {
-    const yearAgs = agreements.filter(a => a.year === selectedYear);
-    const kepalaStasiunAg = yearAgs.find(a => a.level === 'Kepala Stasiun');
+    const kepalaStasiunAg = periodAgreements.find(a => a.level === 'Kepala Stasiun');
     
     if (!kepalaStasiunAg) return [];
 
@@ -473,7 +527,7 @@ export default function PerformanceAgreementView({
         }>;
       }> = [];
 
-      yearAgs.forEach(ag => {
+      periodAgreements.forEach(ag => {
         if (ag.level !== 'Kepala Stasiun' && ag.level !== 'Pegawai') {
           ag.objectives.forEach(obj => {
             if (obj.parentIndicatorId === rootObj.id) {
@@ -483,7 +537,7 @@ export default function PerformanceAgreementView({
                 agreement: PerformanceAgreement;
               }> = [];
 
-              yearAgs.forEach(pPeg => {
+              periodAgreements.forEach(pPeg => {
                 if (pPeg.level === 'Pegawai') {
                   pPeg.objectives.forEach(pegObj => {
                     if (pegObj.parentIndicatorId === obj.id) {
@@ -509,7 +563,7 @@ export default function PerformanceAgreementView({
         level2: level2Objects
       };
     });
-  }, [agreements, selectedYear]);
+  }, [periodAgreements]);
 
   // Find all active child delegations for the currently selected delegating target
   const existingDelegationsForCurrent = useMemo(() => {
@@ -686,6 +740,93 @@ export default function PerformanceAgreementView({
             }
             return o;
           })
+        };
+      }
+      return ag;
+    });
+    onUpdateAgreements(updated);
+  };
+
+  // Helper to safely resolve a 12-month achievement array
+  const getSafeMonthlyAchievements = (indicator: PerformanceIndicator) => {
+    if (indicator.monthlyAchievements && indicator.monthlyAchievements.length === 12) {
+      return indicator.monthlyAchievements;
+    }
+    return Array(12).fill(0);
+  };
+
+  // Handle updating achievement trajectory per month
+  const handleUpdateMonthlyAchievement = (agreementId: string, indicatorId: string, monthIndex: number, value: number) => {
+    const updated = agreements.map(ag => {
+      if (ag.id === agreementId) {
+        return {
+          ...ag,
+          objectives: ag.objectives.map(o => {
+            if (o.id === indicatorId) {
+              const currentAchievements = [...getSafeMonthlyAchievements(o)];
+              currentAchievements[monthIndex] = value;
+              
+              // Recalculate annual value for backward compatibility & direct display
+              const type = o.trajectoryType || (o.unit === '%' || o.indicatorName.toLowerCase().includes('ikpa') || o.indicatorName.toLowerCase().includes('nilai') ? 'constant' : 'cumulative');
+              let annualAchievement = 0;
+              if (type === 'constant') {
+                annualAchievement = currentAchievements.reduce((sum, v) => sum + v, 0) / 12;
+              } else {
+                annualAchievement = currentAchievements.reduce((sum, v) => sum + v, 0);
+              }
+              
+              return { 
+                ...o, 
+                monthlyAchievements: currentAchievements,
+                achievement: Math.round(annualAchievement * 10) / 10 
+              };
+            }
+            return o;
+          })
+        };
+      }
+      return ag;
+    });
+    onUpdateAgreements(updated);
+  };
+
+  // Handle updating trajectory accumulation type (cumulative vs constant/average)
+  const handleUpdateTrajectoryType = (agreementId: string, indicatorId: string, type: 'cumulative' | 'constant') => {
+    const updated = agreements.map(ag => {
+      if (ag.id === agreementId) {
+        return {
+          ...ag,
+          objectives: ag.objectives.map(o => {
+            if (o.id === indicatorId) {
+              const currentAchievements = [...getSafeMonthlyAchievements(o)];
+              let annualAchievement = 0;
+              if (type === 'constant') {
+                annualAchievement = currentAchievements.reduce((sum, v) => sum + v, 0) / 12;
+              } else {
+                annualAchievement = currentAchievements.reduce((sum, v) => sum + v, 0);
+              }
+              return { 
+                ...o, 
+                trajectoryType: type,
+                achievement: Math.round(annualAchievement * 10) / 10
+              };
+            }
+            return o;
+          })
+        };
+      }
+      return ag;
+    });
+    onUpdateAgreements(updated);
+  };
+
+  // Handle updating Level 2 calculation type (automatic from staff vs manual direct entry)
+  const handleUpdateCalculationType = (agreementId: string, indicatorId: string, type: 'automatic' | 'manual') => {
+    const updated = agreements.map(ag => {
+      if (ag.id === agreementId) {
+        return {
+          ...ag,
+          objectives: ag.objectives.map(o => o.id === indicatorId ? { ...o, calculationType: type } : o)
         };
       }
       return ag;
@@ -1406,50 +1547,83 @@ export default function PerformanceAgreementView({
 
                     {/* Level 1 Trajectory Panel */}
                     {expandedTrajectoryId === rootId && (
-                      <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-3 shadow-inner">
-                        <div className="flex items-center justify-between">
-                          <span className="text-[10px] font-black uppercase tracking-wider text-slate-500 font-mono flex items-center gap-1.5">
-                            <TrendingUp className="w-3.5 h-3.5 text-indigo-500" />
-                            Trajectory & Proyeksi Target Bulanan (Tahun {selectedYear})
-                          </span>
-                          <button
-                            onClick={() => {
-                              const safe = getSafeTrajectory(node.root);
-                              const targetNum = parseFloat(node.root.target) || 0;
-                              const share = Math.round((targetNum / 12) * 10) / 10;
-                              const isPct = node.root.target.includes('%') || node.root.unit === '%';
-                              const distrib = Array(12).fill(isPct ? targetNum : share);
-                              
-                              const updated = agreements.map(ag => {
-                                if (ag.id === node.agreement.id) {
-                                  return {
-                                    ...ag,
-                                    objectives: ag.objectives.map(o => o.id === rootId ? { ...o, trajectory: distrib } : o)
-                                  };
-                                }
-                                return ag;
-                              });
-                              onUpdateAgreements(updated);
-                            }}
-                            className="text-[9px] font-black text-indigo-600 bg-indigo-50 hover:bg-indigo-100 px-2 py-0.5 rounded border border-indigo-200"
-                          >
-                            Bagi Rata Target
-                          </button>
+                      <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-3.5 shadow-inner">
+                        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pb-2 border-b border-slate-200/60">
+                          <div className="flex items-center gap-2">
+                            <TrendingUp className="w-4 h-4 text-indigo-500" />
+                            <span className="text-[10px] font-black uppercase tracking-wider text-slate-600 font-mono">
+                              Trajectory & Realisasi Bulanan (Level 1)
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-3 flex-wrap">
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wide">Model:</span>
+                              <select
+                                value={node.root.trajectoryType || (node.root.unit === '%' ? 'constant' : 'cumulative')}
+                                onChange={(e) => handleUpdateTrajectoryType(node.agreement.id, rootId, e.target.value as 'cumulative' | 'constant')}
+                                className="bg-white border border-slate-200 rounded px-1.5 py-0.5 text-[9px] font-extrabold text-slate-700 focus:outline-hidden"
+                              >
+                                <option value="cumulative">Akumulatif (Penjumlahan)</option>
+                                <option value="constant">Konstan / Rata-rata (e.g. IKPA 100%)</option>
+                              </select>
+                            </div>
+                            <button
+                              onClick={() => {
+                                const targetNum = parseFloat(node.root.target) || 0;
+                                const type = node.root.trajectoryType || (node.root.unit === '%' ? 'constant' : 'cumulative');
+                                const share = Math.round((targetNum / 12) * 10) / 10;
+                                const distrib = Array(12).fill(type === 'constant' ? targetNum : share);
+                                
+                                const updated = agreements.map(ag => {
+                                  if (ag.id === node.agreement.id) {
+                                    return {
+                                      ...ag,
+                                      objectives: ag.objectives.map(o => o.id === rootId ? { ...o, trajectory: distrib } : o)
+                                    };
+                                  }
+                                  return ag;
+                                });
+                                onUpdateAgreements(updated);
+                              }}
+                              className="text-[9px] font-black text-indigo-600 bg-indigo-50 hover:bg-indigo-100 px-2 py-0.5 rounded border border-indigo-200"
+                            >
+                              Bagi Rata Target
+                            </button>
+                          </div>
                         </div>
+
                         <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-12 gap-1.5">
                           {['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'].map((month, mIdx) => {
                             const traj = getSafeTrajectory(node.root);
                             const val = traj[mIdx];
+                            const achievements = getSafeMonthlyAchievements(node.root);
+                            const realVal = achievements[mIdx];
+
                             return (
-                              <div key={month} className="bg-white p-1.5 rounded-lg border border-slate-200 text-center flex flex-col justify-between">
-                                <span className="text-[9px] font-bold text-slate-400 font-mono uppercase">{month}</span>
-                                <input
-                                  type="number"
-                                  value={val}
-                                  onChange={(e) => handleUpdateTrajectory(node.agreement.id, rootId, mIdx, parseFloat(e.target.value) || 0)}
-                                  disabled={!canEditAgreement('Kepala Stasiun')}
-                                  className="w-full text-center font-extrabold text-slate-800 text-[11px] bg-slate-50 hover:bg-slate-100 focus:bg-white border-none p-0.5 rounded mt-0.5"
-                                />
+                              <div key={month} className="bg-white p-1.5 rounded-xl border border-slate-200 text-center space-y-1 shadow-xs hover:border-indigo-200 transition-colors">
+                                <span className="text-[9px] font-black text-slate-400 font-mono uppercase tracking-wider block">{month}</span>
+                                
+                                <div className="space-y-0.5">
+                                  <span className="text-[7px] text-slate-400 font-mono block leading-none">TARGET</span>
+                                  <input
+                                    type="number"
+                                    value={val}
+                                    onChange={(e) => handleUpdateTrajectory(node.agreement.id, rootId, mIdx, parseFloat(e.target.value) || 0)}
+                                    disabled={!canEditAgreement('Kepala Stasiun')}
+                                    className="w-full text-center font-black text-slate-800 text-[10px] bg-slate-50 hover:bg-slate-100 focus:bg-white border border-slate-100 p-0.5 rounded"
+                                  />
+                                </div>
+
+                                <div className="space-y-0.5">
+                                  <span className="text-[7px] text-slate-400 font-mono block leading-none">REALISASI</span>
+                                  <input
+                                    type="number"
+                                    value={realVal}
+                                    onChange={(e) => handleUpdateMonthlyAchievement(node.agreement.id, rootId, mIdx, parseFloat(e.target.value) || 0)}
+                                    disabled={!canEditAgreement('Kepala Stasiun')}
+                                    className="w-full text-center font-black text-indigo-600 text-[10px] bg-indigo-50/20 hover:bg-indigo-50 focus:bg-white border border-indigo-100/50 p-0.5 rounded"
+                                  />
+                                </div>
                               </div>
                             );
                           })}
@@ -1642,51 +1816,101 @@ export default function PerformanceAgreementView({
 
                                 {/* Level 2 Trajectory Panel */}
                                 {expandedTrajectoryId === l2Id && (
-                                  <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-2 my-2 relative">
+                                  <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-2xl space-y-3.5 my-2.5 relative shadow-inner">
                                     <div className="absolute -left-6 top-1/2 -translate-y-1/2 w-6 h-px bg-indigo-200" />
-                                    <div className="flex items-center justify-between">
-                                      <span className="text-[9px] font-black uppercase tracking-wider text-slate-500 font-mono flex items-center gap-1">
-                                        <TrendingUp className="w-3 h-3 text-indigo-500" />
-                                        Trajectory Bulanan (L2)
-                                      </span>
-                                      <button
-                                        onClick={() => {
-                                          const safe = getSafeTrajectory(l2.indicator);
-                                          const targetNum = parseFloat(l2.indicator.target) || 0;
-                                          const share = Math.round((targetNum / 12) * 10) / 10;
-                                          const isPct = l2.indicator.target.includes('%') || l2.indicator.unit === '%';
-                                          const distrib = Array(12).fill(isPct ? targetNum : share);
-                                          
-                                          const updated = agreements.map(ag => {
-                                            if (ag.id === l2.agreement.id) {
-                                              return {
-                                                ...ag,
-                                                objectives: ag.objectives.map(o => o.id === l2Id ? { ...o, trajectory: distrib } : o)
-                                              };
-                                            }
-                                            return ag;
-                                          });
-                                          onUpdateAgreements(updated);
-                                        }}
-                                        className="text-[8px] font-black text-indigo-600 bg-indigo-50 hover:bg-indigo-100 px-1.5 py-0.2 rounded border border-indigo-200"
-                                      >
-                                        Bagi Rata Target
-                                      </button>
+                                    
+                                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pb-2 border-b border-slate-200/60">
+                                      <div className="flex items-center gap-1.5">
+                                        <TrendingUp className="w-3.5 h-3.5 text-indigo-500" />
+                                        <span className="text-[10px] font-black uppercase tracking-wider text-slate-600 font-mono">
+                                          Trajectory & Realisasi Bulanan (Level 2)
+                                        </span>
+                                      </div>
+                                      
+                                      <div className="flex items-center gap-3 flex-wrap">
+                                        {/* Trajectory Type Selector */}
+                                        <div className="flex items-center gap-1">
+                                          <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wide">Model:</span>
+                                          <select
+                                            value={l2.indicator.trajectoryType || (l2.indicator.unit === '%' ? 'constant' : 'cumulative')}
+                                            onChange={(e) => handleUpdateTrajectoryType(l2.agreement.id, l2Id, e.target.value as 'cumulative' | 'constant')}
+                                            className="bg-white border border-slate-200 rounded px-1.5 py-0.5 text-[9px] font-extrabold text-slate-700 focus:outline-hidden"
+                                          >
+                                            <option value="cumulative">Akumulatif (Penjumlahan)</option>
+                                            <option value="constant">Konstan / Rata-rata (e.g. IKPA 100%)</option>
+                                          </select>
+                                        </div>
+
+                                        {/* Calculation Type Selector */}
+                                        <div className="flex items-center gap-1">
+                                          <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wide">Sumber Capaian:</span>
+                                          <select
+                                            value={l2.indicator.calculationType || 'automatic'}
+                                            onChange={(e) => handleUpdateCalculationType(l2.agreement.id, l2Id, e.target.value as 'automatic' | 'manual')}
+                                            className="bg-white border border-slate-200 rounded px-1.5 py-0.5 text-[9px] font-extrabold text-indigo-600 focus:outline-hidden"
+                                          >
+                                            <option value="automatic">Otomatis Cascading (Staf)</option>
+                                            <option value="manual">Intervensi Manual (Input Langsung)</option>
+                                          </select>
+                                        </div>
+
+                                        <button
+                                          onClick={() => {
+                                            const targetNum = parseFloat(l2.indicator.target) || 0;
+                                            const type = l2.indicator.trajectoryType || (l2.indicator.unit === '%' ? 'constant' : 'cumulative');
+                                            const share = Math.round((targetNum / 12) * 10) / 10;
+                                            const distrib = Array(12).fill(type === 'constant' ? targetNum : share);
+                                            
+                                            const updated = agreements.map(ag => {
+                                              if (ag.id === l2.agreement.id) {
+                                                return {
+                                                  ...ag,
+                                                  objectives: ag.objectives.map(o => o.id === l2Id ? { ...o, trajectory: distrib } : o)
+                                                };
+                                              }
+                                              return ag;
+                                            });
+                                            onUpdateAgreements(updated);
+                                          }}
+                                          className="text-[8px] font-black text-indigo-600 bg-indigo-50 hover:bg-indigo-100 px-1.5 py-0.5 rounded border border-indigo-200"
+                                        >
+                                          Bagi Rata Target
+                                        </button>
+                                      </div>
                                     </div>
-                                    <div className="grid grid-cols-4 sm:grid-cols-6 lg:grid-cols-12 gap-1">
+
+                                    <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-12 gap-1.5">
                                       {['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'].map((month, mIdx) => {
                                         const traj = getSafeTrajectory(l2.indicator);
                                         const val = traj[mIdx];
+                                        const achievements = getSafeMonthlyAchievements(l2.indicator);
+                                        const realVal = achievements[mIdx];
+
                                         return (
-                                          <div key={month} className="bg-white p-1 rounded-md border border-slate-200 text-center">
-                                            <span className="text-[8px] font-bold text-slate-400 font-mono uppercase">{month}</span>
-                                            <input
-                                              type="number"
-                                              value={val}
-                                              onChange={(e) => handleUpdateTrajectory(l2.agreement.id, l2Id, mIdx, parseFloat(e.target.value) || 0)}
-                                              disabled={!canEditAgreement(l2.agreement.level)}
-                                              className="w-full text-center font-extrabold text-slate-800 text-[10px] bg-slate-50 hover:bg-slate-100 focus:bg-white border-none p-0.5 rounded mt-0.5"
-                                            />
+                                          <div key={month} className="bg-white p-1.5 rounded-xl border border-slate-200 text-center space-y-1 shadow-xs hover:border-indigo-200 transition-colors">
+                                            <span className="text-[9px] font-black text-slate-400 font-mono uppercase tracking-wider block">{month}</span>
+                                            
+                                            <div className="space-y-0.5">
+                                              <span className="text-[7px] text-slate-400 font-mono block leading-none">TARGET</span>
+                                              <input
+                                                type="number"
+                                                value={val}
+                                                onChange={(e) => handleUpdateTrajectory(l2.agreement.id, l2Id, mIdx, parseFloat(e.target.value) || 0)}
+                                                disabled={!canEditAgreement(l2.agreement.level)}
+                                                className="w-full text-center font-black text-slate-800 text-[10px] bg-slate-50 hover:bg-slate-100 focus:bg-white border border-slate-100 p-0.5 rounded"
+                                              />
+                                            </div>
+
+                                            <div className="space-y-0.5">
+                                              <span className="text-[7px] text-slate-400 font-mono block leading-none">REALISASI</span>
+                                              <input
+                                                type="number"
+                                                value={realVal}
+                                                onChange={(e) => handleUpdateMonthlyAchievement(l2.agreement.id, l2Id, mIdx, parseFloat(e.target.value) || 0)}
+                                                disabled={!canEditAgreement(l2.agreement.level)}
+                                                className="w-full text-center font-black text-indigo-600 text-[10px] bg-indigo-50/20 hover:bg-indigo-50 focus:bg-white border border-indigo-100/50 p-0.5 rounded"
+                                              />
+                                            </div>
                                           </div>
                                         );
                                       })}
@@ -1851,50 +2075,81 @@ export default function PerformanceAgreementView({
 
                                             {/* Level 3 Trajectory Panel */}
                                             {expandedTrajectoryId === l3Id && (
-                                              <div className="w-full mt-2 p-2 bg-slate-50 border border-slate-200 rounded-lg space-y-1.5 text-xs">
-                                                <div className="flex items-center justify-between">
-                                                  <span className="text-[8px] font-black uppercase tracking-wider text-slate-500 font-mono flex items-center gap-1">
-                                                    <TrendingUp className="w-2.5 h-2.5 text-indigo-500" />
-                                                    Trajectory Bulanan (L3)
-                                                  </span>
-                                                  <button
-                                                    onClick={() => {
-                                                      const safe = getSafeTrajectory(l3.indicator);
-                                                      const targetNum = parseFloat(l3.indicator.target) || 0;
-                                                      const share = Math.round((targetNum / 12) * 10) / 10;
-                                                      const isPct = l3.indicator.target.includes('%') || l3.indicator.unit === '%';
-                                                      const distrib = Array(12).fill(isPct ? targetNum : share);
-                                                      
-                                                      const updated = agreements.map(ag => {
-                                                        if (ag.id === l3.agreement.id) {
-                                                          return {
-                                                            ...ag,
-                                                            objectives: ag.objectives.map(o => o.id === l3Id ? { ...o, trajectory: distrib } : o)
-                                                          };
-                                                        }
-                                                        return ag;
-                                                      });
-                                                      onUpdateAgreements(updated);
-                                                    }}
-                                                    className="text-[7px] font-black text-indigo-600 bg-indigo-50 hover:bg-indigo-100 px-1 py-0.2 rounded border border-indigo-200"
-                                                  >
-                                                    Bagi Rata Target
-                                                  </button>
+                                              <div className="w-full mt-2 p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-3 shadow-inner text-xs">
+                                                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 pb-1.5 border-b border-slate-200/60">
+                                                  <div className="flex items-center gap-1.5">
+                                                    <TrendingUp className="w-3 h-3 text-indigo-500" />
+                                                    <span className="text-[9px] font-black uppercase tracking-wider text-slate-600 font-mono">
+                                                      Trajectory & Realisasi Bulanan (Level 3)
+                                                    </span>
+                                                  </div>
+                                                  <div className="flex items-center gap-2 flex-wrap">
+                                                    <div className="flex items-center gap-1">
+                                                      <span className="text-[8px] font-bold text-slate-400 uppercase tracking-wide">Model:</span>
+                                                      <select
+                                                        value={l3.indicator.trajectoryType || (l3.indicator.unit === '%' ? 'constant' : 'cumulative')}
+                                                        onChange={(e) => handleUpdateTrajectoryType(l3.agreement.id, l3Id, e.target.value as 'cumulative' | 'constant')}
+                                                        className="bg-white border border-slate-200 rounded px-1 py-0.5 text-[8px] font-extrabold text-slate-700 focus:outline-hidden"
+                                                      >
+                                                        <option value="cumulative">Akumulatif (Penjumlahan)</option>
+                                                        <option value="constant">Konstan / Rata-rata (e.g. IKPA 100%)</option>
+                                                      </select>
+                                                    </div>
+                                                    <button
+                                                      onClick={() => {
+                                                        const targetNum = parseFloat(l3.indicator.target) || 0;
+                                                        const type = l3.indicator.trajectoryType || (l3.indicator.unit === '%' ? 'constant' : 'cumulative');
+                                                        const share = Math.round((targetNum / 12) * 10) / 10;
+                                                        const distrib = Array(12).fill(type === 'constant' ? targetNum : share);
+                                                        
+                                                        const updated = agreements.map(ag => {
+                                                          if (ag.id === l3.agreement.id) {
+                                                            return {
+                                                              ...ag,
+                                                              objectives: ag.objectives.map(o => o.id === l3Id ? { ...o, trajectory: distrib } : o)
+                                                            };
+                                                          }
+                                                          return ag;
+                                                        });
+                                                        onUpdateAgreements(updated);
+                                                      }}
+                                                      className="text-[8px] font-black text-indigo-600 bg-indigo-50 hover:bg-indigo-100 px-1.5 py-0.5 rounded border border-indigo-200"
+                                                    >
+                                                      Bagi Rata Target
+                                                    </button>
+                                                  </div>
                                                 </div>
-                                                <div className="grid grid-cols-4 sm:grid-cols-6 lg:grid-cols-12 gap-1">
+                                                <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-12 gap-1.5">
                                                   {['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'].map((month, mIdx) => {
                                                     const traj = getSafeTrajectory(l3.indicator);
                                                     const val = traj[mIdx];
+                                                    const achievements = getSafeMonthlyAchievements(l3.indicator);
+                                                    const realVal = achievements[mIdx];
                                                     return (
-                                                      <div key={month} className="bg-white p-1 rounded border border-slate-200 text-center">
-                                                        <span className="text-[8px] font-bold text-slate-400 font-mono uppercase">{month}</span>
-                                                        <input
-                                                          type="number"
-                                                          value={val}
-                                                          onChange={(e) => handleUpdateTrajectory(l3.agreement.id, l3Id, mIdx, parseFloat(e.target.value) || 0)}
-                                                          disabled={!canEditAgreement('Pegawai')}
-                                                          className="w-full text-center font-extrabold text-slate-800 text-[9px] bg-slate-50 hover:bg-slate-100 focus:bg-white border-none p-0.5 rounded mt-0.5"
-                                                        />
+                                                      <div key={month} className="bg-white p-1.5 rounded-xl border border-slate-200 text-center space-y-1 shadow-xs hover:border-indigo-200 transition-colors">
+                                                        <span className="text-[9px] font-black text-slate-400 font-mono uppercase tracking-wider block">{month}</span>
+                                                        
+                                                        <div className="space-y-0.5">
+                                                          <span className="text-[7px] text-slate-400 font-mono block leading-none">TARGET</span>
+                                                          <input
+                                                            type="number"
+                                                            value={val}
+                                                            onChange={(e) => handleUpdateTrajectory(l3.agreement.id, l3Id, mIdx, parseFloat(e.target.value) || 0)}
+                                                            disabled={!canEditAgreement('Pegawai')}
+                                                            className="w-full text-center font-black text-slate-800 text-[10px] bg-slate-50 hover:bg-slate-100 focus:bg-white border border-slate-100 p-0.5 rounded"
+                                                          />
+                                                        </div>
+
+                                                        <div className="space-y-0.5">
+                                                          <span className="text-[7px] text-slate-400 font-mono block leading-none">REALISASI</span>
+                                                          <input
+                                                            type="number"
+                                                            value={realVal}
+                                                            onChange={(e) => handleUpdateMonthlyAchievement(l3.agreement.id, l3Id, mIdx, parseFloat(e.target.value) || 0)}
+                                                            disabled={!canEditAgreement('Pegawai')}
+                                                            className="w-full text-center font-black text-indigo-600 text-[10px] bg-indigo-50/20 hover:bg-indigo-50 focus:bg-white border border-indigo-100/50 p-0.5 rounded"
+                                                          />
+                                                        </div>
                                                       </div>
                                                     );
                                                   })}

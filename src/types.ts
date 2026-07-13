@@ -61,6 +61,9 @@ export interface PerformanceIndicator {
   parentIndicatorId?: string; // Links back to parent target for cascading traceability
   comments?: IndicatorComment[];
   trajectory?: number[]; // Proyeksi target per bulan (12 bulan, indeks 0 = Jan, 11 = Des)
+  trajectoryType?: 'cumulative' | 'constant'; // Trajectory accumulation type: cumulative or constant/average
+  monthlyAchievements?: number[]; // Realisasi per bulan (12 bulan, indeks 0 = Jan, 11 = Des)
+  calculationType?: 'automatic' | 'manual'; // Level 2 calculation source: automatic from staff or manual intervention
 }
 
 export interface PerformanceAgreement {
@@ -118,7 +121,7 @@ export interface NewsReport {
   editorId?: string; // Editor's Employee ID who inputted/approved this
   title: string; // nama berita/konten media sosial
   url: string; // link eviden
-  type: 'Berita' | 'Konten Media Sosial';
+  type: 'Berita Ringan' | 'Berita Radio' | 'Berita Online';
   date: string; // tanggal lapor
   // Added fields for import feature
   category?: 'teks' | 'radio' | 'adlibs' | 'feature' | 'podcast' | 'sosmed' | string;

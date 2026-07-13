@@ -364,11 +364,29 @@ const INITIAL_AGREEMENTS: PerformanceAgreement[] = [
     assignedToName: "Heru Prasetyo, M.Si.",
     objectives: [
       {
-        id: "ind-13",
-        indicatorName: "Jumlah Berita Harian Terpublikasi",
+        id: "ind-13-1",
+        indicatorName: "Produksi Jumlah Berita Ringan",
+        target: "20",
+        unit: "Berita",
+        weight: 30,
+        achievement: 0,
+        parentIndicatorId: "ind-14"
+      },
+      {
+        id: "ind-13-2",
+        indicatorName: "Produksi Berita Radio",
+        target: "30",
+        unit: "Berita",
+        weight: 35,
+        achievement: 0,
+        parentIndicatorId: "ind-14"
+      },
+      {
+        id: "ind-13-3",
+        indicatorName: "Produksi Berita Online",
         target: "50",
         unit: "Berita",
-        weight: 100,
+        weight: 35,
         achievement: 0,
         parentIndicatorId: "ind-14"
       }
@@ -463,7 +481,7 @@ const INITIAL_REPORTER_TARGETS: ReporterTarget[] = [
     employeeId: 'emp-1',
     dailyTarget: 2,
     monthlyTarget: 50,
-    linkedIndicatorId: 'ind-13',
+    linkedIndicatorId: 'ind-13-3',
     year: 2026
   },
   {
@@ -482,7 +500,7 @@ const INITIAL_NEWS_REPORTS: NewsReport[] = [
     employeeId: 'emp-1',
     title: 'Liputan Khusus: Kesiapan Logistik Pilkada Serentak Sulawesi Utara',
     url: 'https://swaranews.id/politik/kesiapan-logistik-pilkada-sulut',
-    type: 'Berita',
+    type: 'Berita Online',
     date: '2026-06-20'
   },
   {
@@ -490,7 +508,7 @@ const INITIAL_NEWS_REPORTS: NewsReport[] = [
     employeeId: 'emp-1',
     title: 'RRI Bandar Lampung Gelar Dialog Interaktif Sinergi Keamanan Daerah Menjelang Pemilu',
     url: 'https://rri.go.id/bandarlampung/siaran/dialog-interaktif-sinergi-keamanan',
-    type: 'Berita',
+    type: 'Berita Radio',
     date: '2026-06-21'
   },
   {
@@ -498,7 +516,7 @@ const INITIAL_NEWS_REPORTS: NewsReport[] = [
     employeeId: 'emp-1',
     title: 'Update Harga Bahan Pokok di Pasar Tradisional Manado Pascalebaran',
     url: 'https://rri.go.id/bandarlampung/ekonomi/update-harga-bahan-pokok',
-    type: 'Berita',
+    type: 'Berita Ringan',
     date: '2026-06-22'
   },
   {
@@ -506,7 +524,7 @@ const INITIAL_NEWS_REPORTS: NewsReport[] = [
     employeeId: 'emp-2',
     title: 'Edukasi Pemilih Pemula: Suara Kita untuk Masa Depan Bangsa (IG Reels)',
     url: 'https://instagram.com/p/C_rri_bdl_pemula',
-    type: 'Konten Media Sosial',
+    type: 'Berita Online',
     date: '2026-06-18'
   },
   {
@@ -514,7 +532,7 @@ const INITIAL_NEWS_REPORTS: NewsReport[] = [
     employeeId: 'emp-2',
     title: 'Behind the Scenes: Siaran Subuh RRI Bandar Lampung Digital (TikTok)',
     url: 'https://tiktok.com/@rribandarlampung/video/7384918204',
-    type: 'Konten Media Sosial',
+    type: 'Berita Online',
     date: '2026-06-19'
   }
 ];
@@ -542,27 +560,36 @@ const recalculateCascade = (
   });
 
   // 2b. Calculate news report counts and update their linked indicator achievements (Level 3 - Pegawai)
-  if (currentNewsReports.length > 0 && currentReporterTargets.length > 0) {
-    const reportCountsByEmployee: Record<string, number> = {};
-    currentNewsReports.forEach(r => {
-      reportCountsByEmployee[r.employeeId] = (reportCountsByEmployee[r.employeeId] || 0) + 1;
-    });
-
+  if (currentNewsReports.length > 0) {
     updated = updated.map(ag => {
       if (ag.level === 'Pegawai' && ag.assignedToEmployeeId) {
         const empId = ag.assignedToEmployeeId;
-        const empTargets = currentReporterTargets.filter(t => t.employeeId === empId);
-        if (empTargets.length > 0) {
-          const objectives = ag.objectives.map(obj => {
+        const empReports = currentNewsReports.filter(r => r.employeeId === empId);
+
+        const objectives = ag.objectives.map(obj => {
+          const nameLower = obj.indicatorName.toLowerCase();
+          
+          if (nameLower.includes('ringan')) {
+            const count = empReports.filter(r => r.type === 'Berita Ringan').length;
+            return { ...obj, achievement: count };
+          } else if (nameLower.includes('radio') || nameLower.includes('siaran')) {
+            const count = empReports.filter(r => r.type === 'Berita Radio').length;
+            return { ...obj, achievement: count };
+          } else if (nameLower.includes('online') || nameLower.includes('media baru') || nameLower.includes('medsos') || nameLower.includes('sosial media') || nameLower.includes('harian') || nameLower.includes('publikasi') || nameLower.includes('konten')) {
+            const count = empReports.filter(r => r.type === 'Berita Online').length;
+            return { ...obj, achievement: count };
+          } else {
+            // Fallback to general matched targets if defined
+            const empTargets = currentReporterTargets.filter(t => t.employeeId === empId);
             const matchedTarget = empTargets.find(t => t.linkedIndicatorId === obj.id);
             if (matchedTarget) {
-              const count = reportCountsByEmployee[empId] || 0;
+              const count = empReports.length;
               return { ...obj, achievement: count };
             }
-            return obj;
-          });
-          return { ...ag, objectives };
-        }
+          }
+          return obj;
+        });
+        return { ...ag, objectives };
       }
       return ag;
     });

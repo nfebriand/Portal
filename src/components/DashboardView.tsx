@@ -194,8 +194,9 @@ export default function DashboardView({
   // Capaian Kinerja Pemberitaan & Media Baru Calculations
   const newsStats = useMemo(() => {
     const totalReports = newsReports.length;
-    const newsCount = newsReports.filter(r => r.type === 'Berita').length;
-    const socialCount = newsReports.filter(r => r.type === 'Konten Media Sosial').length;
+    const beritaRinganCount = newsReports.filter(r => r.type === 'Berita Ringan').length;
+    const beritaRadioCount = newsReports.filter(r => r.type === 'Berita Radio').length;
+    const beritaOnlineCount = newsReports.filter(r => r.type === 'Berita Online').length;
     
     // Average Daily Production
     const uniqueDates = new Set(newsReports.map(r => r.date));
@@ -222,8 +223,9 @@ export default function DashboardView({
 
     return {
       totalReports,
-      newsCount,
-      socialCount,
+      beritaRinganCount,
+      beritaRadioCount,
+      beritaOnlineCount,
       avgDaily,
       totalMonthlyTarget,
       monthlyPct,
@@ -585,6 +587,74 @@ export default function DashboardView({
     return '#4f46e5';
   };
 
+  const getDivisionCardStyles = (key: string | undefined) => {
+    switch (key) {
+      case 'Pemberitaan':
+        return {
+          bgColor: 'bg-sky-50/10 hover:bg-sky-50/20',
+          borderColor: 'border-sky-200/80',
+          hoverBorderColor: 'hover:border-sky-400',
+          hoverRingColor: 'hover:ring-sky-500/10',
+          accentColor: 'bg-sky-500',
+          textColor: 'text-sky-600',
+        };
+      case 'Layanan Pengembangan Usaha':
+        return {
+          bgColor: 'bg-indigo-50/10 hover:bg-indigo-50/20',
+          borderColor: 'border-indigo-200/80',
+          hoverBorderColor: 'hover:border-indigo-400',
+          hoverRingColor: 'hover:ring-indigo-500/10',
+          accentColor: 'bg-indigo-500',
+          textColor: 'text-indigo-600',
+        };
+      case 'Teknologi dan Media Baru':
+        return {
+          bgColor: 'bg-emerald-50/10 hover:bg-emerald-50/20',
+          borderColor: 'border-emerald-200/80',
+          hoverBorderColor: 'hover:border-emerald-400',
+          hoverRingColor: 'hover:ring-emerald-500/10',
+          accentColor: 'bg-emerald-500',
+          textColor: 'text-emerald-600',
+        };
+      case 'Konten Media Baru':
+        return {
+          bgColor: 'bg-pink-50/10 hover:bg-pink-50/20',
+          borderColor: 'border-pink-200/80',
+          hoverBorderColor: 'hover:border-pink-400',
+          hoverRingColor: 'hover:ring-pink-500/10',
+          accentColor: 'bg-pink-500',
+          textColor: 'text-pink-600',
+        };
+      case 'Siaran':
+        return {
+          bgColor: 'bg-amber-50/10 hover:bg-amber-50/20',
+          borderColor: 'border-amber-200/80',
+          hoverBorderColor: 'hover:border-amber-400',
+          hoverRingColor: 'hover:ring-amber-500/10',
+          accentColor: 'bg-amber-500',
+          textColor: 'text-amber-600',
+        };
+      case 'Tata Usaha / Umum':
+        return {
+          bgColor: 'bg-violet-50/10 hover:bg-violet-50/20',
+          borderColor: 'border-violet-200/80',
+          hoverBorderColor: 'hover:border-violet-400',
+          hoverRingColor: 'hover:ring-violet-500/10',
+          accentColor: 'bg-violet-500',
+          textColor: 'text-violet-600',
+        };
+      default:
+        return {
+          bgColor: 'bg-slate-50/10 hover:bg-slate-50/20',
+          borderColor: 'border-slate-200/80',
+          hoverBorderColor: 'hover:border-slate-400',
+          hoverRingColor: 'hover:ring-slate-500/10',
+          accentColor: 'bg-slate-500',
+          textColor: 'text-slate-600',
+        };
+    }
+  };
+
   const getDivisionIcon = (iconName: string) => {
     switch (iconName) {
       case 'Pemberitaan': return <Globe className="w-5 h-5 text-sky-500" />;
@@ -617,7 +687,10 @@ export default function DashboardView({
               )}
               <h2 className="text-base font-extrabold text-slate-800 flex items-center gap-2">
                 <Target className="w-4 h-4 text-indigo-600 animate-pulse" />
-                Capaian Indikator Kinerja Program
+                {!drillDownActive 
+                  ? "Capaian Indikator Kinerja Program RRI Bandar Lampung"
+                  : `Capaian Indikator Kinerja Program Divisi ${selectedDivData?.name || ''}`
+                }
               </h2>
             </div>
           </div>
@@ -667,6 +740,8 @@ export default function DashboardView({
                 { value: remaining }
               ];
 
+              const styles = getDivisionCardStyles(div.key);
+
               return (
                 <div
                   key={div.key}
@@ -674,8 +749,11 @@ export default function DashboardView({
                     setSelectedKpiDivision(div.key);
                     setDrillDownActive(true);
                   }}
-                  className="relative bg-[#f8fafc] p-5 rounded-xl border border-slate-200/80 hover:border-indigo-400 hover:ring-2 hover:ring-indigo-500/10 shadow-xs hover:shadow-md transition-all duration-300 cursor-pointer flex flex-col items-center justify-between space-y-4 select-none"
+                  className={`relative ${styles.bgColor} p-5 rounded-2xl border ${styles.borderColor} ${styles.hoverBorderColor} hover:ring-2 ${styles.hoverRingColor} shadow-xs hover:shadow-md transition-all duration-300 cursor-pointer flex flex-col items-center justify-between space-y-4 select-none overflow-hidden pt-6`}
                 >
+                  {/* Elegant status line at the top of the card */}
+                  <div className={`absolute top-0 left-0 right-0 h-[3.5px] ${styles.accentColor}`} />
+
                   {/* Top content */}
                   <div className="text-center w-full min-h-[36px] flex flex-col justify-center">
                     <span className="text-xs md:text-sm font-black text-slate-800 uppercase tracking-tight leading-tight line-clamp-2">
@@ -716,7 +794,7 @@ export default function DashboardView({
                   {/* Stasiun division info indicator */}
                   <div className="w-full flex justify-between items-center text-[10px] text-slate-500 border-t border-slate-200/80 pt-2">
                     <span className="font-semibold">Lihat Rincian Indikator</span>
-                    <ChevronRight className="w-3.5 h-3.5 text-indigo-500" />
+                    <ChevronRight className={`w-3.5 h-3.5 ${styles.textColor}`} />
                   </div>
                 </div>
               );
@@ -725,9 +803,9 @@ export default function DashboardView({
         ) : (
           /* 2. DRILL DOWN VIEW: Level 3 Capaian Kinerja (Detail Grafik Capaian) */
           <div className="space-y-4">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 bg-[#edf2f7] border border-slate-200 rounded-xl">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 bg-white border border-slate-200/80 rounded-2xl shadow-xs">
               <div className="flex items-center gap-3">
-                <div className="p-2 bg-[#f8fafc] rounded-lg shadow-xs border border-slate-200 shrink-0">
+                <div className="p-2 bg-[#f8fafc] rounded-xl shadow-xs border border-slate-200 shrink-0">
                   {getDivisionIcon(selectedDivData?.iconName || '')}
                 </div>
                 <div>
@@ -740,7 +818,7 @@ export default function DashboardView({
                 </div>
               </div>
               <div className="flex items-center gap-2 self-start sm:self-center">
-                <span className={`text-[9px] font-black px-2 py-0.5 rounded-full border uppercase ${
+                <span className={`text-[9px] font-black px-2.5 py-0.5 rounded-full border uppercase ${
                   selectedDivData?.status === 'Aktif' 
                     ? 'bg-emerald-100 text-emerald-800 border-emerald-300' 
                     : selectedDivData?.status === 'Evaluasi'
@@ -756,23 +834,23 @@ export default function DashboardView({
             </div>
 
             {/* Custom spacious metrics grid list containing high-fidelity half circle gauges */}
-            <div className="bg-[#f0f4f8] p-5 rounded-xl border border-slate-200/80 shadow-xs space-y-4">
+            <div className="bg-[#f8fafc] p-6 rounded-2xl border border-slate-200/80 shadow-xs space-y-4">
               <div className="flex justify-between items-center border-b border-slate-200/60 pb-3">
                 <h4 className="text-xs font-extrabold text-slate-500 uppercase tracking-wider font-mono">
                   Daftar Ketercapaian Indikator (Level 3)
                 </h4>
-                <span className="text-[10px] text-indigo-600 bg-indigo-50 font-bold font-mono px-2.5 py-1 rounded-md">
+                <span className="text-[10px] text-indigo-600 bg-indigo-50 font-bold font-mono px-2.5 py-1 rounded-md border border-indigo-100">
                   Periode: {selectedKpiPeriod}
                 </span>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {adjustedObjectives.length === 0 ? (
-                  <div className="text-center py-12 text-sm text-slate-400 italic col-span-full bg-slate-50 rounded-xl border border-dashed border-slate-200">
+                  <div className="text-center py-12 text-sm text-slate-400 italic col-span-full bg-white rounded-2xl border border-dashed border-slate-200">
                     Belum ada target PK aktif untuk periode {selectedKpiPeriod}
                   </div>
                 ) : (
-                  adjustedObjectives.map((obj) => {
+                  adjustedObjectives.map((obj, idx) => {
                     const objPercentage = obj.percentage || 0;
                     const fillPct = Math.min(100, Math.max(0, objPercentage));
                     const remPct = 100 - fillPct;
@@ -781,37 +859,108 @@ export default function DashboardView({
                       { value: remPct }
                     ];
 
-                    let gaugeColor = '#10b981'; // emerald
-                    let textColor = 'text-emerald-600';
-                    let strokeColor = 'border-emerald-200';
-                    let bgColor = 'bg-[#f4fbf7] border-emerald-200/60';
-                    if (objPercentage < 50) {
-                      gaugeColor = '#ef4444'; // rose
-                      textColor = 'text-rose-600';
-                      strokeColor = 'border-rose-200';
-                      bgColor = 'bg-[#fef5f5] border-rose-200/60';
-                    } else if (objPercentage < 90) {
-                      gaugeColor = '#f59e0b'; // amber
-                      textColor = 'text-amber-600';
-                      strokeColor = 'border-amber-200';
-                      bgColor = 'bg-[#fffcf4] border-amber-200/60';
-                    }
+                    const level3Palettes = [
+                      {
+                        gaugeColor: '#10b981', // Emerald
+                        textColor: 'text-emerald-600',
+                        accentColor: 'bg-emerald-500',
+                        bgColor: 'bg-emerald-50/5 hover:bg-emerald-50/15',
+                        borderColor: 'border-emerald-100/80',
+                        hoverBorderColor: 'hover:border-emerald-400',
+                      },
+                      {
+                        gaugeColor: '#0ea5e9', // Sky
+                        textColor: 'text-sky-600',
+                        accentColor: 'bg-sky-500',
+                        bgColor: 'bg-sky-50/5 hover:bg-sky-50/15',
+                        borderColor: 'border-sky-100/80',
+                        hoverBorderColor: 'hover:border-sky-400',
+                      },
+                      {
+                        gaugeColor: '#8b5cf6', // Violet
+                        textColor: 'text-violet-600',
+                        accentColor: 'bg-violet-500',
+                        bgColor: 'bg-violet-50/5 hover:bg-violet-50/15',
+                        borderColor: 'border-violet-100/80',
+                        hoverBorderColor: 'hover:border-violet-400',
+                      },
+                      {
+                        gaugeColor: '#f59e0b', // Amber
+                        textColor: 'text-amber-600',
+                        accentColor: 'bg-amber-500',
+                        bgColor: 'bg-amber-50/5 hover:bg-amber-50/15',
+                        borderColor: 'border-amber-100/80',
+                        hoverBorderColor: 'hover:border-amber-400',
+                      },
+                      {
+                        gaugeColor: '#ec4899', // Pink
+                        textColor: 'text-pink-600',
+                        accentColor: 'bg-pink-50/5 hover:bg-pink-50/15',
+                        borderColor: 'border-pink-100/80',
+                        hoverBorderColor: 'hover:border-pink-400',
+                      },
+                      {
+                        gaugeColor: '#6366f1', // Indigo
+                        textColor: 'text-indigo-600',
+                        accentColor: 'bg-indigo-500',
+                        bgColor: 'bg-indigo-50/5 hover:bg-indigo-50/15',
+                        borderColor: 'border-indigo-100/80',
+                        hoverBorderColor: 'hover:border-indigo-400',
+                      },
+                      {
+                        gaugeColor: '#14b8a6', // Teal
+                        textColor: 'text-teal-600',
+                        accentColor: 'bg-teal-500',
+                        bgColor: 'bg-teal-50/5 hover:bg-teal-50/15',
+                        borderColor: 'border-teal-100/80',
+                        hoverBorderColor: 'hover:border-teal-400',
+                      },
+                      {
+                        gaugeColor: '#f97316', // Orange
+                        textColor: 'text-orange-600',
+                        accentColor: 'bg-orange-500',
+                        bgColor: 'bg-orange-50/5 hover:bg-orange-50/15',
+                        borderColor: 'border-orange-100/80',
+                        hoverBorderColor: 'hover:border-orange-400',
+                      },
+                      {
+                        gaugeColor: '#06b6d4', // Cyan
+                        textColor: 'text-cyan-600',
+                        accentColor: 'bg-cyan-500',
+                        bgColor: 'bg-cyan-50/5 hover:bg-cyan-50/15',
+                        borderColor: 'border-cyan-100/80',
+                        hoverBorderColor: 'hover:border-cyan-400',
+                      },
+                      {
+                        gaugeColor: '#d946ef', // Fuchsia
+                        textColor: 'text-fuchsia-600',
+                        accentColor: 'bg-fuchsia-500',
+                        bgColor: 'bg-fuchsia-50/5 hover:bg-fuchsia-50/15',
+                        borderColor: 'border-fuchsia-100/80',
+                        hoverBorderColor: 'hover:border-fuchsia-400',
+                      }
+                    ];
+
+                    const palette = level3Palettes[idx % level3Palettes.length];
 
                     return (
                       <div 
                         key={obj.id} 
-                        className={`p-4 rounded-xl border ${bgColor} flex flex-col justify-between space-y-2 hover:shadow-sm transition-all duration-200`}
+                        className={`relative p-5 rounded-2xl border ${palette.borderColor} ${palette.bgColor} flex flex-col justify-between space-y-3 shadow-xs hover:shadow-md ${palette.hoverBorderColor} transition-all duration-300 overflow-hidden pt-6`}
                       >
+                        {/* Elegant status line at the top of the card */}
+                        <div className={`absolute top-0 left-0 right-0 h-[3.5px] ${palette.accentColor}`} />
+
                         {/* Title block */}
                         <div className="space-y-0.5 min-w-0">
-                          <span className="text-[8px] font-extrabold text-slate-400 font-mono tracking-wider block">INDIKATOR SASARAN</span>
+                          <span className="text-[8px] font-black text-slate-400 font-mono tracking-wider block">INDIKATOR SASARAN</span>
                           <span className="text-xs font-bold text-slate-800 leading-snug line-clamp-2" title={obj.indicatorName}>
                             {obj.indicatorName}
                           </span>
                         </div>
 
                         {/* Individual Half Circle Gauge instead of standard linear progress */}
-                        <div className="relative w-full h-28 flex items-center justify-center overflow-hidden">
+                        <div className="relative w-full h-36 flex items-center justify-center overflow-hidden">
                           <ResponsiveContainer width="100%" height="100%">
                             <PieChart margin={{ top: 4, left: 0, right: 0, bottom: 0 }}>
                               <Pie
@@ -820,12 +969,12 @@ export default function DashboardView({
                                 cy="95%"
                                 startAngle={180}
                                 endAngle={0}
-                                innerRadius={40}
-                                outerRadius={56}
+                                innerRadius={60}
+                                outerRadius={80}
                                 paddingAngle={0}
                                 dataKey="value"
                               >
-                                <Cell fill={gaugeColor} />
+                                <Cell fill={palette.gaugeColor} />
                                 <Cell fill="#cbd5e1" />
                               </Pie>
                             </PieChart>
@@ -833,20 +982,20 @@ export default function DashboardView({
 
                           {/* Gauge center percentage */}
                           <div className="absolute inset-x-0 bottom-1 flex flex-col items-center">
-                            <span className={`text-xl font-black font-mono tracking-tight leading-none ${textColor}`}>
+                            <span className={`text-3xl font-black font-mono tracking-tight leading-none ${palette.textColor}`}>
                               {objPercentage}%
                             </span>
-                            <span className="text-[7px] text-slate-400 font-bold uppercase tracking-wider mt-0.5">TERCAPAI</span>
+                            <span className="text-[8px] text-slate-400 font-bold uppercase tracking-wider mt-1">TERCAPAI</span>
                           </div>
                         </div>
 
                         {/* Metrics footer */}
-                        <div className="grid grid-cols-2 gap-2 border-t border-slate-200/30 pt-2 text-[10px]">
-                          <div className="bg-[#f8fafc] p-1.5 rounded border border-slate-200/60 min-w-0">
+                        <div className="grid grid-cols-2 gap-2 border-t border-slate-100 pt-2 text-[10px]">
+                          <div className="bg-[#f8fafc] p-2 rounded-lg border border-slate-200/50 min-w-0">
                             <span className="text-[8px] text-slate-400 block font-mono">TARGET</span>
                             <span className="font-extrabold text-slate-700 font-mono truncate block" title={obj.target}>{obj.target}</span>
                           </div>
-                          <div className="bg-[#f8fafc] p-1.5 rounded border border-slate-200/60 min-w-0">
+                          <div className="bg-[#f8fafc] p-2 rounded-lg border border-slate-200/50 min-w-0">
                             <span className="text-[8px] text-slate-400 block font-mono">REALISASI</span>
                             <span className="font-extrabold text-slate-700 font-mono truncate block" title={`${obj.achievement} ${obj.unit}`}>{obj.achievement} {obj.unit}</span>
                           </div>

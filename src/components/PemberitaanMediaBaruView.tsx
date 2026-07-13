@@ -19,7 +19,8 @@ import {
   Search,
   Check,
   ChevronRight,
-  Filter
+  Filter,
+  Radio
 } from 'lucide-react';
 import { Employee, PerformanceAgreement, ReporterTarget, NewsReport } from '../types';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Cell, Legend } from 'recharts';
@@ -56,7 +57,7 @@ export default function PemberitaanMediaBaruView({
   
   // Search and filter states
   const [reportSearch, setReportSearch] = useState('');
-  const [reportTypeFilter, setReportTypeFilter] = useState<'Semua' | 'Berita' | 'Konten Media Sosial'>('Semua');
+  const [reportTypeFilter, setReportTypeFilter] = useState<'Semua' | 'Berita Ringan' | 'Berita Radio' | 'Berita Online'>('Semua');
   const [reportEmpFilter, setReportEmpFilter] = useState<string>('Semua');
 
   // Form states - Reporter Target
@@ -72,15 +73,13 @@ export default function PemberitaanMediaBaruView({
   const [reportEmployeeId, setReportEmployeeId] = useState('');
   const [reportTitle, setReportTitle] = useState('');
   const [reportUrl, setReportUrl] = useState('');
-  const [reportType, setReportType] = useState<'Berita' | 'Konten Media Sosial'>('Berita');
+  const [reportType, setReportType] = useState<'Berita Ringan' | 'Berita Radio' | 'Berita Online'>('Berita Ringan');
   const [reportDate, setReportDate] = useState(new Date().toISOString().split('T')[0]);
   const [reportEditorId, setReportEditorId] = useState('');
 
-  // Filter employees that are in relevant divisions (Pemberitaan & Konten Media Baru)
+  // Sesuai arahan: semua pegawai tanpa melihat divisi/bidangnya dapat membuat berita
   const reporters = useMemo(() => {
-    return employees.filter(emp => 
-      emp.divisi === 'Pemberitaan' || emp.divisi === 'Konten Media Baru'
-    );
+    return employees;
   }, [employees]);
 
   // List of all employee performance indicators (Pegawai level) to link dynamically
@@ -182,7 +181,7 @@ export default function PemberitaanMediaBaruView({
     setIsReportModalOpen(false);
     setReportTitle('');
     setReportUrl('');
-    setReportType('Berita');
+    setReportType('Berita Ringan');
     setReportEditorId('');
   };
 
@@ -195,8 +194,9 @@ export default function PemberitaanMediaBaruView({
   // Statistics Computations
   const stats = useMemo(() => {
     const totalReports = newsReports.length;
-    const newsCount = newsReports.filter(r => r.type === 'Berita').length;
-    const socialCount = newsReports.filter(r => r.type === 'Konten Media Sosial').length;
+    const beritaRinganCount = newsReports.filter(r => r.type === 'Berita Ringan').length;
+    const beritaRadioCount = newsReports.filter(r => r.type === 'Berita Radio').length;
+    const beritaOnlineCount = newsReports.filter(r => r.type === 'Berita Online').length;
     
     // Average Daily Production
     // Get unique dates
@@ -210,8 +210,9 @@ export default function PemberitaanMediaBaruView({
 
     return {
       totalReports,
-      newsCount,
-      socialCount,
+      beritaRinganCount,
+      beritaRadioCount,
+      beritaOnlineCount,
       avgDaily,
       totalMonthlyTarget,
       monthlyPct
@@ -375,9 +376,9 @@ export default function PemberitaanMediaBaruView({
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <div className="bg-white border border-slate-100 rounded-2xl p-4 flex items-center justify-between shadow-xs">
               <div className="space-y-1">
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider font-mono">Total Konten Dilaporkan</span>
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider font-mono">Total Laporan</span>
                 <p className="text-2xl font-black text-slate-800">{stats.totalReports}</p>
-                <div className="text-[10px] text-slate-500 font-medium">Eviden terverifikasi link aktif</div>
+                <div className="text-[10px] text-slate-500 font-medium">Semua kategori berita</div>
               </div>
               <div className="p-3 bg-indigo-50 text-indigo-600 rounded-xl">
                 <FileText className="w-5 h-5" />
@@ -386,39 +387,34 @@ export default function PemberitaanMediaBaruView({
 
             <div className="bg-white border border-slate-100 rounded-2xl p-4 flex items-center justify-between shadow-xs">
               <div className="space-y-1">
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider font-mono">Portal Berita RRI</span>
-                <p className="text-2xl font-black text-emerald-600">{stats.newsCount}</p>
-                <div className="text-[10px] text-slate-500 font-medium">Rilis berita & artikel rilis</div>
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider font-mono">Berita Ringan</span>
+                <p className="text-2xl font-black text-amber-600">{stats.beritaRinganCount}</p>
+                <div className="text-[10px] text-slate-500 font-medium">Kategori berita ringan</div>
+              </div>
+              <div className="p-3 bg-amber-50 text-amber-600 rounded-xl">
+                <FileText className="w-5 h-5" />
+              </div>
+            </div>
+
+            <div className="bg-white border border-slate-100 rounded-2xl p-4 flex items-center justify-between shadow-xs">
+              <div className="space-y-1">
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider font-mono">Berita Radio</span>
+                <p className="text-2xl font-black text-sky-600">{stats.beritaRadioCount}</p>
+                <div className="text-[10px] text-slate-500 font-medium">Kategori produksi berita radio</div>
+              </div>
+              <div className="p-3 bg-sky-50 text-sky-600 rounded-xl">
+                <Radio className="w-5 h-5" />
+              </div>
+            </div>
+
+            <div className="bg-white border border-slate-100 rounded-2xl p-4 flex items-center justify-between shadow-xs">
+              <div className="space-y-1">
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider font-mono">Berita Online</span>
+                <p className="text-2xl font-black text-emerald-600">{stats.beritaOnlineCount}</p>
+                <div className="text-[10px] text-slate-500 font-medium">Kategori portal berita online</div>
               </div>
               <div className="p-3 bg-emerald-50 text-emerald-600 rounded-xl">
                 <Globe className="w-5 h-5" />
-              </div>
-            </div>
-
-            <div className="bg-white border border-slate-100 rounded-2xl p-4 flex items-center justify-between shadow-xs">
-              <div className="space-y-1">
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider font-mono">Konten Media Sosial</span>
-                <p className="text-2xl font-black text-rose-600">{stats.socialCount}</p>
-                <div className="text-[10px] text-slate-500 font-medium">IG, YouTube, FB, X, TikTok</div>
-              </div>
-              <div className="p-3 bg-rose-50 text-rose-600 rounded-xl">
-                <Video className="w-5 h-5" />
-              </div>
-            </div>
-
-            <div className="bg-white border border-slate-100 rounded-2xl p-4 flex items-center justify-between shadow-xs">
-              <div className="space-y-1">
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider font-mono">Target Pencapaian</span>
-                <div className="flex items-baseline gap-1.5">
-                  <p className="text-2xl font-black text-indigo-600">{stats.monthlyPct}%</p>
-                  <span className="text-slate-400 text-xs">/ {stats.totalMonthlyTarget}</span>
-                </div>
-                <div className="w-full bg-slate-100 rounded-full h-1.5 mt-1.5 overflow-hidden">
-                  <div className="bg-indigo-600 h-full rounded-full transition-all duration-500" style={{ width: `${stats.monthlyPct}%` }} />
-                </div>
-              </div>
-              <div className="p-3 bg-amber-50 text-amber-600 rounded-xl">
-                <TrendingUp className="w-5 h-5" />
               </div>
             </div>
           </div>
@@ -474,7 +470,11 @@ export default function PemberitaanMediaBaruView({
                       <div key={rep.id} className="p-3 bg-slate-50/50 hover:bg-slate-50 rounded-xl border border-slate-100/60 text-xs space-y-2 transition-all">
                         <div className="flex justify-between items-start gap-2">
                           <span className={`px-2 py-0.5 rounded-full text-[8px] font-bold tracking-wide uppercase ${
-                            rep.type === 'Berita' ? 'bg-emerald-50 text-emerald-700 border border-emerald-100' : 'bg-rose-50 text-rose-700 border border-rose-100'
+                            rep.type === 'Berita Ringan' 
+                              ? 'bg-amber-50 text-amber-700 border border-amber-100' 
+                              : rep.type === 'Berita Radio' 
+                              ? 'bg-sky-50 text-sky-700 border border-sky-100' 
+                              : 'bg-emerald-50 text-emerald-700 border border-emerald-100'
                           }`}>
                             {rep.type}
                           </span>
@@ -812,9 +812,10 @@ export default function PemberitaanMediaBaruView({
                 onChange={(e) => setReportTypeFilter(e.target.value as any)}
                 className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-600 focus:outline-hidden"
               >
-                <option value="Semua">Semua Jenis</option>
-                <option value="Berita">Hanya Berita</option>
-                <option value="Konten Media Sosial">Hanya Media Sosial</option>
+                <option value="Semua">Semua Kategori</option>
+                <option value="Berita Ringan">Berita Ringan</option>
+                <option value="Berita Radio">Berita Radio</option>
+                <option value="Berita Online">Berita Online</option>
               </select>
 
               {/* Employee Filter */}
@@ -823,15 +824,12 @@ export default function PemberitaanMediaBaruView({
                 onChange={(e) => setReportEmpFilter(e.target.value)}
                 className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-600 focus:outline-hidden"
               >
-                <option value="Semua">Semua Reporter</option>
-                {reporterTargets.map(tgt => {
-                  const emp = employees.find(e => e.id === tgt.employeeId);
-                  return (
-                    <option key={tgt.id} value={tgt.employeeId}>
-                      {emp ? emp.nama : 'Unknown Reporter'}
-                    </option>
-                  );
-                })}
+                <option value="Semua">Semua Pegawai/Reporter</option>
+                {employees.map(emp => (
+                  <option key={emp.id} value={emp.id}>
+                    {emp.nama} ({emp.divisi})
+                  </option>
+                ))}
               </select>
             </div>
 
@@ -895,7 +893,11 @@ export default function PemberitaanMediaBaruView({
                         </td>
                         <td className="px-5 py-3.5">
                           <span className={`px-2.5 py-1 rounded-full text-[8px] font-bold uppercase tracking-wider ${
-                            rep.type === 'Berita' ? 'bg-emerald-50 text-emerald-700 border border-emerald-100' : 'bg-rose-50 text-rose-700 border border-rose-100'
+                            rep.type === 'Berita Ringan' 
+                              ? 'bg-amber-50 text-amber-700 border border-amber-100' 
+                              : rep.type === 'Berita Radio' 
+                              ? 'bg-sky-50 text-sky-700 border border-sky-100' 
+                              : 'bg-emerald-50 text-emerald-700 border border-emerald-100'
                           }`}>
                             {rep.type}
                           </span>
@@ -1078,19 +1080,13 @@ export default function PemberitaanMediaBaruView({
                   onChange={(e) => setReportEmployeeId(e.target.value)}
                   className="w-full bg-slate-50 border border-slate-200 focus:bg-white focus:outline-hidden rounded-xl px-3 py-2 text-xs font-semibold text-slate-700"
                 >
-                  <option value="">-- Pilih Reporter --</option>
-                  {reporterTargets.map(tgt => {
-                    const emp = employees.find(e => e.id === tgt.employeeId);
-                    return (
-                      <option key={tgt.id} value={tgt.employeeId}>
-                        {emp ? emp.nama : 'Unknown'} ({emp ? emp.divisi : ''})
-                      </option>
-                    );
-                  })}
+                  <option value="">-- Pilih Reporter/Pegawai --</option>
+                  {employees.map(emp => (
+                    <option key={emp.id} value={emp.id}>
+                      {emp.nama} ({emp.divisi})
+                    </option>
+                  ))}
                 </select>
-                {reporterTargets.length === 0 && (
-                  <p className="text-[9px] text-rose-500 font-bold">Harap seting target reporter di sub-tab kedua dahulu agar reporter dapat melapor!</p>
-                )}
               </div>
 
               {/* Select Editor for Submission */}
@@ -1125,14 +1121,15 @@ export default function PemberitaanMediaBaruView({
               {/* Type and Date */}
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1">
-                  <label className="text-[10px] font-extrabold text-slate-500 uppercase tracking-wider block">Jenis Konten</label>
+                  <label className="text-[10px] font-extrabold text-slate-500 uppercase tracking-wider block">Kategori Berita</label>
                   <select
                     value={reportType}
                     onChange={(e) => setReportType(e.target.value as any)}
                     className="w-full bg-slate-50 border border-slate-200 focus:bg-white focus:outline-hidden rounded-xl px-3 py-2 text-xs font-semibold text-slate-700"
                   >
-                    <option value="Berita">Rilis Berita Utama</option>
-                    <option value="Konten Media Sosial">Konten Media Sosial</option>
+                    <option value="Berita Ringan">Berita Ringan</option>
+                    <option value="Berita Radio">Berita Radio</option>
+                    <option value="Berita Online">Berita Online</option>
                   </select>
                 </div>
 
@@ -1185,10 +1182,7 @@ export default function PemberitaanMediaBaruView({
                 </button>
                 <button
                   type="submit"
-                  disabled={reporterTargets.length === 0}
-                  className={`px-4 py-2 text-white font-semibold text-xs rounded-xl shadow-xs ${
-                    reporterTargets.length === 0 ? 'bg-slate-300 cursor-not-allowed' : 'bg-indigo-600 hover:bg-indigo-700'
-                  }`}
+                  className="px-4 py-2 text-white font-semibold text-xs rounded-xl shadow-xs bg-indigo-600 hover:bg-indigo-700"
                 >
                   Laporkan Eviden
                 </button>

@@ -465,6 +465,154 @@ export default function DashboardBidangView({
 
       {activeTab === 'summary' && (
         <>
+          {/* SECTION VISUALISASI CAPAIAN IKP PER BIDANG (HALF CIRCLE GAUGES) FOR LEVEL 3 */}
+          <div id="trend-bidang-section" className="bg-[#f0f4f8] p-5 rounded-2xl border border-slate-200/80 shadow-md space-y-4 mb-4">
+            
+            {/* Header Dashboard */}
+            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-slate-200/60 pb-3">
+              <div className="space-y-1">
+                <div className="flex items-center gap-3">
+                  <h2 className="text-base font-extrabold text-slate-800 flex items-center gap-2">
+                    <Target className="w-4 h-4 text-indigo-600 animate-pulse" />
+                    Capaian Indikator Kinerja Program Divisi {activeDivision}
+                  </h2>
+                </div>
+              </div>
+            </div>
+
+            {/* Clean Grid of Cards with Half Circle Gauges for each Indicator of this Division */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {teamObjectives.length === 0 ? (
+                <div className="text-center py-12 text-sm text-slate-400 italic col-span-full bg-white rounded-2xl border border-dashed border-slate-200">
+                  Belum ada Perjanjian Kinerja Tingkat Bidang ({activeDivision})
+                </div>
+              ) : (
+                teamObjectives.map((obj, idx) => {
+                  const pct = parseFloat(obj.target) > 0 ? Math.round((obj.achievement / parseFloat(obj.target)) * 100) : 0;
+                  const fillPercentage = Math.min(100, Math.max(0, pct));
+                  const remaining = 100 - fillPercentage;
+
+                  // Give different color palettes for each card ("berikan warna berbeda untuk tiap grafik dan kotaknya")
+                  const divColors = [
+                    {
+                      gaugeColor: '#0ea5e9', // Sky
+                      bgColor: 'bg-sky-50/10 hover:bg-sky-50/20',
+                      borderColor: 'border-sky-200/80 hover:border-sky-400',
+                      hoverRingColor: 'hover:ring-sky-500/10',
+                      accentColor: 'bg-sky-500',
+                      textColor: 'text-sky-600',
+                    },
+                    {
+                      gaugeColor: '#6366f1', // Indigo
+                      bgColor: 'bg-indigo-50/10 hover:bg-indigo-50/20',
+                      borderColor: 'border-indigo-200/80 hover:border-indigo-400',
+                      hoverRingColor: 'hover:ring-indigo-500/10',
+                      accentColor: 'bg-indigo-500',
+                      textColor: 'text-indigo-600',
+                    },
+                    {
+                      gaugeColor: '#10b981', // Emerald
+                      bgColor: 'bg-emerald-50/10 hover:bg-emerald-50/20',
+                      borderColor: 'border-emerald-200/80 hover:border-emerald-400',
+                      hoverRingColor: 'hover:ring-emerald-500/10',
+                      accentColor: 'bg-emerald-500',
+                      textColor: 'text-emerald-600',
+                    },
+                    {
+                      gaugeColor: '#ec4899', // Pink
+                      bgColor: 'bg-pink-50/10 hover:bg-pink-50/20',
+                      borderColor: 'border-pink-200/80 hover:border-pink-400',
+                      hoverRingColor: 'hover:ring-pink-500/10',
+                      accentColor: 'bg-pink-500',
+                      textColor: 'text-pink-600',
+                    },
+                    {
+                      gaugeColor: '#f59e0b', // Amber
+                      bgColor: 'bg-amber-50/10 hover:bg-amber-50/20',
+                      borderColor: 'border-amber-200/80 hover:border-amber-400',
+                      hoverRingColor: 'hover:ring-amber-500/10',
+                      accentColor: 'bg-amber-500',
+                      textColor: 'text-amber-600',
+                    },
+                    {
+                      gaugeColor: '#8b5cf6', // Violet
+                      bgColor: 'bg-violet-50/10 hover:bg-violet-50/20',
+                      borderColor: 'border-violet-200/80 hover:border-violet-400',
+                      hoverRingColor: 'hover:ring-violet-500/10',
+                      accentColor: 'bg-violet-500',
+                      textColor: 'text-violet-600',
+                    }
+                  ];
+
+                  const style = divColors[idx % divColors.length];
+
+                  return (
+                    <div
+                      key={obj.id}
+                      className={`relative ${style.bgColor} p-5 rounded-2xl border ${style.borderColor} hover:ring-2 ${style.hoverRingColor} shadow-xs hover:shadow-md transition-all duration-300 flex flex-col items-center justify-between space-y-4 select-none overflow-hidden pt-6`}
+                    >
+                      {/* Elegant status line at the top of the card */}
+                      <div className={`absolute top-0 left-0 right-0 h-[3.5px] ${style.accentColor}`} />
+
+                      {/* Top content */}
+                      <div className="text-center w-full min-h-[36px] flex flex-col justify-center">
+                        <span className="text-xs md:text-sm font-black text-slate-800 uppercase tracking-tight leading-tight line-clamp-2">
+                          {obj.indicatorName}
+                        </span>
+                      </div>
+
+                      {/* Gauge Half Circle */}
+                      <div className="relative w-full h-44 flex items-center justify-center overflow-hidden">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <PieChart margin={{ top: 12, left: 0, right: 0, bottom: 0 }}>
+                            <Pie
+                              data={[
+                                { value: fillPercentage },
+                                { value: remaining }
+                              ]}
+                              cx="50%"
+                              cy="95%"
+                              startAngle={180}
+                              endAngle={0}
+                              innerRadius={68}
+                              outerRadius={92}
+                              paddingAngle={0}
+                              dataKey="value"
+                            >
+                              <Cell fill={style.gaugeColor} />
+                              <Cell fill="#cbd5e1" />
+                            </Pie>
+                          </PieChart>
+                        </ResponsiveContainer>
+
+                        {/* Center label */}
+                        <div className="absolute inset-x-0 bottom-2 flex flex-col items-center">
+                          <span className="text-3xl font-black text-slate-800 font-mono tracking-tight leading-none">
+                            {pct}%
+                          </span>
+                          <span className="text-[9px] text-slate-500 font-extrabold uppercase tracking-widest mt-1">Capaian</span>
+                        </div>
+                      </div>
+
+                      {/* Metrics Footer Boxes with different colors */}
+                      <div className="grid grid-cols-2 gap-2 w-full pt-2 border-t border-slate-200/80 text-[10px]">
+                        <div className={`${style.bgColor} p-2 rounded-lg border ${style.borderColor} min-w-0`}>
+                          <span className="text-[8px] text-slate-500 font-bold block uppercase font-mono">Target</span>
+                          <span className="font-extrabold text-slate-800 font-mono truncate block" title={`${obj.target} ${obj.unit}`}>{obj.target} {obj.unit}</span>
+                        </div>
+                        <div className={`${style.bgColor} p-2 rounded-lg border ${style.borderColor} min-w-0`}>
+                          <span className="text-[8px] text-slate-500 font-bold block uppercase font-mono">Realisasi</span>
+                          <span className={`font-extrabold ${style.textColor} font-mono truncate block`} title={`${obj.achievement} ${obj.unit}`}>{obj.achievement} {obj.unit}</span>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+
+          </div>
+
           {/* Overview Division Metrics Rows */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {/* Metric 1 */}
