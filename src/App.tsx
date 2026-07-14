@@ -9,6 +9,7 @@ import PemberitaanMediaBaruView from './components/PemberitaanMediaBaruView';
 import LoginView from './components/LoginView';
 import DashboardBidangView from './components/DashboardBidangView';
 import DashboardTmbView from './components/DashboardTmbView';
+import InputCapaianPKView from './components/InputCapaianPKView';
 import { 
   fetchCollection, 
   fetchDocument, 
@@ -31,7 +32,8 @@ import {
   GitFork,
   Handshake,
   Share2,
-  Cpu
+  Cpu,
+  Calendar
 } from 'lucide-react';
 
 // Reusable clean SVG vector signature data-urls for preloaded employees
@@ -673,7 +675,7 @@ const recalculateCascade = (
 };
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'kepegawaian' | 'aplikasi' | 'pk' | 'lpu' | 'pemberitaan' | 'tmb'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'kepegawaian' | 'aplikasi' | 'pk' | 'lpu' | 'pemberitaan' | 'tmb' | 'input-capaian-pk'>('dashboard');
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(true);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isSyncing, setIsSyncing] = useState(true);
@@ -1215,6 +1217,21 @@ export default function App() {
             </button>
           )}
 
+          {/* Input Capaian PK (Superadmin, Kepala, or Ketua Bidang) */}
+          {(currentUser.role === 'Superadmin' || currentUser.role === 'Kepala' || currentUser.role === 'Ketua Bidang') && (
+            <button
+              onClick={() => setActiveTab('input-capaian-pk')}
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-semibold tracking-wide transition-all ${
+                activeTab === 'input-capaian-pk' 
+                  ? 'bg-indigo-600 text-white shadow-xs shadow-indigo-600/25' 
+                  : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
+              }`}
+            >
+              <Calendar className="w-4 h-4" />
+              Input Capaian PK
+            </button>
+          )}
+
           {/* Kerjasama & PNBP (LPU) (Kepala or Layanan Pengembangan Usaha) */}
           {currentUser.role !== 'Kepala' && (currentUser.role === 'Kepala' || currentUser.division === 'Layanan Pengembangan Usaha') && (
             <button
@@ -1353,6 +1370,19 @@ export default function App() {
             >
               <GitFork className="w-4 h-4" />
               Perjanjian Kinerja (PK)
+            </button>
+          )}
+
+          {/* Input Capaian PK (Superadmin, Kepala, or Ketua Bidang) */}
+          {(currentUser.role === 'Superadmin' || currentUser.role === 'Kepala' || currentUser.role === 'Ketua Bidang') && (
+            <button
+              onClick={() => { setActiveTab('input-capaian-pk'); setIsMobileMenuOpen(false); }}
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-semibold tracking-wide transition-colors ${
+                activeTab === 'input-capaian-pk' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:bg-slate-800'
+              }`}
+            >
+              <Calendar className="w-4 h-4" />
+              Input Capaian PK
             </button>
           )}
 
@@ -1536,6 +1566,18 @@ export default function App() {
               employees={employees}
               agreements={agreements}
               onUpdateAgreements={handleUpdateAgreements}
+            />
+          )}
+
+          {activeTab === 'input-capaian-pk' && (
+            <InputCapaianPKView
+              currentUser={currentUser}
+              employees={employees}
+              agreements={agreements}
+              identity={identity}
+              settings={settings}
+              onUpdateAgreements={handleUpdateAgreements}
+              onAddNotification={addNotification}
             />
           )}
         </div>
