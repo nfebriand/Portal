@@ -300,13 +300,14 @@ export default function AppAdminView({
           return undefined;
         };
 
-        const judul = getVal(['judul', 'title', 'nama', 'headline', 'name']) || '';
-        const link = getVal(['link', 'url', 'eviden', 'linkeviden', 'website']) || '';
-        const pembuat = getVal(['pembuat', 'reporter', 'creator', 'writer', 'penulis', 'penyiar']) || '';
-        const kategoriRaw = getVal(['kategori', 'category', 'type', 'jenis']) || 'teks';
+        const judul = getVal(['judul berita', 'judul_berita', 'judul', 'title', 'nama', 'headline', 'name']) || '';
+        const link = getVal(['url', 'link', 'eviden', 'linkeviden', 'website']) || '';
+        const pembuat = getVal(['penulis', 'pembuat', 'reporter', 'creator', 'writer', 'penyiar', 'author']) || '';
+        const kategoriRaw = getVal(['kategori', 'category', 'type', 'jenis']) || 'online';
         const kategori = String(kategoriRaw).toLowerCase().trim();
-        const publishStr = getVal(['tgl_jam_publish', 'tgl jampublish', 'publishdatetime', 'publish_date', 'date', 'tanggal', 'publish', 'tgl']) || new Date().toISOString();
+        const publishStr = getVal(['waktu publish', 'waktu_publish', 'waktupublish', 'tgl_jam_publish', 'tgl jampublish', 'publishdatetime', 'publish_date', 'date', 'tanggal', 'publish', 'tgl']) || new Date().toISOString();
         const editor = getVal(['editor', 'reviewer', 'pemeriksa']) || '';
+        const daerah = getVal(['daerah', 'region', 'lokasi', 'location', 'kota', 'city', 'wilayah']) || '';
 
         if (!judul) {
           throw new Error(`Baris ke-${idx + 1} tidak memiliki judul.`);
@@ -353,9 +354,14 @@ export default function AppAdminView({
           // ignore
         }
 
-        const reportType = (kategori === 'sosmed' || kategori === 'social' || kategori === 'sosial media' || kategori === 'media sosial') 
-          ? 'Konten Media Sosial' 
-          : 'Berita';
+        let reportType: 'Berita Ringan' | 'Berita Radio' | 'Berita Online' = 'Berita Online';
+        if (kategori.includes('ringan')) {
+          reportType = 'Berita Ringan';
+        } else if (kategori.includes('radio') || kategori.includes('siaran')) {
+          reportType = 'Berita Radio';
+        } else {
+          reportType = 'Berita Online';
+        }
 
         return {
           id: `rep-imported-${Date.now()}-${idx}-${Math.floor(Math.random() * 1000)}`,
@@ -368,7 +374,8 @@ export default function AppAdminView({
           category: ['teks', 'radio', 'adlibs', 'feature', 'podcast', 'sosmed'].includes(kategori) ? kategori : 'teks',
           publishDateTime: String(publishStr),
           reporterName: matchedReporter ? matchedReporter.nama : String(pembuat),
-          editorName: matchedEditor ? matchedEditor.nama : String(editor)
+          editorName: matchedEditor ? matchedEditor.nama : String(editor),
+          daerah: String(daerah)
         };
       });
 
@@ -1251,6 +1258,7 @@ export default function AppAdminView({
                           <th className="px-3 py-2 text-center">Kategori</th>
                           <th className="px-3 py-2">Pembuat (Reporter)</th>
                           <th className="px-3 py-2">Editor Penerima</th>
+                          <th className="px-3 py-2">Daerah</th>
                           <th className="px-3 py-2">Tanggal Publish</th>
                         </tr>
                       </thead>
@@ -1269,14 +1277,19 @@ export default function AppAdminView({
                                   {item.category === 'sosmed' && <Share2 className="w-3.5 h-3.5 text-purple-500 shrink-0" />}
                                   <span className="font-semibold text-slate-800 line-clamp-1">{item.title}</span>
                                 </div>
-                                <a 
-                                  href={item.url} 
-                                  target="_blank" 
-                                  rel="noopener noreferrer" 
-                                  className="text-[10px] text-indigo-500 hover:underline block truncate max-w-[240px]"
-                                >
-                                  {item.url}
-                                </a>
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <a 
+                                    href={item.url} 
+                                    target="_blank" 
+                                    rel="noopener noreferrer" 
+                                    className="text-[10px] text-indigo-500 hover:underline block truncate max-w-[200px]"
+                                  >
+                                    {item.url}
+                                  </a>
+                                  {item.daerah && (
+                                    <span className="text-[9px] bg-slate-100 text-slate-600 px-1 py-0.2 rounded font-bold shrink-0">📍 {item.daerah}</span>
+                                  )}
+                                </div>
                               </td>
                               <td className="px-3 py-2 text-center">
                                 <span className={`inline-block text-[9px] font-black px-1.5 py-0.5 rounded-full uppercase tracking-wider ${
@@ -1302,6 +1315,9 @@ export default function AppAdminView({
                               </td>
                               <td className="px-3 py-2">
                                 <span className="font-semibold text-slate-600 text-[11px]">{item.editorName || '-'}</span>
+                              </td>
+                              <td className="px-3 py-2 font-semibold text-slate-700 text-[11px]">
+                                {item.daerah || '-'}
                               </td>
                               <td className="px-3 py-2">
                                 <span className="text-[10px] font-mono text-slate-500 block">{item.publishDateTime}</span>

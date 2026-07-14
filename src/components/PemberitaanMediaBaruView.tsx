@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef } from 'react';
 import { 
   FileText, 
   Link2, 
@@ -20,10 +20,18 @@ import {
   Check,
   ChevronRight,
   Filter,
-  Radio
+  Radio,
+  Upload,
+  Download,
+  AlertCircle,
+  UserCheck,
+  RefreshCw,
+  FileSpreadsheet,
+  Clock
 } from 'lucide-react';
 import { Employee, PerformanceAgreement, ReporterTarget, NewsReport } from '../types';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Cell, Legend } from 'recharts';
+import * as XLSX from 'xlsx';
 
 interface PemberitaanMediaBaruViewProps {
   employees: Employee[];
@@ -76,6 +84,321 @@ export default function PemberitaanMediaBaruView({
   const [reportType, setReportType] = useState<'Berita Ringan' | 'Berita Radio' | 'Berita Online'>('Berita Ringan');
   const [reportDate, setReportDate] = useState(new Date().toISOString().split('T')[0]);
   const [reportEditorId, setReportEditorId] = useState('');
+  const [reportDaerah, setReportDaerah] = useState('');
+
+  // News Import states
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+  const [importActiveTab, setImportActiveTab] = useState<'upload' | 'paste'>('upload');
+  const [isNewsDragging, setIsNewsDragging] = useState(false);
+  const [isImportingNews, setIsImportingNews] = useState(false);
+  const [importError, setImportError] = useState<string | null>(null);
+  const [importSuccess, setImportSuccess] = useState<string | null>(null);
+  const [parsedNews, setParsedNews] = useState<NewsReport[]>([]);
+  const [newsImportText, setNewsImportText] = useState('');
+  const newsFileInputRef = useRef<HTMLInputElement>(null);
+
+  // Drag and drop event handlers
+  const handleNewsDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsNewsDragging(true);
+  };
+
+  const handleNewsDragLeave = () => {
+    setIsNewsDragging(false);
+  };
+
+  const handleNewsDrop = async (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsNewsDragging(false);
+    if (isImportingNews) return;
+
+    const files = e.dataTransfer.files;
+    if (files && files.length > 0) {
+      await processNewsFile(files[0]);
+    }
+  };
+
+  const handleNewsFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (isImportingNews) return;
+    const files = e.target.files;
+    if (files && files.length > 0) {
+      await processNewsFile(files[0]);
+    }
+    if (newsFileInputRef.current) {
+      newsFileInputRef.current.value = '';
+    }
+  };
+
+  const processNewsFile = (file: File) => {
+    const isJson = file.name.endsWith('.json') || file.type === 'application/json';
+    const isCsv = file.name.endsWith('.csv') || file.type === 'text/csv' || file.type === 'application/vnd.ms-excel';
+    const isExcel = file.name.endsWith('.xlsx') || file.name.endsWith('.xls') || file.type === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+
+    if (!isJson && !isCsv && !isExcel) {
+      setImportError("Format file tidak didukung. Harap unggah file .json, .csv, atau .xlsx/.xls Excel.");
+      setParsedNews([]);
+      return;
+    }
+
+    setIsImportingNews(true);
+    setImportError(null);
+    setImportSuccess(null);
+
+    const reader = new FileReader();
+
+    if (isExcel) {
+      reader.onload = async (event) => {
+        try {
+          const arrayBuffer = event.target?.result as ArrayBuffer;
+          const data = new Uint8Array(arrayBuffer);
+          const workbook = XLSX.read(data, { type: 'array' });
+          const firstSheetName = workbook.SheetNames[0];
+          const worksheet = workbook.Sheets[firstSheetName];
+          const jsonData = XLSX.utils.sheet_to_json(worksheet);
+          
+          parseNewsData(jsonData, 'array');
+        } catch (err: any) {
+          setImportError("Gagal memproses file Excel: " + (err.message || err));
+        } finally {
+          setIsImportingNews(false);
+        }
+      };
+      reader.onerror = () => {
+        setImportError("Gagal membaca file.");
+        setIsImportingNews(false);
+      };
+      reader.readAsArrayBuffer(file);
+    } else {
+      reader.onload = async (event) => {
+        try {
+          const text = event.target?.result as string;
+          parseNewsData(text, isJson ? 'json' : 'csv');
+        } catch (err: any) {
+          setImportError("Gagal memproses file: " + (err.message || err));
+        } finally {
+          setIsImportingNews(false);
+        }
+      };
+      reader.onerror = () => {
+        setImportError("Gagal membaca file.");
+        setIsImportingNews(false);
+      };
+      reader.readAsText(file);
+    }
+  };
+
+  const parseNewsData = (inputData: string | any[], format: 'json' | 'csv' | 'array') => {
+    try {
+      setImportError(null);
+      setImportSuccess(null);
+      let items: any[] = [];
+
+      if (format === 'array') {
+        items = inputData as any[];
+      } else if (format === 'json') {
+        const parsed = JSON.parse(inputData as string);
+        items = Array.isArray(parsed) ? parsed : (parsed.data || parsed.reports || []);
+        if (!Array.isArray(items)) {
+          throw new Error("JSON harus berupa array data berita");
+        }
+      } else {
+        // CSV / TSV Parsing
+        const rawText = inputData as string;
+        const lines = rawText.split('\n').map(line => line.trim()).filter(line => line.length > 0);
+        if (lines.length < 2) {
+          throw new Error("CSV/TSV harus memiliki baris header dan minimal satu baris data");
+        }
+
+        let delimiter = ',';
+        if (lines[0].includes('\t')) {
+          delimiter = '\t';
+        } else if (lines[0].includes(';')) {
+          delimiter = ';';
+        }
+
+        const headers = lines[0].split(delimiter).map(h => h.trim().replace(/^["']|["']$/g, '').toLowerCase());
+
+        for (let i = 1; i < lines.length; i++) {
+          const row = lines[i].split(delimiter).map(cell => cell.trim().replace(/^["']|["']$/g, ''));
+          if (row.length === 0 || (row.length === 1 && row[0] === '')) continue;
+
+          const item: any = {};
+          headers.forEach((header, index) => {
+            if (index < row.length) {
+              item[header] = row[index];
+            }
+          });
+          items.push(item);
+        }
+      }
+
+      if (items.length === 0) {
+        throw new Error("Tidak ada data berita yang berhasil diuraikan.");
+      }
+
+      const normalized: NewsReport[] = items.map((item, idx) => {
+        const getVal = (keys: string[]) => {
+          for (const key of keys) {
+            const foundKey = Object.keys(item).find(k => k.toLowerCase().replace(/[\s_-]/g, '') === key.toLowerCase().replace(/[\s_-]/g, ''));
+            if (foundKey) return item[foundKey];
+          }
+          return undefined;
+        };
+
+        const judul = getVal(['judul berita', 'judul_berita', 'judul', 'title', 'nama', 'headline', 'name']) || '';
+        const link = getVal(['url', 'link', 'eviden', 'linkeviden', 'website']) || '';
+        const pembuat = getVal(['penulis', 'pembuat', 'reporter', 'creator', 'writer', 'penyiar', 'author']) || '';
+        const kategoriRaw = getVal(['kategori', 'category', 'type', 'jenis']) || 'online';
+        const kategori = String(kategoriRaw).toLowerCase().trim();
+        const publishStr = getVal(['waktu publish', 'waktu_publish', 'waktupublish', 'tgl_jam_publish', 'tgl jampublish', 'publishdatetime', 'publish_date', 'date', 'tanggal', 'publish', 'tgl']) || new Date().toISOString();
+        const editor = getVal(['editor', 'reviewer', 'pemeriksa']) || '';
+        const daerah = getVal(['daerah', 'region', 'lokasi', 'location', 'kota', 'city', 'wilayah']) || '';
+
+        if (!judul) {
+          throw new Error(`Baris ke-${idx + 1} tidak memiliki judul.`);
+        }
+
+        let reporterId = '';
+        let matchedReporter = employees.find(emp => 
+          emp.nip === pembuat || 
+          emp.nama.toLowerCase().trim() === String(pembuat).toLowerCase().trim() ||
+          emp.nama.toLowerCase().includes(String(pembuat).toLowerCase()) || 
+          String(pembuat).toLowerCase().includes(emp.nama.toLowerCase())
+        );
+
+        if (matchedReporter) {
+          reporterId = matchedReporter.id;
+        } else {
+          const defaultRep = employees.find(emp => emp.divisi === 'Pemberitaan' || emp.divisi === 'Konten Media Baru');
+          reporterId = defaultRep ? defaultRep.id : (employees[0]?.id || 'emp-unknown');
+        }
+
+        let matchedEditorId = '';
+        let matchedEditor = employees.find(emp => 
+          (emp.isEditor || emp.role === 'Superadmin' || emp.divisi === 'Tata Usaha / Umum' || emp.role === 'Ketua Bidang') && (
+            emp.nip === editor || 
+            emp.nama.toLowerCase().trim() === String(editor).toLowerCase().trim() ||
+            emp.nama.toLowerCase().includes(String(editor).toLowerCase()) || 
+            String(editor).toLowerCase().includes(emp.nama.toLowerCase())
+          )
+        );
+        if (matchedEditor) {
+          matchedEditorId = matchedEditor.id;
+        }
+
+        let datePart = new Date().toISOString().split('T')[0];
+        try {
+          const d = new Date(publishStr);
+          if (!isNaN(d.getTime())) {
+            datePart = d.toISOString().split('T')[0];
+          }
+        } catch (e) {
+          // ignore
+        }
+
+        let reportType: 'Berita Ringan' | 'Berita Radio' | 'Berita Online' = 'Berita Online';
+        if (kategori.includes('ringan')) {
+          reportType = 'Berita Ringan';
+        } else if (kategori.includes('radio') || kategori.includes('siaran')) {
+          reportType = 'Berita Radio';
+        } else {
+          reportType = 'Berita Online';
+        }
+
+        return {
+          id: `rep-imported-${Date.now()}-${idx}-${Math.floor(Math.random() * 1000)}`,
+          employeeId: reporterId,
+          editorId: matchedEditorId || undefined,
+          title: String(judul),
+          url: String(link),
+          type: reportType,
+          date: datePart,
+          category: ['teks', 'radio', 'adlibs', 'feature', 'podcast', 'sosmed'].includes(kategori) ? kategori : 'teks',
+          publishDateTime: String(publishStr),
+          reporterName: matchedReporter ? matchedReporter.nama : String(pembuat),
+          editorName: matchedEditor ? matchedEditor.nama : String(editor),
+          daerah: String(daerah)
+        };
+      });
+
+      setParsedNews(normalized);
+      setImportSuccess(`Berhasil mengurai ${normalized.length} data berita. Silakan tinjau data di bawah dan klik simpan.`);
+    } catch (err: any) {
+      console.error(err);
+      setImportError(err.message || "Gagal mengurai data. Pastikan format kolom/baris sesuai.");
+      setParsedNews([]);
+    }
+  };
+
+  const handleSaveImportedNews = () => {
+    if (parsedNews.length === 0) return;
+    try {
+      const updatedReports = [...parsedNews, ...newsReports];
+      onUpdateNewsReports(updatedReports);
+      setImportSuccess(`Berhasil menyimpan ${parsedNews.length} data berita ke database RRI Swara!`);
+      setParsedNews([]);
+      setNewsImportText('');
+      setTimeout(() => {
+        setIsImportModalOpen(false);
+        setImportSuccess(null);
+      }, 1500);
+    } catch (error) {
+      console.error(error);
+      setImportError("Gagal menyimpan ke database.");
+    }
+  };
+
+  const downloadSampleTemplate = (type: 'json' | 'csv' | 'xlsx') => {
+    let content = '';
+    let filename = '';
+
+    const sampleData = [
+      {
+        "Judul Berita": "Sosialisasi Digitalisasi Penyiaran Swara FM",
+        "Waktu Publish": "2026-07-06 09:30:00",
+        "Penulis": "Nanda Febriand",
+        "Editor": "Kepala Bidang",
+        "Daerah": "Bandung",
+        "URL": "https://rri.co.id/swara/news/12345"
+      },
+      {
+        "Judul Berita": "Dialog Interaktif Tantangan Radio Publik di Era Podcast",
+        "Waktu Publish": "2026-07-05 15:00:00",
+        "Penulis": "1871102702910002",
+        "Editor": "1871102702910001",
+        "Daerah": "Surakarta",
+        "URL": "https://rri.co.id/swara/radio/9876"
+      }
+    ];
+
+    if (type === 'xlsx') {
+      const worksheet = XLSX.utils.json_to_sheet(sampleData);
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, "Template Laporan");
+      XLSX.writeFile(workbook, "template_import_berita.xlsx");
+      return;
+    }
+
+    if (type === 'json') {
+      content = JSON.stringify(sampleData, null, 2);
+      filename = 'template_import_berita.json';
+    } else {
+      content = "Judul Berita,Waktu Publish,Penulis,Editor,Daerah,URL\n" +
+                "Sosialisasi Digitalisasi Penyiaran Swara FM,2026-07-06 09:30:00,Nanda Febriand,Kepala Bidang,Bandung,https://rri.co.id/swara/news/12345\n" +
+                "Dialog Interaktif Tantangan Radio Publik di Era Podcast,2026-07-05 15:00:00,1871102702910002,1871102702910001,Surakarta,https://rri.co.id/swara/radio/9876";
+      filename = 'template_import_berita.csv';
+    }
+
+    const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
 
   // Sesuai arahan: semua pegawai tanpa melihat divisi/bidangnya dapat membuat berita
   const reporters = useMemo(() => {
@@ -171,7 +494,8 @@ export default function PemberitaanMediaBaruView({
       url: reportUrl,
       type: reportType,
       date: reportDate,
-      editorId: finalEditorId
+      editorId: finalEditorId,
+      daerah: reportDaerah || undefined
     };
 
     const updatedReports = [newReport, ...newsReports];
@@ -183,6 +507,7 @@ export default function PemberitaanMediaBaruView({
     setReportUrl('');
     setReportType('Berita Ringan');
     setReportEditorId('');
+    setReportDaerah('');
   };
 
   const handleDeleteReport = (id: string) => {
@@ -833,18 +1158,33 @@ export default function PemberitaanMediaBaruView({
               </select>
             </div>
 
-            <button
-              onClick={() => {
-                if (reporters.length > 0) {
-                  setReportEmployeeId(reporters[0].id);
-                }
-                setIsReportModalOpen(true);
-              }}
-              className="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs px-3.5 py-2.5 rounded-xl transition-all shadow-xs flex items-center gap-1.5 cursor-pointer ml-auto md:ml-0 shrink-0"
-            >
-              <Plus className="w-4 h-4" />
-              Laporkan Berita Baru
-            </button>
+            <div className="flex flex-wrap gap-2 w-full md:w-auto shrink-0 ml-auto md:ml-0">
+              <button
+                onClick={() => {
+                  setParsedNews([]);
+                  setImportError(null);
+                  setImportSuccess(null);
+                  setIsImportModalOpen(true);
+                }}
+                className="bg-white hover:bg-slate-50 text-indigo-600 border border-indigo-200 font-semibold text-xs px-3.5 py-2.5 rounded-xl transition-all shadow-xs flex items-center gap-1.5 cursor-pointer"
+              >
+                <Upload className="w-4 h-4 text-indigo-500" />
+                Import Berita Online / Radio
+              </button>
+
+              <button
+                onClick={() => {
+                  if (reporters.length > 0) {
+                    setReportEmployeeId(reporters[0].id);
+                  }
+                  setIsReportModalOpen(true);
+                }}
+                className="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs px-3.5 py-2.5 rounded-xl transition-all shadow-xs flex items-center gap-1.5 cursor-pointer shrink-0"
+              >
+                <Plus className="w-4 h-4" />
+                Laporkan Berita Baru
+              </button>
+            </div>
           </div>
 
           {filteredReports.length === 0 ? (
@@ -902,8 +1242,13 @@ export default function PemberitaanMediaBaruView({
                             {rep.type}
                           </span>
                         </td>
-                        <td className="px-5 py-3.5 font-semibold text-slate-800 max-w-sm leading-normal">
-                          {rep.title}
+                        <td className="px-5 py-3.5 font-semibold text-slate-800 max-w-sm leading-normal space-y-1">
+                          <span className="block">{rep.title}</span>
+                          {rep.daerah && (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-slate-100 text-slate-600 rounded-sm text-[9px] font-bold">
+                              📍 {rep.daerah}
+                            </span>
+                          )}
                         </td>
                         <td className="px-5 py-3.5 text-indigo-600 font-medium">
                           <a
@@ -1156,6 +1501,18 @@ export default function PemberitaanMediaBaruView({
                 />
               </div>
 
+              {/* Daerah / Lokasi */}
+              <div className="space-y-1">
+                <label className="text-[10px] font-extrabold text-slate-500 uppercase tracking-wider block">Daerah / Wilayah Liputan</label>
+                <input
+                  type="text"
+                  placeholder="e.g. Bandung, Bandar Lampung, Surakarta, Jakarta"
+                  value={reportDaerah}
+                  onChange={(e) => setReportDaerah(e.target.value)}
+                  className="w-full bg-slate-50 border border-slate-200 focus:bg-white focus:outline-hidden rounded-xl px-3 py-2 text-xs font-semibold text-slate-700"
+                />
+              </div>
+
               {/* Link / URL */}
               <div className="space-y-1">
                 <label className="text-[10px] font-extrabold text-slate-500 uppercase tracking-wider block">Link Eviden Digital (URL Aktif)</label>
@@ -1188,6 +1545,273 @@ export default function PemberitaanMediaBaruView({
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal 3: Import Berita Online / Radio (Wizard) */}
+      {isImportModalOpen && (
+        <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 flex items-center justify-center p-4 animate-in fade-in duration-200">
+          <div className="bg-white rounded-2xl border border-slate-100 w-full max-w-4xl p-6 shadow-2xl space-y-5 animate-in fade-in zoom-in-95 duration-150 max-h-[90vh] overflow-y-auto">
+            <div className="flex justify-between items-center border-b border-slate-50 pb-3">
+              <div className="flex items-center gap-2">
+                <FileSpreadsheet className="w-5 h-5 text-indigo-600" />
+                <div>
+                  <h4 className="text-sm font-black text-slate-800 uppercase tracking-tight">
+                    Wizard Import Data Berita Online & Radio
+                  </h4>
+                  <p className="text-[11px] text-slate-400">Import file hasil export aplikasi berita Anda (Excel, CSV, JSON)</p>
+                </div>
+              </div>
+              <button
+                onClick={() => {
+                  setIsImportModalOpen(false);
+                  setParsedNews([]);
+                  setImportError(null);
+                  setImportSuccess(null);
+                }}
+                className="text-slate-400 hover:text-slate-600 font-extrabold text-sm"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Error and Success Alerts */}
+            {importError && (
+              <div className="p-3 bg-rose-50 border border-rose-100 text-rose-700 rounded-xl text-xs flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 shrink-0" />
+                <span className="font-semibold">{importError}</span>
+              </div>
+            )}
+            {importSuccess && (
+              <div className="p-3 bg-emerald-50 border border-emerald-100 text-emerald-700 rounded-xl text-xs flex items-center gap-2">
+                <CheckCircle2 className="w-4 h-4 shrink-0" />
+                <span className="font-semibold">{importSuccess}</span>
+              </div>
+            )}
+
+            {/* Wizard Tabs */}
+            <div className="flex border-b border-slate-100 space-x-4">
+              <button
+                onClick={() => setImportActiveTab('upload')}
+                className={`pb-2 text-xs font-bold transition-all relative ${
+                  importActiveTab === 'upload' ? 'text-indigo-600 border-b-2 border-indigo-600' : 'text-slate-400 hover:text-slate-600'
+                }`}
+              >
+                Unggah File Laporan
+              </button>
+              <button
+                onClick={() => setImportActiveTab('paste')}
+                className={`pb-2 text-xs font-bold transition-all relative ${
+                  importActiveTab === 'paste' ? 'text-indigo-600 border-b-2 border-indigo-600' : 'text-slate-400 hover:text-slate-600'
+                }`}
+              >
+                Tempel Data JSON / Text
+              </button>
+            </div>
+
+            {/* Tab 1: Upload Dropzone */}
+            {importActiveTab === 'upload' && (
+              <div className="space-y-4">
+                <div
+                  onDragOver={handleNewsDragOver}
+                  onDragLeave={handleNewsDragLeave}
+                  onDrop={handleNewsDrop}
+                  className={`border-2 border-dashed rounded-2xl p-8 text-center transition-all cursor-pointer flex flex-col items-center justify-center space-y-3 ${
+                    isNewsDragging 
+                      ? 'border-indigo-500 bg-indigo-50/50 scale-[0.99]' 
+                      : 'border-slate-200 bg-slate-50/50 hover:bg-slate-50'
+                  }`}
+                  onClick={() => newsFileInputRef.current?.click()}
+                >
+                  <input
+                    type="file"
+                    ref={newsFileInputRef}
+                    onChange={handleNewsFileChange}
+                    accept=".xlsx,.xls,.csv,.json"
+                    className="hidden"
+                  />
+                  <div className="p-4 bg-white rounded-full shadow-xs border border-slate-100 text-indigo-500">
+                    <Upload className="w-6 h-6 animate-pulse" />
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-xs font-bold text-slate-700">Tarik & Lepas file di sini, atau klik untuk memilih</p>
+                    <p className="text-[10px] text-slate-400">Mendukung file Excel (.xlsx, .xls), CSV (.csv), atau JSON (.json)</p>
+                  </div>
+                </div>
+
+                {/* Templates download helper */}
+                <div className="bg-indigo-50/40 border border-indigo-100/50 rounded-xl p-3 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+                  <div className="space-y-0.5">
+                    <p className="text-[11px] font-bold text-indigo-900">Belum memiliki file laporan?</p>
+                    <p className="text-[10px] text-indigo-700">Unduh salah satu template standar kolom berita di bawah ini:</p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => downloadSampleTemplate('xlsx')}
+                      className="bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 text-[10px] font-bold px-2.5 py-1.5 rounded-lg flex items-center gap-1 transition-all cursor-pointer"
+                    >
+                      <Download className="w-3 h-3" /> Excel (.xlsx)
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => downloadSampleTemplate('csv')}
+                      className="bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 text-[10px] font-bold px-2.5 py-1.5 rounded-lg flex items-center gap-1 transition-all cursor-pointer"
+                    >
+                      <Download className="w-3 h-3" /> CSV (.csv)
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => downloadSampleTemplate('json')}
+                      className="bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 text-[10px] font-bold px-2.5 py-1.5 rounded-lg flex items-center gap-1 transition-all cursor-pointer"
+                    >
+                      <Download className="w-3 h-3" /> JSON
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Tab 2: Paste Area */}
+            {importActiveTab === 'paste' && (
+              <div className="space-y-2">
+                <label className="text-[10px] font-extrabold text-slate-500 uppercase tracking-wider block">Tempel data terformat JSON berita di bawah</label>
+                <textarea
+                  value={newsImportText}
+                  onChange={(e) => setNewsImportText(e.target.value)}
+                  placeholder={`[\n  {\n    "Judul Berita": "Dialog Digitalisasi RRI",\n    "Waktu Publish": "2026-07-06 10:00:00",\n    "Penulis": "NIP_ATAU_NAMA_STAFF",\n    "Editor": "NIP_ATAU_NAMA_EDITOR",\n    "Daerah": "Bandung",\n    "URL": "https://rri.co.id/swara/news/1"\n  }\n]`}
+                  rows={8}
+                  className="w-full bg-slate-50 border border-slate-200 focus:bg-white focus:outline-hidden rounded-xl p-3 text-xs font-mono text-slate-700"
+                />
+                <button
+                  type="button"
+                  onClick={() => parseNewsData(newsImportText, 'json')}
+                  disabled={!newsImportText.trim()}
+                  className="w-full bg-slate-800 hover:bg-slate-900 disabled:opacity-50 text-white text-xs font-bold py-2 rounded-xl transition-all cursor-pointer"
+                >
+                  Proses Data Tempel
+                </button>
+              </div>
+            )}
+
+            {/* Preview Parsed Data */}
+            {parsedNews.length > 0 && (
+              <div className="space-y-3 pt-3 border-t border-slate-100">
+                <h5 className="text-[10px] font-extrabold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
+                  <UserCheck className="w-3.5 h-3.5 text-indigo-500" />
+                  Pratinjau Data yang Siap Di-import ({parsedNews.length} Berita)
+                </h5>
+
+                <div className="overflow-x-auto max-h-60 border border-slate-100 rounded-xl">
+                  <table className="w-full text-left text-[11px] text-slate-600 divide-y divide-slate-100">
+                    <thead>
+                      <tr className="bg-slate-50 text-[9px] font-bold text-slate-500 uppercase tracking-wider">
+                        <th className="px-4 py-2">Kategori</th>
+                        <th className="px-4 py-2">Judul Berita</th>
+                        <th className="px-4 py-2">Waktu Terbit</th>
+                        <th className="px-4 py-2">Penulis (Staff)</th>
+                        <th className="px-4 py-2">Editor (Verifikator)</th>
+                        <th className="px-4 py-2">Daerah</th>
+                        <th className="px-4 py-2">URL</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 font-sans">
+                      {parsedNews.map((news, idx) => {
+                        const matchedReporter = employees.find(e => e.id === news.employeeId);
+                        const matchedEditor = employees.find(e => e.id === news.editorId);
+                        return (
+                          <tr key={idx} className="hover:bg-slate-50/50">
+                            <td className="px-4 py-2 shrink-0">
+                              <span className={`px-2 py-0.5 rounded-full text-[8px] font-bold uppercase ${
+                                news.type === 'Berita Ringan' 
+                                  ? 'bg-amber-50 text-amber-700 border border-amber-100' 
+                                  : news.type === 'Berita Radio' 
+                                  ? 'bg-sky-50 text-sky-700 border border-sky-100' 
+                                  : 'bg-emerald-50 text-emerald-700 border border-emerald-100'
+                              }`}>
+                                {news.type}
+                              </span>
+                            </td>
+                            <td className="px-4 py-2 font-semibold text-slate-800 max-w-xs truncate" title={news.title}>
+                              {news.title}
+                            </td>
+                            <td className="px-4 py-2 font-mono text-[9px] text-slate-500 whitespace-nowrap">
+                              {news.publishDateTime || news.date}
+                            </td>
+                            <td className="px-4 py-2">
+                              {matchedReporter ? (
+                                <div className="space-y-0.5">
+                                  <div className="font-bold text-slate-700 leading-none">{matchedReporter.nama}</div>
+                                  <div className="text-[9px] text-slate-400 font-mono scale-90 origin-left">{matchedReporter.nip}</div>
+                                </div>
+                              ) : (
+                                <div className="text-slate-500 font-semibold">{news.reporterName || 'Default Reporter'}</div>
+                              )}
+                            </td>
+                            <td className="px-4 py-2">
+                              {matchedEditor ? (
+                                <div className="space-y-0.5">
+                                  <div className="font-bold text-slate-700 leading-none">{matchedEditor.nama}</div>
+                                  <div className="text-[9px] text-slate-400 font-mono scale-90 origin-left">{matchedEditor.nip}</div>
+                                </div>
+                              ) : (
+                                <div className="text-slate-400 italic">{news.editorName || '-'}</div>
+                              )}
+                            </td>
+                            <td className="px-4 py-2 font-bold text-slate-600">
+                              {news.daerah ? `📍 ${news.daerah}` : '-'}
+                            </td>
+                            <td className="px-4 py-2 text-indigo-500 font-mono truncate max-w-xs" title={news.url}>
+                              <a href={news.url} target="_blank" rel="noopener noreferrer" className="hover:underline">
+                                {news.url}
+                              </a>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+
+                <div className="flex justify-end gap-2.5 pt-3">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setParsedNews([]);
+                      setImportError(null);
+                      setImportSuccess(null);
+                    }}
+                    className="px-4 py-2 border border-slate-200 text-slate-600 font-semibold text-xs rounded-xl hover:bg-slate-50 cursor-pointer"
+                  >
+                    Reset Urut
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleSaveImportedNews}
+                    className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs rounded-xl shadow-xs flex items-center gap-1.5 cursor-pointer"
+                  >
+                    <Check className="w-4 h-4" />
+                    Simpan & Daftarkan ke Database RRI Swara ({parsedNews.length} Berita)
+                  </button>
+                </div>
+              </div>
+            )}
+
+            <div className="flex justify-end gap-2 border-t border-slate-50 pt-3">
+              <button
+                type="button"
+                onClick={() => {
+                  setIsImportModalOpen(false);
+                  setParsedNews([]);
+                  setImportError(null);
+                  setImportSuccess(null);
+                }}
+                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl transition-all cursor-pointer"
+              >
+                Tutup Wizard
+              </button>
+            </div>
           </div>
         </div>
       )}

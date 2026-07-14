@@ -128,6 +128,7 @@ export interface NewsReport {
   publishDateTime?: string; // tgl jam publish
   reporterName?: string; // nama pembuat
   editorName?: string; // nama editor
+  daerah?: string; // daerah berita
 }
 
 

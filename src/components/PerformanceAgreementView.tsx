@@ -805,9 +805,18 @@ export default function PerformanceAgreementView({
               } else {
                 annualAchievement = currentAchievements.reduce((sum, v) => sum + v, 0);
               }
+
+              let updatedTrajectory = o.trajectory;
+              if (type === 'constant') {
+                const numMatch = o.target.match(/([\d\.,]+)/);
+                const targetNum = numMatch ? parseFloat(numMatch[1].replace(/,/g, '')) : 0;
+                updatedTrajectory = Array(12).fill(targetNum);
+              }
+
               return { 
                 ...o, 
                 trajectoryType: type,
+                trajectory: updatedTrajectory,
                 achievement: Math.round(annualAchievement * 10) / 10
               };
             }

@@ -39,6 +39,164 @@ interface DashboardViewProps {
 
 type TrendMetric = 'rating' | 'efficiency' | 'listener';
 
+const INDONESIAN_MONTHS = [
+  'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
+  'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
+];
+
+interface ObjectivePerformanceResult {
+  targetVal: number;
+  targetStr: string;
+  achievement: number;
+  percentage: number;
+}
+
+function calculateObjectivePerformance(
+  obj: any,
+  period: string,
+  selectedMonthIndex: number
+): ObjectivePerformanceResult {
+  const isUsingTrajectory = Array.isArray(obj.trajectory) && obj.trajectory.length === 12;
+
+  // 1. Get active months indices
+  let activeMonths: number[] = [];
+  switch (period) {
+    case 'Semester 1':
+      activeMonths = [0, 1, 2, 3, 4, 5];
+      break;
+    case 'Semester 2':
+      activeMonths = [6, 7, 8, 9, 10, 11];
+      break;
+    case 'Triwulan 1':
+      activeMonths = [0, 1, 2];
+      break;
+    case 'Triwulan 2':
+      activeMonths = [3, 4, 5];
+      break;
+    case 'Triwulan 3':
+      activeMonths = [6, 7, 8];
+      break;
+    case 'Triwulan 4':
+      activeMonths = [9, 10, 11];
+      break;
+    case 'Bulanan':
+      activeMonths = [selectedMonthIndex];
+      break;
+    case 'Tahunan':
+    default:
+      activeMonths = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11];
+      break;
+  }
+
+  const numMatch = obj.target.match(/([\d\.,]+)/);
+  const baseTargetVal = numMatch ? parseFloat(numMatch[1].replace(/,/g, '')) : 100;
+  const nonNumPart = obj.target.replace(/[\d\.,]+/g, '').trim();
+
+  let targetVal = baseTargetVal;
+  let achievement = obj.achievement;
+
+  if (isUsingTrajectory) {
+    const type = obj.trajectoryType || (obj.unit === '%' || obj.indicatorName.toLowerCase().includes('ikpa') || obj.indicatorName.toLowerCase().includes('nilai') ? 'constant' : 'cumulative');
+
+    if (type === 'constant') {
+      // Target is average of the active months
+      const sumTargets = activeMonths.reduce((sum, idx) => sum + (obj.trajectory?.[idx] ?? 0), 0);
+      targetVal = sumTargets / activeMonths.length;
+
+      if (Array.isArray(obj.monthlyAchievements) && obj.monthlyAchievements.length === 12) {
+        const sumAch = activeMonths.reduce((sum, idx) => sum + (obj.monthlyAchievements?.[idx] ?? 0), 0);
+        achievement = sumAch / activeMonths.length;
+      }
+    } else {
+      // Cumulative: Target is sum of active months
+      targetVal = activeMonths.reduce((sum, idx) => sum + (obj.trajectory?.[idx] ?? 0), 0);
+
+      if (Array.isArray(obj.monthlyAchievements) && obj.monthlyAchievements.length === 12) {
+        achievement = activeMonths.reduce((sum, idx) => sum + (obj.monthlyAchievements?.[idx] ?? 0), 0);
+      } else {
+        // Fallback if no monthly achievements: scale proportionally to active months based on trajectory sum
+        const totalTrajectoryTarget = obj.trajectory.reduce((sum, val) => sum + val, 0);
+        if (totalTrajectoryTarget > 0) {
+          const activeTrajectoryTarget = activeMonths.reduce((sum, idx) => sum + (obj.trajectory?.[idx] ?? 0), 0);
+          const ratio = activeTrajectoryTarget / totalTrajectoryTarget;
+          achievement = obj.achievement * ratio;
+        } else {
+          achievement = obj.achievement * (activeMonths.length / 12);
+        }
+      }
+    }
+  } else {
+    // Non-trajectory logic
+    let targetFactor = 1.0;
+    let achievementFactor = 1.0;
+
+    switch (period) {
+      case 'Triwulan 1':
+        targetFactor = 0.25;
+        achievementFactor = 0.22;
+        break;
+      case 'Triwulan 2':
+        targetFactor = 0.50;
+        achievementFactor = 0.45;
+        break;
+      case 'Triwulan 3':
+        targetFactor = 0.75;
+        achievementFactor = 0.68;
+        break;
+      case 'Triwulan 4':
+        targetFactor = 1.0;
+        achievementFactor = 0.95;
+        break;
+      case 'Semester 1':
+        targetFactor = 0.50;
+        achievementFactor = 0.47;
+        break;
+      case 'Semester 2':
+        targetFactor = 1.0;
+        achievementFactor = 0.92;
+        break;
+      case 'Bulanan':
+        const monthNum = selectedMonthIndex + 1;
+        const isConstant = obj.unit === '%' || obj.indicatorName.toLowerCase().includes('ikpa') || obj.indicatorName.toLowerCase().includes('nilai');
+        if (isConstant) {
+          targetFactor = 1.0;
+          achievementFactor = 1.0;
+        } else {
+          targetFactor = monthNum / 12;
+          achievementFactor = (monthNum / 12) * 0.95;
+        }
+        break;
+      case 'Tahunan':
+      default:
+        targetFactor = 1.0;
+        achievementFactor = 1.0;
+        break;
+    }
+
+    targetVal = baseTargetVal * targetFactor;
+    achievement = obj.achievement * achievementFactor;
+
+    // Fallback/direct monthly achievement if monthly achievements are supplied
+    if (period === 'Bulanan' && Array.isArray(obj.monthlyAchievements) && obj.monthlyAchievements.length === 12) {
+      achievement = obj.monthlyAchievements[selectedMonthIndex];
+    }
+  }
+
+  const percentage = targetVal > 0 ? Math.round((achievement / targetVal) * 100) : 0;
+  const clampedPercentage = Math.min(100, Math.max(0, percentage));
+
+  const targetStr = nonNumPart
+    ? `${targetVal.toLocaleString('id-ID', { maximumFractionDigits: 1 })} ${nonNumPart}`
+    : `${targetVal.toLocaleString('id-ID', { maximumFractionDigits: 1 })}`;
+
+  return {
+    targetVal,
+    targetStr,
+    achievement: Math.round(achievement * 10) / 10,
+    percentage: clampedPercentage
+  };
+}
+
 export default function DashboardView({
   employees,
   notifications,
@@ -54,6 +212,7 @@ export default function DashboardView({
   const [selectedDivisionFilter, setSelectedDivisionFilter] = useState<string>('Semua');
   const [selectedKpiDivision, setSelectedKpiDivision] = useState<string>('Pemberitaan');
   const [selectedKpiPeriod, setSelectedKpiPeriod] = useState<string>('Triwulan 4');
+  const [selectedKpiMonth, setSelectedKpiMonth] = useState<number>(new Date().getMonth());
   const [drillDownActive, setDrillDownActive] = useState<boolean>(false);
   const [hoveredDataPoint, setHoveredDataPoint] = useState<{ month: string; value: number } | null>(null);
   const [hoveredDonutSegment, setHoveredDonutSegment] = useState<string | null>(null);
@@ -406,122 +565,29 @@ export default function DashboardView({
       
       let sum = 0;
       div.agreement.objectives.forEach(obj => {
-        const numMatch = obj.target.match(/([\d\.,]+)/);
-        const numValue = numMatch ? parseFloat(numMatch[1].replace(/,/g, '')) : 100;
-        
-        let targetFactor = 1.0;
-        let achievementFactor = 1.0;
-
-        switch (selectedKpiPeriod) {
-          case 'Triwulan 1':
-            targetFactor = 0.25;
-            achievementFactor = 0.22;
-            break;
-          case 'Triwulan 2':
-            targetFactor = 0.50;
-            achievementFactor = 0.45;
-            break;
-          case 'Triwulan 3':
-            targetFactor = 0.75;
-            achievementFactor = 0.68;
-            break;
-          case 'Triwulan 4':
-            targetFactor = 1.0;
-            achievementFactor = 0.95;
-            break;
-          case 'Semester 1':
-            targetFactor = 0.50;
-            achievementFactor = 0.47;
-            break;
-          case 'Semester 2':
-            targetFactor = 1.0;
-            achievementFactor = 0.92;
-            break;
-          case 'Tahunan':
-          default:
-            targetFactor = 1.0;
-            achievementFactor = 1.0;
-            break;
-        }
-
-        const adjustedTargetVal = numValue * targetFactor;
-        const adjustedAchievementVal = obj.achievement * achievementFactor;
-
-        const pct = adjustedTargetVal > 0
-          ? Math.round((adjustedAchievementVal / adjustedTargetVal) * 100)
-          : 0;
-        
-        sum += Math.min(100, Math.max(0, pct));
+        const result = calculateObjectivePerformance(obj, selectedKpiPeriod, selectedKpiMonth);
+        sum += result.percentage;
       });
       
       percentages[div.key] = Math.round(sum / div.agreement.objectives.length);
     });
     
     return percentages;
-  }, [activeDivisionsData, selectedKpiPeriod]);
+  }, [activeDivisionsData, selectedKpiPeriod, selectedKpiMonth]);
 
   // Adjust objectives based on the selected period
   const adjustedObjectives = useMemo(() => {
     if (!selectedDivData || !selectedDivData.agreement) return [];
     return selectedDivData.agreement.objectives.map(obj => {
-      const numMatch = obj.target.match(/([\d\.,]+)/);
-      const numValue = numMatch ? parseFloat(numMatch[1].replace(/,/g, '')) : 100;
-      const nonNumPart = obj.target.replace(/[\d\.,]+/g, '').trim();
-
-      let targetFactor = 1.0;
-      let achievementFactor = 1.0;
-
-      switch (selectedKpiPeriod) {
-        case 'Triwulan 1':
-          targetFactor = 0.25;
-          achievementFactor = 0.22;
-          break;
-        case 'Triwulan 2':
-          targetFactor = 0.50;
-          achievementFactor = 0.45;
-          break;
-        case 'Triwulan 3':
-          targetFactor = 0.75;
-          achievementFactor = 0.68;
-          break;
-        case 'Triwulan 4':
-          targetFactor = 1.0;
-          achievementFactor = 0.95;
-          break;
-        case 'Semester 1':
-          targetFactor = 0.50;
-          achievementFactor = 0.47;
-          break;
-        case 'Semester 2':
-          targetFactor = 1.0;
-          achievementFactor = 0.92;
-          break;
-        case 'Tahunan':
-        default:
-          targetFactor = 1.0;
-          achievementFactor = 1.0;
-          break;
-      }
-
-      const adjustedTargetVal = numValue * targetFactor;
-      const adjustedAchievementVal = obj.achievement * achievementFactor;
-
-      const adjustedTargetStr = nonNumPart
-        ? `${adjustedTargetVal.toLocaleString('id-ID', { maximumFractionDigits: 1 })} ${nonNumPart}`
-        : `${adjustedTargetVal.toLocaleString('id-ID', { maximumFractionDigits: 1 })}`;
-
-      const percentage = adjustedTargetVal > 0
-        ? Math.round((adjustedAchievementVal / adjustedTargetVal) * 100)
-        : 0;
-
+      const result = calculateObjectivePerformance(obj, selectedKpiPeriod, selectedKpiMonth);
       return {
         ...obj,
-        target: adjustedTargetStr,
-        achievement: Math.round(adjustedAchievementVal * 10) / 10,
-        percentage: Math.min(100, Math.max(0, percentage))
+        target: result.targetStr,
+        achievement: result.achievement,
+        percentage: result.percentage
       };
     });
-  }, [selectedDivData, selectedKpiPeriod]);
+  }, [selectedDivData, selectedKpiPeriod, selectedKpiMonth]);
 
   // Average Achievement percentage for adjusted objectives
   const adjustedDivPercentage = useMemo(() => {
@@ -707,20 +773,37 @@ export default function DashboardView({
             )}
 
             {/* Period Filter Control */}
-            <div className="w-48 space-y-1">
-              <select
-                value={selectedKpiPeriod}
-                onChange={(e) => setSelectedKpiPeriod(e.target.value)}
-                className="w-full bg-[#f8fafc] border border-slate-300/80 rounded-lg px-2.5 py-1 text-xs font-bold text-slate-700 focus:ring-1 focus:ring-indigo-500 focus:outline-hidden hover:bg-slate-100 transition-colors cursor-pointer"
-              >
-                <option value="Tahunan">Tahunan (Jan - Des)</option>
-                <option value="Semester 1">Semester 1 (Jan - Jun)</option>
-                <option value="Semester 2">Semester 2 (Jul - Des)</option>
-                <option value="Triwulan 1">Triwulan 1 (Jan - Mar)</option>
-                <option value="Triwulan 2">Triwulan 2 (Apr - Jun)</option>
-                <option value="Triwulan 3">Triwulan 3 (Jul - Sep)</option>
-                <option value="Triwulan 4">Triwulan 4 (Okt - Des)</option>
-              </select>
+            <div className="flex items-center gap-2">
+              <div className="w-44">
+                <select
+                  value={selectedKpiPeriod}
+                  onChange={(e) => setSelectedKpiPeriod(e.target.value)}
+                  className="w-full bg-[#f8fafc] border border-slate-300/80 rounded-lg px-2.5 py-1 text-xs font-bold text-slate-700 focus:ring-1 focus:ring-indigo-500 focus:outline-hidden hover:bg-slate-100 transition-colors cursor-pointer"
+                >
+                  <option value="Tahunan">Tahunan (Jan - Des)</option>
+                  <option value="Semester 1">Semester 1 (Jan - Jun)</option>
+                  <option value="Semester 2">Semester 2 (Jul - Des)</option>
+                  <option value="Triwulan 1">Triwulan 1 (Jan - Mar)</option>
+                  <option value="Triwulan 2">Triwulan 2 (Apr - Jun)</option>
+                  <option value="Triwulan 3">Triwulan 3 (Jul - Sep)</option>
+                  <option value="Triwulan 4">Triwulan 4 (Okt - Des)</option>
+                  <option value="Bulanan">Bulanan</option>
+                </select>
+              </div>
+
+              {selectedKpiPeriod === 'Bulanan' && (
+                <div className="w-36 animate-in fade-in slide-in-from-left-2 duration-150">
+                  <select
+                    value={selectedKpiMonth}
+                    onChange={(e) => setSelectedKpiMonth(parseInt(e.target.value))}
+                    className="w-full bg-[#f8fafc] border border-slate-300/80 rounded-lg px-2.5 py-1 text-xs font-bold text-slate-700 focus:ring-1 focus:ring-indigo-500 focus:outline-hidden hover:bg-slate-100 transition-colors cursor-pointer"
+                  >
+                    {INDONESIAN_MONTHS.map((month, idx) => (
+                      <option key={idx} value={idx}>{month}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -840,14 +923,14 @@ export default function DashboardView({
                   Daftar Ketercapaian Indikator (Level 3)
                 </h4>
                 <span className="text-[10px] text-indigo-600 bg-indigo-50 font-bold font-mono px-2.5 py-1 rounded-md border border-indigo-100">
-                  Periode: {selectedKpiPeriod}
+                  Periode: {selectedKpiPeriod === 'Bulanan' ? `Bulanan (${INDONESIAN_MONTHS[selectedKpiMonth]})` : selectedKpiPeriod}
                 </span>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {adjustedObjectives.length === 0 ? (
                   <div className="text-center py-12 text-sm text-slate-400 italic col-span-full bg-white rounded-2xl border border-dashed border-slate-200">
-                    Belum ada target PK aktif untuk periode {selectedKpiPeriod}
+                    Belum ada target PK aktif untuk periode {selectedKpiPeriod === 'Bulanan' ? `Bulanan (${INDONESIAN_MONTHS[selectedKpiMonth]})` : selectedKpiPeriod}
                   </div>
                 ) : (
                   adjustedObjectives.map((obj, idx) => {
