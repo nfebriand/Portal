@@ -237,7 +237,7 @@ export default function InputCapaianPKView({
     }
 
     const percentage = targetVal > 0 ? Math.round((computedAchievement / targetVal) * 100) : 0;
-    const clampedPercentage = Math.min(100, Math.max(0, percentage));
+    const clampedPercentage = Math.min(120, Math.max(0, percentage));
 
     return {
       type,

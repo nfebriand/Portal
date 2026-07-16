@@ -531,7 +531,7 @@ export default function PemberitaanMediaBaruView({
 
     // Monthly achievement rate against combined targets of active reporters
     const totalMonthlyTarget = reporterTargets.reduce((sum, t) => sum + t.monthlyTarget, 0) || 1; // avoid divide by zero
-    const monthlyPct = Math.min(100, Math.round((totalReports / totalMonthlyTarget) * 100));
+    const monthlyPct = Math.min(120, Math.round((totalReports / totalMonthlyTarget) * 100));
 
     return {
       totalReports,

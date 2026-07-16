@@ -60,7 +60,7 @@ export default function DashboardTmbView({
     objectives.forEach(obj => {
       const targetVal = parseFloat(obj.target) || 100;
       const progress = targetVal > 0 ? (obj.achievement / targetVal) * 100 : 0;
-      sum += Math.min(100, Math.max(0, progress));
+      sum += Math.min(120, Math.max(0, progress));
     });
     return Math.round(sum / objectives.length);
   }, [objectives]);

@@ -30,7 +30,8 @@ import {
   Copy,
   Calculator,
   Table,
-  Save
+  Save,
+  RotateCcw
 } from 'lucide-react';
 import { Employee, InstitutionalIdentity, PerformanceAgreement, PerformanceIndicator, AppSettings, CriticalNotification, NewsReport, CooperationContract, ReporterTarget, IndicatorComment } from '../types';
 import SignaturePad from './SignaturePad';
@@ -829,6 +830,44 @@ export default function PerformanceAgreementView({
     onUpdateAgreements(updated);
   };
 
+  // Handle resetting/cancelling trajectory to restore to original non-trajectory state
+  const handleResetTrajectory = (agreementId: string, indicatorId: string) => {
+    const updated = agreements.map(ag => {
+      if (ag.id === agreementId) {
+        return {
+          ...ag,
+          objectives: ag.objectives.map(o => {
+            if (o.id === indicatorId) {
+              const updatedObj = { ...o };
+              delete updatedObj.trajectory;
+              delete updatedObj.trajectoryType;
+              delete updatedObj.monthlyAchievements;
+              
+              // Also reset achievement to 0 so the cascade or manual input can re-initialize it
+              updatedObj.achievement = 0;
+              
+              return updatedObj;
+            }
+            return o;
+          })
+        };
+      }
+      return ag;
+    });
+    onUpdateAgreements(updated);
+
+    if (onAddNotification) {
+      onAddNotification({
+        id: Math.random().toString(36).substr(2, 9),
+        title: "Trajectory Dibatalkan",
+        message: `Trajectory berhasil dibatalkan dan dikembalikan ke awal.`,
+        type: "info",
+        timestamp: new Date().toISOString(),
+        isRead: false
+      });
+    }
+  };
+
   // Handle updating Level 2 calculation type (automatic from staff vs manual direct entry)
   const handleUpdateCalculationType = (agreementId: string, indicatorId: string, type: 'automatic' | 'manual') => {
     const updated = agreements.map(ag => {
@@ -1598,6 +1637,19 @@ export default function PerformanceAgreementView({
                             >
                               Bagi Rata Target
                             </button>
+                            {node.root.trajectory && (
+                              <button
+                                onClick={() => {
+                                  if (window.confirm("Apakah Anda yakin ingin membatalkan trajectory ini dan mengembalikan capaian kinerja ke awal?")) {
+                                    handleResetTrajectory(node.agreement.id, rootId);
+                                  }
+                                }}
+                                className="text-[9px] font-black text-rose-600 bg-rose-50 hover:bg-rose-100 px-2 py-0.5 rounded border border-rose-200 flex items-center gap-1"
+                                title="Reset/Batalkan Trajectory"
+                              >
+                                <RotateCcw className="w-2.5 h-2.5" /> Batalkan Trajectory
+                              </button>
+                            )}
                           </div>
                         </div>
 
@@ -1885,6 +1937,19 @@ export default function PerformanceAgreementView({
                                         >
                                           Bagi Rata Target
                                         </button>
+                                        {l2.indicator.trajectory && (
+                                          <button
+                                            onClick={() => {
+                                              if (window.confirm("Apakah Anda yakin ingin membatalkan trajectory ini dan mengembalikan capaian kinerja ke awal?")) {
+                                                handleResetTrajectory(l2.agreement.id, l2Id);
+                                              }
+                                            }}
+                                            className="text-[8px] font-black text-rose-600 bg-rose-50 hover:bg-rose-100 px-1.5 py-0.5 rounded border border-rose-200 flex items-center gap-1"
+                                            title="Reset/Batalkan Trajectory"
+                                          >
+                                            <RotateCcw className="w-2.5 h-2.5" /> Batalkan Trajectory
+                                          </button>
+                                        )}
                                       </div>
                                     </div>
 
@@ -2126,6 +2191,19 @@ export default function PerformanceAgreementView({
                                                     >
                                                       Bagi Rata Target
                                                     </button>
+                                                    {l3.indicator.trajectory && (
+                                                      <button
+                                                        onClick={() => {
+                                                          if (window.confirm("Apakah Anda yakin ingin membatalkan trajectory ini dan mengembalikan capaian kinerja ke awal?")) {
+                                                            handleResetTrajectory(l3.agreement.id, l3Id);
+                                                          }
+                                                        }}
+                                                        className="text-[8px] font-black text-rose-600 bg-rose-50 hover:bg-rose-100 px-1.5 py-0.5 rounded border border-rose-200 flex items-center gap-1"
+                                                        title="Reset/Batalkan Trajectory"
+                                                      >
+                                                        <RotateCcw className="w-2.5 h-2.5" /> Batalkan Trajectory
+                                                      </button>
+                                                    )}
                                                   </div>
                                                 </div>
                                                 <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-12 gap-1.5">

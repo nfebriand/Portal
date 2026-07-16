@@ -183,7 +183,7 @@ function calculateObjectivePerformance(
   }
 
   const percentage = targetVal > 0 ? Math.round((achievement / targetVal) * 100) : 0;
-  const clampedPercentage = Math.min(100, Math.max(0, percentage));
+  const clampedPercentage = Math.min(120, Math.max(0, percentage));
 
   const targetStr = nonNumPart
     ? `${targetVal.toLocaleString('id-ID', { maximumFractionDigits: 1 })} ${nonNumPart}`
