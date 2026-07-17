@@ -15,7 +15,16 @@ export const db = initializeFirestore(app, {
   experimentalForceLongPolling: true
 }, "ai-studio-portalkomandorri-c2023b9f-2e21-4774-af1d-619e281c8d21");
 
+const isDev = typeof window !== 'undefined' && window.location && 
+  (window.location.hostname.includes('-dev-') || 
+   window.location.hostname === 'localhost' || 
+   window.location.hostname === '127.0.0.1');
+
 async function testConnection() {
+  if (isDev) {
+    console.log("Firebase Development sandbox active. Skip testConnection in development environment.");
+    return;
+  }
   try {
     await getDocFromServer(doc(db, 'test', 'connection'));
     console.log("Firebase Connection verified successfully.");

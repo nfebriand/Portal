@@ -43,6 +43,9 @@ export async function fetchCollection<T extends { id: string }>(collectionName: 
         console.error("Error parsing local dev collection:", e);
       }
     }
+    // If local sandbox is empty, seed it with fallbackData and return it immediately
+    localStorage.setItem(`dev_firestore_col_${collectionName}`, JSON.stringify(fallbackData));
+    return fallbackData;
   }
 
   try {
@@ -85,6 +88,9 @@ export async function fetchDocument<T>(collectionName: string, docId: string, fa
         console.error("Error parsing local dev document:", e);
       }
     }
+    // If local sandbox is empty, seed it with fallbackData and return it immediately
+    localStorage.setItem(`dev_firestore_doc_${collectionName}_${docId}`, JSON.stringify(fallbackData));
+    return fallbackData;
   }
 
   try {

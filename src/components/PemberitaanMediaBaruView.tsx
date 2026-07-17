@@ -61,11 +61,10 @@ export default function PemberitaanMediaBaruView({
   currentUser
 }: PemberitaanMediaBaruViewProps) {
   // Local active tabs
-  const [activeSubTab, setActiveSubTab] = useState<'dashboard' | 'targets' | 'reports'>('dashboard');
+  const [activeSubTab, setActiveSubTab] = useState<'dashboard' | 'online' | 'ringan' | 'radio' | 'siaran' | 'targets'>('dashboard');
   
   // Search and filter states
   const [reportSearch, setReportSearch] = useState('');
-  const [reportTypeFilter, setReportTypeFilter] = useState<'Semua' | 'Berita Ringan' | 'Berita Radio' | 'Berita Online'>('Semua');
   const [reportEmpFilter, setReportEmpFilter] = useState<string>('Semua');
 
   // Form states - Reporter Target
@@ -81,10 +80,16 @@ export default function PemberitaanMediaBaruView({
   const [reportEmployeeId, setReportEmployeeId] = useState('');
   const [reportTitle, setReportTitle] = useState('');
   const [reportUrl, setReportUrl] = useState('');
-  const [reportType, setReportType] = useState<'Berita Ringan' | 'Berita Radio' | 'Berita Online'>('Berita Ringan');
+  const [reportType, setReportType] = useState<'Berita Online' | 'Berita Ringan LPU' | 'Berita Radio' | 'Konten Siaran'>('Berita Online');
   const [reportDate, setReportDate] = useState(new Date().toISOString().split('T')[0]);
   const [reportEditorId, setReportEditorId] = useState('');
   const [reportDaerah, setReportDaerah] = useState('');
+
+  // Custom extra fields for news categories
+  const [reportCategory, setReportCategory] = useState<string>('Politik');
+  const [reportPrograma, setReportPrograma] = useState<'Programa 1' | 'Programa 2' | 'Programa 3' | 'Programa 4'>('Programa 1');
+  const [reportWriterName, setReportWriterName] = useState<string>('');
+  const [reportEditorName, setReportEditorName] = useState<string>('');
 
   // News Import states
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
@@ -487,6 +492,10 @@ export default function PemberitaanMediaBaruView({
     const selectedReporterTarget = reporterTargets.find(t => t.employeeId === reportEmployeeId);
     const finalEditorId = reportEditorId || selectedReporterTarget?.editorId || undefined;
 
+    // Resolve writer and editor names if not explicitly typed
+    const empObj = employees.find(e => e.id === reportEmployeeId);
+    const editorObj = employees.find(e => e.id === finalEditorId);
+
     const newReport: NewsReport = {
       id: `rep-${Date.now()}`,
       employeeId: reportEmployeeId,
@@ -495,7 +504,11 @@ export default function PemberitaanMediaBaruView({
       type: reportType,
       date: reportDate,
       editorId: finalEditorId,
-      daerah: reportDaerah || undefined
+      daerah: reportDaerah || undefined,
+      category: ['Berita Online', 'Berita Ringan LPU'].includes(reportType) ? (reportCategory || 'Politik') : undefined,
+      programa: ['Berita Radio', 'Konten Siaran'].includes(reportType) ? reportPrograma : undefined,
+      writerName: reportWriterName || empObj?.nama || undefined,
+      editorName: reportEditorName || editorObj?.nama || undefined
     };
 
     const updatedReports = [newReport, ...newsReports];
@@ -505,9 +518,13 @@ export default function PemberitaanMediaBaruView({
     setIsReportModalOpen(false);
     setReportTitle('');
     setReportUrl('');
-    setReportType('Berita Ringan');
+    setReportType('Berita Online');
     setReportEditorId('');
     setReportDaerah('');
+    setReportCategory('Politik');
+    setReportPrograma('Programa 1');
+    setReportWriterName('');
+    setReportEditorName('');
   };
 
   const handleDeleteReport = (id: string) => {
@@ -519,9 +536,10 @@ export default function PemberitaanMediaBaruView({
   // Statistics Computations
   const stats = useMemo(() => {
     const totalReports = newsReports.length;
-    const beritaRinganCount = newsReports.filter(r => r.type === 'Berita Ringan').length;
+    const beritaRinganCount = newsReports.filter(r => r.type === 'Berita Ringan' || r.type === 'Berita Ringan LPU').length;
     const beritaRadioCount = newsReports.filter(r => r.type === 'Berita Radio').length;
     const beritaOnlineCount = newsReports.filter(r => r.type === 'Berita Online').length;
+    const kontenSiaranCount = newsReports.filter(r => r.type === 'Konten Siaran').length;
     
     // Average Daily Production
     // Get unique dates
@@ -538,6 +556,7 @@ export default function PemberitaanMediaBaruView({
       beritaRinganCount,
       beritaRadioCount,
       beritaOnlineCount,
+      kontenSiaranCount,
       avgDaily,
       totalMonthlyTarget,
       monthlyPct
@@ -558,21 +577,35 @@ export default function PemberitaanMediaBaruView({
     });
   }, [reporterTargets, newsReports, employees]);
 
-  // Filtered News/Content Reports
+  // Filtered News/Content Reports based on tab state and search query
   const filteredReports = useMemo(() => {
     return newsReports.filter(rep => {
       const emp = employees.find(e => e.id === rep.employeeId);
       const empName = emp ? emp.nama.toLowerCase() : '';
       const matchSearch = rep.title.toLowerCase().includes(reportSearch.toLowerCase()) || 
-                          rep.url.toLowerCase().includes(reportSearch.toLowerCase()) ||
+                          (rep.url && rep.url.toLowerCase().includes(reportSearch.toLowerCase())) ||
+                          (rep.category && rep.category.toLowerCase().includes(reportSearch.toLowerCase())) ||
+                          (rep.programa && rep.programa.toLowerCase().includes(reportSearch.toLowerCase())) ||
                           empName.includes(reportSearch.toLowerCase());
       
-      const matchType = reportTypeFilter === 'Semua' || rep.type === reportTypeFilter;
+      let matchType = false;
+      if (activeSubTab === 'online') {
+        matchType = rep.type === 'Berita Online';
+      } else if (activeSubTab === 'ringan') {
+        matchType = rep.type === 'Berita Ringan LPU' || rep.type === 'Berita Ringan';
+      } else if (activeSubTab === 'radio') {
+        matchType = rep.type === 'Berita Radio';
+      } else if (activeSubTab === 'siaran') {
+        matchType = rep.type === 'Konten Siaran';
+      } else {
+        matchType = true; // For dashboard and targets, we don't filter reports by type
+      }
+
       const matchEmp = reportEmpFilter === 'Semua' || rep.employeeId === reportEmpFilter;
 
       return matchSearch && matchType && matchEmp;
     });
-  }, [newsReports, reportSearch, reportTypeFilter, reportEmpFilter, employees]);
+  }, [newsReports, reportSearch, activeSubTab, reportEmpFilter, employees]);
 
   // Cascading Path Tracker for Selected Reporter
   const [selectedTrackerEmployeeId, setSelectedTrackerEmployeeId] = useState<string>(reporterTargets[0]?.employeeId || '');
@@ -646,8 +679,8 @@ export default function PemberitaanMediaBaruView({
             <Share2 className="w-6 h-6" />
           </div>
           <div>
-            <h1 className="text-lg font-black text-slate-800 uppercase tracking-tight">Pemberitaan & Media Baru</h1>
-            <p className="text-xs text-slate-500 font-medium">Pengaturan target harian/bulanan reporter, pelaporan eviden digital, dan integrasi berjenjang</p>
+            <h1 className="text-lg font-black text-slate-800 uppercase tracking-tight">Produksi Siaran dan Berita</h1>
+            <p className="text-xs text-slate-500 font-medium">Pengelolaan produksi berita online, berita ringan LPU, siaran berita radio, konten siaran, dan pelacakan trajectory kinerja</p>
           </div>
         </div>
 
@@ -657,40 +690,71 @@ export default function PemberitaanMediaBaruView({
             if (reporters.length > 0) {
               setReportEmployeeId(reporters[0].id);
             }
+            // Set default report type based on current tab
+            if (activeSubTab === 'online') setReportType('Berita Online');
+            else if (activeSubTab === 'ringan') setReportType('Berita Ringan LPU');
+            else if (activeSubTab === 'radio') setReportType('Berita Radio');
+            else if (activeSubTab === 'siaran') setReportType('Konten Siaran');
+            else setReportType('Berita Online');
+            
             setIsReportModalOpen(true);
           }}
           className="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs px-4 py-2.5 rounded-xl transition-all shadow-xs shadow-indigo-600/10 flex items-center gap-2 cursor-pointer"
         >
           <Plus className="w-4 h-4" />
-          Laporkan Konten / Berita
+          Tambah Laporan Produksi
         </button>
       </div>
 
       {/* Sub-tab Navigation */}
-      <div className="flex border-b border-slate-100 space-x-6">
+      <div className="flex flex-wrap border-b border-slate-100 gap-y-2 gap-x-6">
         <button
           onClick={() => setActiveSubTab('dashboard')}
           className={`pb-3 text-xs font-bold transition-all relative ${
-            activeSubTab === 'dashboard' ? 'text-indigo-600 border-b-2 border-indigo-600' : 'text-slate-400 hover:text-slate-600'
+            activeSubTab === 'dashboard' ? 'text-indigo-600 border-b-2 border-indigo-600 font-extrabold' : 'text-slate-400 hover:text-slate-600'
           }`}
         >
           Dashboard & Alur Kinerja
         </button>
         <button
-          onClick={() => setActiveSubTab('targets')}
+          onClick={() => setActiveSubTab('online')}
           className={`pb-3 text-xs font-bold transition-all relative ${
-            activeSubTab === 'targets' ? 'text-indigo-600 border-b-2 border-indigo-600' : 'text-slate-400 hover:text-slate-600'
+            activeSubTab === 'online' ? 'text-indigo-600 border-b-2 border-indigo-600 font-extrabold' : 'text-slate-400 hover:text-slate-600'
           }`}
         >
-          Pengaturan Target Reporter ({reporterTargets.length})
+          Berita Online/KBRN ({stats.beritaOnlineCount})
         </button>
         <button
-          onClick={() => setActiveSubTab('reports')}
+          onClick={() => setActiveSubTab('ringan')}
           className={`pb-3 text-xs font-bold transition-all relative ${
-            activeSubTab === 'reports' ? 'text-indigo-600 border-b-2 border-indigo-600' : 'text-slate-400 hover:text-slate-600'
+            activeSubTab === 'ringan' ? 'text-indigo-600 border-b-2 border-indigo-600 font-extrabold' : 'text-slate-400 hover:text-slate-600'
           }`}
         >
-          Log Laporan Eviden ({newsReports.length})
+          Berita Ringan LPU ({stats.beritaRinganCount})
+        </button>
+        <button
+          onClick={() => setActiveSubTab('radio')}
+          className={`pb-3 text-xs font-bold transition-all relative ${
+            activeSubTab === 'radio' ? 'text-indigo-600 border-b-2 border-indigo-600 font-extrabold' : 'text-slate-400 hover:text-slate-600'
+          }`}
+        >
+          Berita Radio ({stats.beritaRadioCount})
+        </button>
+        <button
+          onClick={() => setActiveSubTab('siaran')}
+          className={`pb-3 text-xs font-bold transition-all relative ${
+            activeSubTab === 'siaran' ? 'text-indigo-600 border-b-2 border-indigo-600 font-extrabold' : 'text-slate-400 hover:text-slate-600'
+          }`}
+        >
+          Konten Siaran ({stats.kontenSiaranCount})
+        </button>
+        <button
+          onClick={() => setActiveSubTab('targets')}
+          className={`pb-3 text-xs font-bold transition-all relative ${
+            activeSubTab === 'targets' ? 'text-indigo-600 border-b-2 border-indigo-600 font-extrabold' : 'text-slate-400 hover:text-slate-600'
+          }`}
+        >
+          Pengaturan Target ({reporterTargets.length})
         </button>
       </div>
 
@@ -701,20 +765,20 @@ export default function PemberitaanMediaBaruView({
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <div className="bg-white border border-slate-100 rounded-2xl p-4 flex items-center justify-between shadow-xs">
               <div className="space-y-1">
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider font-mono">Total Laporan</span>
-                <p className="text-2xl font-black text-slate-800">{stats.totalReports}</p>
-                <div className="text-[10px] text-slate-500 font-medium">Semua kategori berita</div>
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider font-mono">Berita Online/KBRN</span>
+                <p className="text-2xl font-black text-emerald-600">{stats.beritaOnlineCount}</p>
+                <div className="text-[10px] text-slate-500 font-medium">Website CMS RRI</div>
               </div>
-              <div className="p-3 bg-indigo-50 text-indigo-600 rounded-xl">
-                <FileText className="w-5 h-5" />
+              <div className="p-3 bg-emerald-50 text-emerald-600 rounded-xl">
+                <Globe className="w-5 h-5" />
               </div>
             </div>
 
             <div className="bg-white border border-slate-100 rounded-2xl p-4 flex items-center justify-between shadow-xs">
               <div className="space-y-1">
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider font-mono">Berita Ringan</span>
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider font-mono">Berita Ringan LPU</span>
                 <p className="text-2xl font-black text-amber-600">{stats.beritaRinganCount}</p>
-                <div className="text-[10px] text-slate-500 font-medium">Kategori berita ringan</div>
+                <div className="text-[10px] text-slate-500 font-medium">Logbook & daftar LPU</div>
               </div>
               <div className="p-3 bg-amber-50 text-amber-600 rounded-xl">
                 <FileText className="w-5 h-5" />
@@ -725,7 +789,7 @@ export default function PemberitaanMediaBaruView({
               <div className="space-y-1">
                 <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider font-mono">Berita Radio</span>
                 <p className="text-2xl font-black text-sky-600">{stats.beritaRadioCount}</p>
-                <div className="text-[10px] text-slate-500 font-medium">Kategori produksi berita radio</div>
+                <div className="text-[10px] text-slate-500 font-medium">Siaran berita Pro 1/2/3/4</div>
               </div>
               <div className="p-3 bg-sky-50 text-sky-600 rounded-xl">
                 <Radio className="w-5 h-5" />
@@ -734,12 +798,12 @@ export default function PemberitaanMediaBaruView({
 
             <div className="bg-white border border-slate-100 rounded-2xl p-4 flex items-center justify-between shadow-xs">
               <div className="space-y-1">
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider font-mono">Berita Online</span>
-                <p className="text-2xl font-black text-emerald-600">{stats.beritaOnlineCount}</p>
-                <div className="text-[10px] text-slate-500 font-medium">Kategori portal berita online</div>
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider font-mono">Konten Siaran</span>
+                <p className="text-2xl font-black text-indigo-600">{stats.kontenSiaranCount}</p>
+                <div className="text-[10px] text-slate-500 font-medium">Flyer, Podcast, Dialog, dll.</div>
               </div>
-              <div className="p-3 bg-emerald-50 text-emerald-600 rounded-xl">
-                <Globe className="w-5 h-5" />
+              <div className="p-3 bg-indigo-50 text-indigo-600 rounded-xl">
+                <Share2 className="w-5 h-5" />
               </div>
             </div>
           </div>
@@ -1114,8 +1178,8 @@ export default function PemberitaanMediaBaruView({
         </div>
       )}
 
-      {/* Sub-tab 3: Log Laporan Eviden */}
-      {activeSubTab === 'reports' && (
+      {/* Sub-tab 3: Produksi Siaran & Berita Categories (online, ringan, radio, siaran) */}
+      {['online', 'ringan', 'radio', 'siaran'].includes(activeSubTab) && (
         <div className="bg-white border border-slate-100 rounded-2xl p-6 space-y-6 shadow-xs">
           {/* Filters Bar */}
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-slate-100 pb-5">
@@ -1124,24 +1188,16 @@ export default function PemberitaanMediaBaruView({
                 <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
                 <input
                   type="text"
-                  placeholder="Cari judul berita, reporter, atau link..."
+                  placeholder={
+                    activeSubTab === 'online' || activeSubTab === 'ringan'
+                      ? "Cari judul berita, penulis, editor, link..."
+                      : "Cari nama siaran/konten, programa, link..."
+                  }
                   value={reportSearch}
                   onChange={(e) => setReportSearch(e.target.value)}
                   className="bg-slate-50 border border-slate-200 focus:bg-white focus:outline-hidden rounded-xl pl-9 pr-4 py-2 text-xs text-slate-700 w-full sm:w-64"
                 />
               </div>
-
-              {/* Type Filter */}
-              <select
-                value={reportTypeFilter}
-                onChange={(e) => setReportTypeFilter(e.target.value as any)}
-                className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-600 focus:outline-hidden"
-              >
-                <option value="Semua">Semua Kategori</option>
-                <option value="Berita Ringan">Berita Ringan</option>
-                <option value="Berita Radio">Berita Radio</option>
-                <option value="Berita Online">Berita Online</option>
-              </select>
 
               {/* Employee Filter */}
               <select
@@ -1169,7 +1225,7 @@ export default function PemberitaanMediaBaruView({
                 className="bg-white hover:bg-slate-50 text-indigo-600 border border-indigo-200 font-semibold text-xs px-3.5 py-2.5 rounded-xl transition-all shadow-xs flex items-center gap-1.5 cursor-pointer"
               >
                 <Upload className="w-4 h-4 text-indigo-500" />
-                Import Berita Online / Radio
+                Import Berita / Konten
               </button>
 
               <button
@@ -1177,33 +1233,66 @@ export default function PemberitaanMediaBaruView({
                   if (reporters.length > 0) {
                     setReportEmployeeId(reporters[0].id);
                   }
+                  // Pre-set report category type
+                  if (activeSubTab === 'online') setReportType('Berita Online');
+                  else if (activeSubTab === 'ringan') setReportType('Berita Ringan LPU');
+                  else if (activeSubTab === 'radio') setReportType('Berita Radio');
+                  else if (activeSubTab === 'siaran') setReportType('Konten Siaran');
+                  
                   setIsReportModalOpen(true);
                 }}
                 className="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs px-3.5 py-2.5 rounded-xl transition-all shadow-xs flex items-center gap-1.5 cursor-pointer shrink-0"
               >
                 <Plus className="w-4 h-4" />
-                Laporkan Berita Baru
+                Tambah Laporan Baru
               </button>
             </div>
           </div>
 
+          <div className="border-l-4 border-indigo-500 bg-indigo-50/50 p-3.5 rounded-r-xl">
+            <h4 className="text-xs font-bold text-slate-700 capitalize">
+              {activeSubTab === 'online' && "Berita Online/KBRN — Diproduksi di Website CMS RRI (Kategori Berita Berbeda)"}
+              {activeSubTab === 'ringan' && "Berita Ringan LPU — Logbook dan daftar berita yang diproduksi oleh LPU"}
+              {activeSubTab === 'radio' && "Berita Radio — Logbook siaran divisi pemberitaan, arsip siaran (audio teks video)"}
+              {activeSubTab === 'siaran' && "Konten Siaran — Flyer, Dialog, Talkshow, Obrolan, Feature, Podcast, ILM, Drama, Liputan Tematik"}
+            </h4>
+            <p className="text-[11px] text-slate-500 mt-1 leading-normal">
+              {activeSubTab === 'online' && "Menampilkan daftar rilis berita online/KBRN lengkap dengan nama penulis, editor, link portal, dan kategori berita."}
+              {activeSubTab === 'ringan' && "Menampilkan rilis berita non-hotnews (ringan) yang dikerjakan oleh bidang LPU/Pemberitaan."}
+              {activeSubTab === 'radio' && "Mencakup logbook siaran Programa 1, 2, 3, atau 4 dengan tautan rekaman audio, teks, dan video sebagai eviden."}
+              {activeSubTab === 'siaran' && "Daftar siaran non-berita seperti flyer acara, dialog interaktif, podcast, drama radio, dan iklan layanan masyarakat."}
+            </p>
+          </div>
+
           {filteredReports.length === 0 ? (
             <div className="text-center py-20 text-slate-400 text-xs italic">
-              Tidak ada rilis berita atau konten media sosial yang sesuai dengan filter pencarian.
+              Belum ada data laporan untuk kategori ini atau tidak cocok dengan pencarian filter.
             </div>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs text-slate-600 divide-y divide-slate-100">
                 <thead>
-                  <tr className="bg-slate-50/70 text-[10px] font-bold text-slate-500 uppercase tracking-wider">
-                    <th className="px-5 py-3">Tanggal</th>
-                    <th className="px-5 py-3">Nama Reporter</th>
-                    <th className="px-5 py-3">Editor / Pengisi</th>
-                    <th className="px-5 py-3">Jenis Konten</th>
-                    <th className="px-5 py-3">Nama Berita / Judul Konten Sosial Media</th>
-                    <th className="px-5 py-3">Link Eviden Digital</th>
-                    <th className="px-5 py-3 text-right">Aksi</th>
-                  </tr>
+                  {/* Headers for Online / Ringan */}
+                  {(activeSubTab === 'online' || activeSubTab === 'ringan') ? (
+                    <tr className="bg-slate-50/70 text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                      <th className="px-5 py-3">Tanggal Publish</th>
+                      <th className="px-5 py-3">Judul Berita</th>
+                      <th className="px-5 py-3">Penulis (Reporter)</th>
+                      <th className="px-5 py-3">Editor</th>
+                      <th className="px-5 py-3">Kategori Berita</th>
+                      <th className="px-5 py-3">Link</th>
+                      <th className="px-5 py-3 text-right">Aksi</th>
+                    </tr>
+                  ) : (
+                    /* Headers for Radio / Siaran */
+                    <tr className="bg-slate-50/70 text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                      <th className="px-5 py-3">Tanggal</th>
+                      <th className="px-5 py-3">Nama {activeSubTab === 'siaran' ? 'Konten' : 'Berita'}</th>
+                      <th className="px-5 py-3">Programa</th>
+                      <th className="px-5 py-3">Eviden Upload (Link/Foto/File)</th>
+                      <th className="px-5 py-3 text-right">Aksi</th>
+                    </tr>
+                  )}
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {filteredReports.map(rep => {
@@ -1218,50 +1307,63 @@ export default function PemberitaanMediaBaruView({
                         <td className="px-5 py-3.5 font-mono text-[10px] text-slate-500">
                           {rep.date}
                         </td>
-                        <td className="px-5 py-3.5 font-semibold text-slate-700">
-                          {emp ? emp.nama : 'Unknown Reporter'}
-                        </td>
-                        <td className="px-5 py-3.5">
-                          {editorToDisplay ? (
-                            <div className="flex items-center gap-1.5">
-                              <span className="font-semibold text-slate-700">{editorToDisplay.nama}</span>
-                              <span className="text-[9px] bg-slate-100 text-slate-500 px-1 py-0.5 rounded-sm font-mono scale-90">Ed</span>
-                            </div>
-                          ) : (
-                            <span className="text-slate-400 italic text-[11px]">-</span>
-                          )}
-                        </td>
-                        <td className="px-5 py-3.5">
-                          <span className={`px-2.5 py-1 rounded-full text-[8px] font-bold uppercase tracking-wider ${
-                            rep.type === 'Berita Ringan' 
-                              ? 'bg-amber-50 text-amber-700 border border-amber-100' 
-                              : rep.type === 'Berita Radio' 
-                              ? 'bg-sky-50 text-sky-700 border border-sky-100' 
-                              : 'bg-emerald-50 text-emerald-700 border border-emerald-100'
-                          }`}>
-                            {rep.type}
-                          </span>
-                        </td>
-                        <td className="px-5 py-3.5 font-semibold text-slate-800 max-w-sm leading-normal space-y-1">
+                        <td className="px-5 py-3.5 font-semibold text-slate-800 leading-normal max-w-sm">
                           <span className="block">{rep.title}</span>
                           {rep.daerah && (
-                            <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-slate-100 text-slate-600 rounded-sm text-[9px] font-bold">
+                            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-slate-100 text-slate-600 rounded-sm text-[9px] font-bold mt-1">
                               📍 {rep.daerah}
                             </span>
                           )}
                         </td>
+
+                        {/* Condition for Online/Ringan Extra Columns */}
+                        {(activeSubTab === 'online' || activeSubTab === 'ringan') ? (
+                          <>
+                            <td className="px-5 py-3.5 font-semibold text-slate-700">
+                              {rep.writerName || emp?.nama || 'Unknown'}
+                            </td>
+                            <td className="px-5 py-3.5">
+                              {rep.editorName || editorToDisplay?.nama ? (
+                                <div className="flex items-center gap-1.5">
+                                  <span className="font-semibold text-slate-700">{rep.editorName || editorToDisplay?.nama}</span>
+                                  <span className="text-[9px] bg-slate-100 text-slate-500 px-1 py-0.5 rounded-sm font-mono scale-90">Ed</span>
+                                </div>
+                              ) : (
+                                <span className="text-slate-400 italic text-[11px]">-</span>
+                              )}
+                            </td>
+                            <td className="px-5 py-3.5">
+                              <span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-100">
+                                {rep.category || 'Politik'}
+                              </span>
+                            </td>
+                          </>
+                        ) : (
+                          /* Condition for Radio/Siaran Extra Columns */
+                          <td className="px-5 py-3.5">
+                            <span className="px-2.5 py-1 rounded-full text-[9px] font-extrabold bg-rose-50 text-rose-700 border border-rose-100">
+                              {rep.programa || 'Programa 1'}
+                            </span>
+                          </td>
+                        )}
+
                         <td className="px-5 py-3.5 text-indigo-600 font-medium">
-                          <a
-                            href={rep.url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="hover:underline flex items-center gap-1"
-                          >
-                            <Link2 className="w-3.5 h-3.5 shrink-0" />
-                            <span className="truncate max-w-xs">{rep.url}</span>
-                            <ArrowUpRight className="w-3 h-3 text-slate-400 shrink-0" />
-                          </a>
+                          {rep.url ? (
+                            <a
+                              href={rep.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="hover:underline flex items-center gap-1"
+                            >
+                              <Link2 className="w-3.5 h-3.5 shrink-0" />
+                              <span className="truncate max-w-xs">{rep.url}</span>
+                              <ArrowUpRight className="w-3 h-3 text-slate-400 shrink-0" />
+                            </a>
+                          ) : (
+                            <span className="text-slate-400 italic text-[11px]">Tidak ada link</span>
+                          )}
                         </td>
+
                         <td className="px-5 py-3.5 text-right">
                           <button
                             onClick={() => handleDeleteReport(rep.id)}
@@ -1406,7 +1508,7 @@ export default function PemberitaanMediaBaruView({
             <div className="flex justify-between items-center border-b border-slate-50 pb-3">
               <h4 className="text-sm font-black text-slate-800 uppercase tracking-tight flex items-center gap-2">
                 <Plus className="w-4 h-4 text-indigo-600" />
-                Laporkan Berita / Konten Media Baru
+                Tambah Laporan Produksi
               </h4>
               <button
                 onClick={() => setIsReportModalOpen(false)}
@@ -1417,15 +1519,48 @@ export default function PemberitaanMediaBaruView({
             </div>
 
             <form onSubmit={handleSaveReport} className="space-y-4">
-              {/* Select Reporter */}
+              {/* Type Selection */}
               <div className="space-y-1">
-                <label className="text-[10px] font-extrabold text-slate-500 uppercase tracking-wider block">Pilih Pegawai Reporter</label>
+                <label className="text-[10px] font-extrabold text-slate-500 uppercase tracking-wider block">Kategori Produksi / Lapisan</label>
                 <select
-                  value={reportEmployeeId}
-                  onChange={(e) => setReportEmployeeId(e.target.value)}
+                  value={reportType}
+                  onChange={(e) => {
+                    const val = e.target.value as any;
+                    setReportType(val);
+                    // Set default category / programa values
+                    if (val === 'Berita Online' || val === 'Berita Ringan LPU') {
+                      setReportCategory('Politik');
+                    } else {
+                      setReportPrograma('Programa 1');
+                    }
+                  }}
                   className="w-full bg-slate-50 border border-slate-200 focus:bg-white focus:outline-hidden rounded-xl px-3 py-2 text-xs font-semibold text-slate-700"
                 >
-                  <option value="">-- Pilih Reporter/Pegawai --</option>
+                  <option value="Berita Online">Berita Online / KBRN</option>
+                  <option value="Berita Ringan LPU">Berita Ringan LPU</option>
+                  <option value="Berita Radio">Berita Radio</option>
+                  <option value="Konten Siaran">Konten Siaran</option>
+                </select>
+              </div>
+
+              {/* Select Reporter */}
+              <div className="space-y-1">
+                <label className="text-[10px] font-extrabold text-slate-500 uppercase tracking-wider block">
+                  {['Berita Online', 'Berita Ringan LPU'].includes(reportType) ? 'Penulis / Reporter' : 'Nama Pembuat / Pegawai'}
+                </label>
+                <select
+                  value={reportEmployeeId}
+                  onChange={(e) => {
+                    const empId = e.target.value;
+                    setReportEmployeeId(empId);
+                    const emp = employees.find(x => x.id === empId);
+                    if (emp) {
+                      setReportWriterName(emp.nama);
+                    }
+                  }}
+                  className="w-full bg-slate-50 border border-slate-200 focus:bg-white focus:outline-hidden rounded-xl px-3 py-2 text-xs font-semibold text-slate-700"
+                >
+                  <option value="">-- Pilih Pegawai --</option>
                   {employees.map(emp => (
                     <option key={emp.id} value={emp.id}>
                       {emp.nama} ({emp.divisi})
@@ -1440,10 +1575,19 @@ export default function PemberitaanMediaBaruView({
                 const assignedEditor = selectedReporterTarget ? employees.find(e => e.id === selectedReporterTarget.editorId) : null;
                 return (
                   <div className="space-y-1 bg-slate-50 p-3 rounded-xl border border-slate-100">
-                    <label className="text-[10px] font-extrabold text-slate-500 uppercase tracking-wider block">Editor Pengisi / Penanggung Jawab</label>
+                    <label className="text-[10px] font-extrabold text-slate-500 uppercase tracking-wider block">Editor Penanggung Jawab</label>
                     <select
                       value={reportEditorId}
-                      onChange={(e) => setReportEditorId(e.target.value)}
+                      onChange={(e) => {
+                        const edId = e.target.value;
+                        setReportEditorId(edId);
+                        const ed = employees.find(x => x.id === edId);
+                        if (ed) {
+                          setReportEditorName(ed.nama);
+                        } else if (assignedEditor) {
+                          setReportEditorName(assignedEditor.nama);
+                        }
+                      }}
                       className="w-full bg-white border border-slate-200 focus:outline-hidden rounded-xl px-3 py-2 text-xs font-semibold text-slate-700"
                     >
                       <option value="">{assignedEditor ? `-- Gunakan Editor Default: ${assignedEditor.nama} --` : '-- Pilih Editor --'}</option>
@@ -1456,28 +1600,12 @@ export default function PemberitaanMediaBaruView({
                         <span>✓</span> Terdeteksi editor default: <strong>{assignedEditor.nama}</strong>
                       </p>
                     )}
-                    <p className="text-[9px] text-slate-400 leading-normal mt-1 italic">
-                      Sesuai arahan, pengisian eviden dapat dilakukan langsung oleh editor dari pegawai yang ditunjuk.
-                    </p>
                   </div>
                 );
               })()}
 
-              {/* Type and Date */}
+              {/* Date and dynamic fields (Category / Programa) */}
               <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1">
-                  <label className="text-[10px] font-extrabold text-slate-500 uppercase tracking-wider block">Kategori Berita</label>
-                  <select
-                    value={reportType}
-                    onChange={(e) => setReportType(e.target.value as any)}
-                    className="w-full bg-slate-50 border border-slate-200 focus:bg-white focus:outline-hidden rounded-xl px-3 py-2 text-xs font-semibold text-slate-700"
-                  >
-                    <option value="Berita Ringan">Berita Ringan</option>
-                    <option value="Berita Radio">Berita Radio</option>
-                    <option value="Berita Online">Berita Online</option>
-                  </select>
-                </div>
-
                 <div className="space-y-1">
                   <label className="text-[10px] font-extrabold text-slate-500 uppercase tracking-wider block">Tanggal Selesai / Terbit</label>
                   <input
@@ -1487,26 +1615,66 @@ export default function PemberitaanMediaBaruView({
                     className="w-full bg-slate-50 border border-slate-200 focus:bg-white focus:outline-hidden rounded-xl px-3 py-2 text-xs font-semibold text-slate-700 font-mono"
                   />
                 </div>
+
+                {['Berita Online', 'Berita Ringan LPU'].includes(reportType) ? (
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-extrabold text-slate-500 uppercase tracking-wider block">Kategori Berita</label>
+                    <select
+                      value={reportCategory}
+                      onChange={(e) => setReportCategory(e.target.value)}
+                      className="w-full bg-slate-50 border border-slate-200 focus:bg-white focus:outline-hidden rounded-xl px-3 py-2 text-xs font-semibold text-slate-700"
+                    >
+                      <option value="Politik">Politik</option>
+                      <option value="Ekonomi">Ekonomi</option>
+                      <option value="Sosial">Sosial</option>
+                      <option value="Budaya">Budaya</option>
+                      <option value="Daerah">Daerah</option>
+                      <option value="Internasional">Internasional</option>
+                      <option value="Olahraga">Olahraga</option>
+                      <option value="Lainnya">Lainnya</option>
+                    </select>
+                  </div>
+                ) : (
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-extrabold text-slate-500 uppercase tracking-wider block">Programa Radio</label>
+                    <select
+                      value={reportPrograma}
+                      onChange={(e) => setReportPrograma(e.target.value as any)}
+                      className="w-full bg-slate-50 border border-slate-200 focus:bg-white focus:outline-hidden rounded-xl px-3 py-2 text-xs font-semibold text-slate-700"
+                    >
+                      <option value="Programa 1">Programa 1</option>
+                      <option value="Programa 2">Programa 2</option>
+                      <option value="Programa 3">Programa 3</option>
+                      <option value="Programa 4">Programa 4</option>
+                    </select>
+                  </div>
+                )}
               </div>
 
               {/* Title / Name */}
               <div className="space-y-1">
-                <label className="text-[10px] font-extrabold text-slate-500 uppercase tracking-wider block">Judul Berita / Nama Konten Medsos</label>
+                <label className="text-[10px] font-extrabold text-slate-500 uppercase tracking-wider block">
+                  {reportType === 'Konten Siaran' ? 'Nama Konten Siaran' : 'Nama Berita / Judul Berita'}
+                </label>
                 <input
                   type="text"
-                  placeholder="e.g. Liputan Khusus Pemilu Daerah Sukses Digelar RRI Bandar Lampung"
+                  placeholder={
+                    reportType === 'Konten Siaran'
+                      ? "e.g. Produksi Flyer Dialog Kebangsaan Pro 1, Podcast Eps 5"
+                      : "e.g. Liputan Khusus Pemilu Daerah Sukses Digelar RRI Bandar Lampung"
+                  }
                   value={reportTitle}
                   onChange={(e) => setReportTitle(e.target.value)}
                   className="w-full bg-slate-50 border border-slate-200 focus:bg-white focus:outline-hidden rounded-xl px-3 py-2 text-xs font-semibold text-slate-700"
                 />
               </div>
 
-              {/* Daerah / Lokasi */}
+              {/* Daerah / Wilayah (Optional) */}
               <div className="space-y-1">
                 <label className="text-[10px] font-extrabold text-slate-500 uppercase tracking-wider block">Daerah / Wilayah Liputan</label>
                 <input
                   type="text"
-                  placeholder="e.g. Bandung, Bandar Lampung, Surakarta, Jakarta"
+                  placeholder="e.g. Bandar Lampung, Surakarta, Jakarta"
                   value={reportDaerah}
                   onChange={(e) => setReportDaerah(e.target.value)}
                   className="w-full bg-slate-50 border border-slate-200 focus:bg-white focus:outline-hidden rounded-xl px-3 py-2 text-xs font-semibold text-slate-700"
@@ -1515,18 +1683,22 @@ export default function PemberitaanMediaBaruView({
 
               {/* Link / URL */}
               <div className="space-y-1">
-                <label className="text-[10px] font-extrabold text-slate-500 uppercase tracking-wider block">Link Eviden Digital (URL Aktif)</label>
+                <label className="text-[10px] font-extrabold text-slate-500 uppercase tracking-wider block">
+                  Eviden Upload (Link / Foto / File URL)
+                </label>
                 <div className="relative">
                   <Link2 className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
                   <input
                     type="url"
-                    placeholder="https://swaranews.id/berita/pemilu-daerah"
+                    placeholder="https://drive.google.com/file/d/... / https://rri.co.id/..."
                     value={reportUrl}
                     onChange={(e) => setReportUrl(e.target.value)}
                     className="w-full bg-slate-50 border border-slate-200 focus:bg-white focus:outline-hidden rounded-xl pl-9 pr-3 py-2 text-xs font-semibold text-slate-700 font-mono"
                   />
                 </div>
-                <p className="text-[9px] text-slate-400 mt-1 italic leading-normal">Eviden ini terverifikasi dan dapat diklik oleh pimpinan sampai Kepala Stasiun.</p>
+                <p className="text-[9px] text-slate-400 mt-1 italic leading-normal">
+                  Sertakan tautan Google Drive / Cloud storage untuk file audio/video, atau link CMS rri.co.id untuk berita online.
+                </p>
               </div>
 
               <div className="flex justify-end gap-2.5 pt-3 border-t border-slate-50">
@@ -1541,7 +1713,7 @@ export default function PemberitaanMediaBaruView({
                   type="submit"
                   className="px-4 py-2 text-white font-semibold text-xs rounded-xl shadow-xs bg-indigo-600 hover:bg-indigo-700"
                 >
-                  Laporkan Eviden
+                  Laporkan Produksi
                 </button>
               </div>
             </form>

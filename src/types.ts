@@ -121,13 +121,14 @@ export interface NewsReport {
   editorId?: string; // Editor's Employee ID who inputted/approved this
   title: string; // nama berita/konten media sosial
   url: string; // link eviden
-  type: 'Berita Ringan' | 'Berita Radio' | 'Berita Online';
+  type: 'Berita Ringan' | 'Berita Radio' | 'Berita Online' | 'Berita Ringan LPU' | 'Konten Siaran';
   date: string; // tanggal lapor
-  // Added fields for import feature
+  programa?: 'Programa 1' | 'Programa 2' | 'Programa 3' | 'Programa 4'; // Programa 1/2/3/4
+  writerName?: string; // nama penulis
+  editorName?: string; // nama editor
   category?: 'teks' | 'radio' | 'adlibs' | 'feature' | 'podcast' | 'sosmed' | string;
   publishDateTime?: string; // tgl jam publish
   reporterName?: string; // nama pembuat
-  editorName?: string; // nama editor
   daerah?: string; // daerah berita
 }
 

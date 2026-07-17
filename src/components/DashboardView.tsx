@@ -353,9 +353,10 @@ export default function DashboardView({
   // Capaian Kinerja Pemberitaan & Media Baru Calculations
   const newsStats = useMemo(() => {
     const totalReports = newsReports.length;
-    const beritaRinganCount = newsReports.filter(r => r.type === 'Berita Ringan').length;
+    const beritaRinganCount = newsReports.filter(r => r.type === 'Berita Ringan' || r.type === 'Berita Ringan LPU').length;
     const beritaRadioCount = newsReports.filter(r => r.type === 'Berita Radio').length;
     const beritaOnlineCount = newsReports.filter(r => r.type === 'Berita Online').length;
+    const kontenSiaranCount = newsReports.filter(r => r.type === 'Konten Siaran').length;
     
     // Average Daily Production
     const uniqueDates = new Set(newsReports.map(r => r.date));
@@ -385,6 +386,7 @@ export default function DashboardView({
       beritaRinganCount,
       beritaRadioCount,
       beritaOnlineCount,
+      kontenSiaranCount,
       avgDaily,
       totalMonthlyTarget,
       monthlyPct,

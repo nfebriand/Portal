@@ -572,10 +572,13 @@ const recalculateCascade = (
           const nameLower = obj.indicatorName.toLowerCase();
           
           if (nameLower.includes('ringan')) {
-            const count = empReports.filter(r => r.type === 'Berita Ringan').length;
+            const count = empReports.filter(r => r.type === 'Berita Ringan' || r.type === 'Berita Ringan LPU').length;
             return { ...obj, achievement: count };
-          } else if (nameLower.includes('radio') || nameLower.includes('siaran')) {
+          } else if (nameLower.includes('radio')) {
             const count = empReports.filter(r => r.type === 'Berita Radio').length;
+            return { ...obj, achievement: count };
+          } else if (nameLower.includes('konten siaran') || (nameLower.includes('siaran') && !nameLower.includes('radio'))) {
+            const count = empReports.filter(r => r.type === 'Konten Siaran').length;
             return { ...obj, achievement: count };
           } else if (nameLower.includes('online') || nameLower.includes('media baru') || nameLower.includes('medsos') || nameLower.includes('sosial media') || nameLower.includes('harian') || nameLower.includes('publikasi') || nameLower.includes('konten')) {
             const count = empReports.filter(r => r.type === 'Berita Online').length;
@@ -1257,7 +1260,7 @@ export default function App() {
             }`}
           >
             <Share2 className="w-4 h-4" />
-            Pemberitaan
+            Produksi Siaran & Berita
           </button>
 
           {/* Dashboard TMB */}
@@ -1406,7 +1409,7 @@ export default function App() {
             }`}
           >
             <Share2 className="w-4 h-4" />
-            Pemberitaan
+            Produksi Siaran & Berita
           </button>
 
           {/* Dashboard TMB */}
