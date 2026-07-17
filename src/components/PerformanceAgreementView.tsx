@@ -37,6 +37,81 @@ import { Employee, InstitutionalIdentity, PerformanceAgreement, PerformanceIndic
 import SignaturePad from './SignaturePad';
 import IndicatorCommentsSection from './IndicatorCommentsSection';
 
+// Helper to calculate indicator achievement percentage score based on periodType
+const getIndicatorScore = (obj: PerformanceIndicator) => {
+  if (!obj) return 0;
+  const periodType = obj.periodType || 'tahunan';
+  const targetVal = parseFloat(obj.target) || 100;
+  
+  const trajectory = obj.trajectory && obj.trajectory.length === 12 
+    ? obj.trajectory 
+    : Array(12).fill(targetVal / 12);
+  const achievements = obj.monthlyAchievements && obj.monthlyAchievements.length === 12
+    ? obj.monthlyAchievements
+    : Array(12).fill(0);
+
+  const tType = obj.trajectoryType || (
+    obj.unit === '%' || 
+    obj.indicatorName.toLowerCase().includes('ikpa') || 
+    obj.indicatorName.toLowerCase().includes('nilai') 
+      ? 'constant' 
+      : 'cumulative'
+  );
+
+  if (periodType === 'triwulanan') {
+    const qScores: number[] = [];
+    for (let q = 0; q < 4; q++) {
+      const startIndex = q * 3;
+      const qTarget = tType === 'constant'
+        ? (trajectory[startIndex] + trajectory[startIndex+1] + trajectory[startIndex+2]) / 3
+        : (trajectory[startIndex] + trajectory[startIndex+1] + trajectory[startIndex+2]);
+      
+      const qReal = tType === 'constant'
+        ? (achievements[startIndex] + achievements[startIndex+1] + achievements[startIndex+2]) / 3
+        : (achievements[startIndex] + achievements[startIndex+1] + achievements[startIndex+2]);
+
+      let effectiveQTarget = qTarget;
+      if (effectiveQTarget <= 0) {
+        effectiveQTarget = tType === 'constant' ? targetVal : targetVal / 4;
+      }
+
+      const qScore = effectiveQTarget > 0 ? (qReal / effectiveQTarget) * 100 : 0;
+      qScores.push(Math.min(120, Math.max(0, qScore)));
+    }
+    return Math.round(qScores.reduce((sum, s) => sum + s, 0) / 4);
+  } else if (periodType === 'semesteran') {
+    const sScores: number[] = [];
+    for (let s = 0; s < 2; s++) {
+      const startIndex = s * 6;
+      let sTarget = 0;
+      let sReal = 0;
+      for (let i = 0; i < 6; i++) {
+        sTarget += trajectory[startIndex + i];
+        sReal += achievements[startIndex + i];
+      }
+      if (tType === 'constant') {
+        sTarget = sTarget / 6;
+        sReal = sReal / 6;
+      }
+
+      let effectiveSTarget = sTarget;
+      if (effectiveSTarget <= 0) {
+        effectiveSTarget = tType === 'constant' ? targetVal : targetVal / 2;
+      }
+
+      const sScore = effectiveSTarget > 0 ? (sReal / effectiveSTarget) * 100 : 0;
+      sScores.push(Math.min(120, Math.max(0, sScore)));
+    }
+    return Math.round(sScores.reduce((sum, s) => sum + s, 0) / 2);
+  } else {
+    // Cast to any to safely access temporary mapped fields _scaledTargetVal
+    const anyObj = obj as any;
+    const tVal = anyObj._scaledTargetVal !== undefined ? anyObj._scaledTargetVal : targetVal;
+    const real = obj.achievement || 0;
+    return tVal > 0 ? Math.min(120, Math.round((real / tVal) * 100)) : 0;
+  }
+};
+
 interface PerformanceAgreementViewProps {
   employees: Employee[];
   identity: InstitutionalIdentity;
@@ -63,7 +138,7 @@ export default function PerformanceAgreementView({
   reporterTargets = []
 }: PerformanceAgreementViewProps) {
   const [selectedYear, setSelectedYear] = useState<number>(2026);
-  const [activeTab, setActiveTab] = useState<'pohon' | 'dokumen' | 'evaluasi' | 'pakar'>('pohon');
+  const [activeTab, setActiveTab] = useState<'pohon' | 'evaluasi'>('pohon');
 
   // Helper to check edit permissions for a specific agreement level
   const canEditAgreement = (agreementLevel: string) => {
@@ -231,7 +306,7 @@ export default function PerformanceAgreementView({
       assignedToEmployeeId: selectedDocLevel === 'Pegawai' ? selectedDocEmployeeId : undefined,
       assignedToName: resolveLevelName(selectedDocLevel, selectedDocEmployeeId),
       objectives: [],
-      status: 'Draft',
+      status: 'Aktif',
       createdAt: new Date().toISOString()
     };
     return tempAg;
@@ -492,10 +567,8 @@ export default function PerformanceAgreementView({
         if (a.status === 'Aktif') activePks++;
         a.objectives.forEach(obj => {
           totalIndicators++;
-          // Calculate achievement percentage (realisasi / target * 100, capped at 120%)
-          const targetVal = obj._scaledTargetVal !== undefined ? obj._scaledTargetVal : (parseFloat(obj.target) || 100);
-          const real = obj.achievement || 0;
-          const score = Math.min(120, Math.round((real / (targetVal || 1)) * 100));
+          // Calculate achievement percentage score using dynamic getIndicatorScore helper
+          const score = getIndicatorScore(obj);
           sumAchievement += score;
         });
       }
@@ -614,7 +687,7 @@ export default function PerformanceAgreementView({
         assignedToEmployeeId: targetEmpId,
         assignedToName: resolveLevelName(targetLevel, targetEmpId),
         objectives: [newObj],
-        status: 'Draft',
+        status: 'Aktif',
         createdAt: new Date().toISOString()
       };
       updated = [...agreements, newAg];
@@ -625,7 +698,7 @@ export default function PerformanceAgreementView({
         level: 'Kepala Stasiun',
         assignedToName: resolveLevelName('Kepala Stasiun'),
         objectives: [newObj],
-        status: 'Draft',
+        status: 'Aktif',
         createdAt: new Date().toISOString()
       };
       updated = [...agreements, newAg];
@@ -823,6 +896,20 @@ export default function PerformanceAgreementView({
             }
             return o;
           })
+        };
+      }
+      return ag;
+    });
+    onUpdateAgreements(updated);
+  };
+
+  // Handle updating evaluation frequency (periodType)
+  const handleUpdatePeriodType = (agreementId: string, indicatorId: string, type: 'tahunan' | 'triwulanan' | 'semesteran') => {
+    const updated = agreements.map(ag => {
+      if (ag.id === agreementId) {
+        return {
+          ...ag,
+          objectives: ag.objectives.map(o => o.id === indicatorId ? { ...o, periodType: type } : o)
         };
       }
       return ag;
@@ -1075,7 +1162,7 @@ export default function PerformanceAgreementView({
         assignedToEmployeeId: delegateLevel === 'Pegawai' ? delegateEmployeeId : undefined,
         assignedToName: resolveLevelName(delegateLevel, delegateLevel === 'Pegawai' ? delegateEmployeeId : undefined),
         objectives: [newDelegatedIndicator],
-        status: 'Draft',
+        status: 'Aktif',
         createdAt: new Date().toISOString()
       };
       updated = [...agreements, newAg];
@@ -1135,7 +1222,7 @@ export default function PerformanceAgreementView({
         assignedToEmployeeId: selectedDocLevel === 'Pegawai' ? selectedDocEmployeeId : undefined,
         assignedToName: resolveLevelName(selectedDocLevel, selectedDocLevel === 'Pegawai' ? selectedDocEmployeeId : undefined),
         objectives: [],
-        status: 'Draft',
+        status: 'Aktif',
         createdAt: new Date().toISOString(),
         [signField]: dataUrl
       };
@@ -1290,16 +1377,6 @@ export default function PerformanceAgreementView({
               Pohon Kinerja
             </button>
             <button
-              onClick={() => setActiveTab('dokumen')}
-              className={`px-3 py-1.5 rounded-xl text-xs font-bold tracking-wide transition-all ${
-                activeTab === 'dokumen' 
-                  ? 'bg-indigo-600 text-white shadow-xs' 
-                  : 'text-slate-400 hover:text-slate-200'
-              }`}
-            >
-              Dokumen PK
-            </button>
-            <button
               onClick={() => setActiveTab('evaluasi')}
               className={`px-3 py-1.5 rounded-xl text-xs font-bold tracking-wide transition-all ${
                 activeTab === 'evaluasi' 
@@ -1308,17 +1385,6 @@ export default function PerformanceAgreementView({
               }`}
             >
               Evaluasi Berkala (Triwulan/Semester)
-            </button>
-            <button
-              onClick={() => setActiveTab('pakar')}
-              className={`px-3 py-1.5 rounded-xl text-xs font-bold tracking-wide transition-all flex items-center gap-1.5 border border-dashed ${
-                activeTab === 'pakar' 
-                  ? 'bg-amber-600 text-white border-amber-500 shadow-xs' 
-                  : 'text-amber-400 border-amber-900/40 hover:text-amber-200 hover:border-amber-700'
-              }`}
-            >
-              <Brain className="w-3.5 h-3.5" />
-              <span>Pakar SAKIP & ASN</span>
             </button>
           </div>
         </div>
@@ -1423,9 +1489,7 @@ export default function PerformanceAgreementView({
                 const isExpanded = !!expandedIndicators[rootId];
                 
                 // Calculate score
-                const rootTargetVal = parseFloat(node.root.target) || 100;
-                const rootReal = node.root.achievement || 0;
-                const rootScore = Math.min(120, Math.round((rootReal / rootTargetVal) * 100));
+                const rootScore = getIndicatorScore(node.root);
 
                 return (
                   <div key={rootId} className="border border-slate-100 rounded-2xl overflow-hidden shadow-xs">
@@ -1615,6 +1679,19 @@ export default function PerformanceAgreementView({
                                 <option value="constant">Konstan / Rata-rata (e.g. IKPA 100%)</option>
                               </select>
                             </div>
+
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wide">Frekuensi Capaian:</span>
+                              <select
+                                value={node.root.periodType || 'tahunan'}
+                                onChange={(e) => handleUpdatePeriodType(node.agreement.id, rootId, e.target.value as 'tahunan' | 'triwulanan' | 'semesteran')}
+                                className="bg-white border border-slate-200 rounded px-1.5 py-0.5 text-[9px] font-extrabold text-slate-700 focus:outline-hidden"
+                              >
+                                <option value="tahunan">Tahunan / Bulanan</option>
+                                <option value="triwulanan">Triwulanan (Quarterly)</option>
+                                <option value="semesteran">Semesteran (Semesterly)</option>
+                              </select>
+                            </div>
                             <button
                               onClick={() => {
                                 const targetNum = parseFloat(node.root.target) || 0;
@@ -1703,9 +1780,7 @@ export default function PerformanceAgreementView({
                           node.level2.map((l2) => {
                             const l2Id = l2.indicator.id;
                             const isL2Expanded = !!expandedIndicators[l2Id];
-                            const l2TargetVal = parseFloat(l2.indicator.target) || 100;
-                            const l2Real = l2.indicator.achievement || 0;
-                            const l2Score = Math.min(120, Math.round((l2Real / l2TargetVal) * 100));
+                            const l2Score = getIndicatorScore(l2.indicator);
 
                             return (
                               <div key={l2Id} className="py-3.5 pl-6 pr-2">
@@ -1915,6 +1990,20 @@ export default function PerformanceAgreementView({
                                           </select>
                                         </div>
 
+                                        {/* Evaluation Frequency Selector */}
+                                        <div className="flex items-center gap-1">
+                                          <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wide">Frekuensi Capaian:</span>
+                                          <select
+                                            value={l2.indicator.periodType || 'tahunan'}
+                                            onChange={(e) => handleUpdatePeriodType(l2.agreement.id, l2Id, e.target.value as 'tahunan' | 'triwulanan' | 'semesteran')}
+                                            className="bg-white border border-slate-200 rounded px-1.5 py-0.5 text-[9px] font-extrabold text-slate-700 focus:outline-hidden"
+                                          >
+                                            <option value="tahunan">Tahunan / Bulanan</option>
+                                            <option value="triwulanan">Triwulanan (Quarterly)</option>
+                                            <option value="semesteran">Semesteran (Semesterly)</option>
+                                          </select>
+                                        </div>
+
                                         <button
                                           onClick={() => {
                                             const targetNum = parseFloat(l2.indicator.target) || 0;
@@ -2002,9 +2091,7 @@ export default function PerformanceAgreementView({
                                     ) : (
                                       l2.children.map((l3) => {
                                         const l3Id = l3.indicator.id;
-                                        const l3TargetVal = parseFloat(l3.indicator.target) || 100;
-                                        const l3Real = l3.indicator.achievement || 0;
-                                        const l3Score = Math.min(120, Math.round((l3Real / l3TargetVal) * 100));
+                                        const l3Score = getIndicatorScore(l3.indicator);
 
                                         return (
                                           <div key={l3Id} className="w-full space-y-1">
@@ -2169,6 +2256,19 @@ export default function PerformanceAgreementView({
                                                         <option value="constant">Konstan / Rata-rata (e.g. IKPA 100%)</option>
                                                       </select>
                                                     </div>
+
+                                                    <div className="flex items-center gap-1">
+                                                      <span className="text-[8px] font-bold text-slate-400 uppercase tracking-wide">Frekuensi:</span>
+                                                      <select
+                                                        value={l3.indicator.periodType || 'tahunan'}
+                                                        onChange={(e) => handleUpdatePeriodType(l3.agreement.id, l3Id, e.target.value as 'tahunan' | 'triwulanan' | 'semesteran')}
+                                                        className="bg-white border border-slate-200 rounded px-1 py-0.5 text-[8px] font-extrabold text-slate-700 focus:outline-hidden"
+                                                      >
+                                                        <option value="tahunan">Tahunan / Bulanan</option>
+                                                        <option value="triwulanan">Triwulanan</option>
+                                                        <option value="semesteran">Semesteran</option>
+                                                      </select>
+                                                    </div>
                                                     <button
                                                       onClick={() => {
                                                         const targetNum = parseFloat(l3.indicator.target) || 0;
@@ -2265,393 +2365,7 @@ export default function PerformanceAgreementView({
           </div>
 
         </div>
-      ) : activeTab === 'dokumen' ? (
-        
-        // Document Tab
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-          
-          {/* Document Picker sidebar */}
-          <div className="lg:col-span-4 bg-white p-4 rounded-3xl border border-slate-100 shadow-xs space-y-4 h-fit">
-            <div>
-              <h3 className="text-xs font-black text-slate-400 uppercase tracking-wider font-mono">Navigasi Dokumen PK</h3>
-              <p className="text-[10px] text-slate-400">Pilih pejabat atau staf pegawai pelaksana untuk melihat, mengedit sasaran, dan menandatangani dokumen e-PK resmi.</p>
-            </div>
-
-            <div className="space-y-3">
-              
-              {/* Level 1 Button */}
-              <div className="space-y-1.5">
-                <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wide">Pimpinan Stasiun</span>
-                <button
-                  onClick={() => { setSelectedDocLevel('Kepala Stasiun'); setSelectedDocEmployeeId(''); }}
-                  className={`w-full text-left p-3 rounded-xl text-xs font-bold transition-all border flex items-center gap-2.5 ${
-                    selectedDocLevel === 'Kepala Stasiun' 
-                      ? 'bg-purple-50 text-purple-900 border-purple-200 ring-1 ring-purple-100' 
-                      : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
-                  }`}
-                >
-                  <Building className="w-4 h-4 text-purple-600 shrink-0" />
-                  <div className="truncate">
-                    <p className="font-extrabold">Kepala Stasiun Radio</p>
-                    <p className="text-[10px] text-slate-500 font-mono leading-none mt-0.5 truncate">{identity.kepalaStasiunNama}</p>
-                  </div>
-                </button>
-              </div>
-
-              {/* Level 2 Buttons */}
-              <div className="space-y-1.5">
-                <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wide">Para Ketua Tim / Kabag TU</span>
-                <div className="space-y-1">
-                  {level2Options.map((opt) => (
-                    <button
-                      key={opt.value}
-                      onClick={() => { setSelectedDocLevel(opt.value); setSelectedDocEmployeeId(''); }}
-                      className={`w-full text-left p-2.5 rounded-xl text-[11px] font-bold transition-all border flex items-center gap-2 ${
-                        selectedDocLevel === opt.value 
-                          ? 'bg-blue-50 text-blue-900 border-blue-200 ring-1 ring-blue-100' 
-                          : 'bg-white text-slate-600 border-slate-150 hover:bg-slate-50'
-                      }`}
-                    >
-                      <Layers className="w-3.5 h-3.5 text-blue-600 shrink-0" />
-                      <div className="truncate">
-                        <p className="truncate">
-                          {opt.value === 'Kabid Tata Usaha' ? 'Kepala Bagian Tata Usaha' : opt.value}
-                        </p>
-                        <p className="text-[9px] text-slate-500 font-mono leading-none mt-0.5 truncate">
-                          {opt.value === 'Kabid Tata Usaha' ? identity.kepalaBidangNama :
-                           opt.value === 'Ketua Tim Siaran' ? identity.ketuaTimSiaranNama :
-                           opt.value === 'Ketua Tim Pemberitaan' ? identity.ketuaTimPemberitaanNama :
-                           opt.value === 'Ketua Tim Teknologi dan Media Baru' ? identity.ketuaTimTeknikNama :
-                           opt.value === 'Ketua Tim Konten Media Baru' ? identity.ketuaTimKontenNama :
-                           opt.value === 'Ketua Tim Layanan Pengembangan Usaha' ? identity.ketuaTimLayananNama : 'Belum Atur'}
-                        </p>
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Level 3 Staf Pegawai */}
-              <div className="space-y-1.5">
-                <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wide">Staf Pegawai (Capaian Kinerja)</span>
-                {employees.length === 0 ? (
-                  <p className="text-[10px] text-slate-400 italic">Belum ada data pegawai.</p>
-                ) : (
-                  <select
-                    value={selectedDocEmployeeId}
-                    onChange={(e) => { setSelectedDocLevel('Pegawai'); setSelectedDocEmployeeId(e.target.value); }}
-                    className="w-full bg-white border border-slate-200 rounded-xl p-2 text-xs font-bold text-slate-700 focus:outline-hidden"
-                  >
-                    <option value="">-- Pilih Staf Pegawai --</option>
-                    {employees.map((emp) => (
-                      <option key={emp.id} value={emp.id}>
-                        {emp.nama} ({emp.divisi})
-                      </option>
-                    ))}
-                  </select>
-                )}
-              </div>
-
-            </div>
-          </div>
-
-          {/* Document sheet container */}
-          <div className="lg:col-span-8 bg-white p-6 md:p-8 rounded-3xl border border-slate-100 shadow-sm space-y-6 relative overflow-hidden">
-            
-            {/* Quick Action bar above document */}
-            <div className="flex justify-between items-center bg-slate-50 p-3 rounded-2xl border border-slate-150">
-              <div className="flex items-center gap-1.5 text-xs">
-                <span className="font-extrabold text-slate-700">Status Dokumen:</span>
-                <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase ${
-                  activeDocumentAgreement.status === 'Aktif' 
-                    ? 'bg-emerald-100 text-emerald-800 border border-emerald-200' 
-                    : 'bg-amber-100 text-amber-800 border border-amber-200'
-                }`}>
-                  {activeDocumentAgreement.status}
-                </span>
-              </div>
-
-              <div className="flex gap-2 flex-wrap justify-end">
-                {activeDocumentAgreement.status === 'Draft' && (
-                  <button
-                    onClick={() => handleApproveDocument(activeDocumentAgreement.id)}
-                    className="px-3 py-1 bg-emerald-600 hover:bg-emerald-500 text-white text-[10px] font-black rounded-xl transition-colors uppercase tracking-wide shadow-xs cursor-pointer"
-                  >
-                    Setujui & Aktifkan
-                  </button>
-                )}
-
-                {activeDocumentAgreement.status === 'Aktif' && canEditAgreement(activeDocumentAgreement.level) && (
-                  <button
-                    onClick={() => handleResetDocumentToDraft(activeDocumentAgreement.id)}
-                    className="px-3 py-1 bg-amber-500 hover:bg-amber-600 text-white text-[10px] font-black rounded-xl transition-colors uppercase tracking-wide shadow-xs cursor-pointer flex items-center gap-1"
-                    title="Batalkan keaktifan dan edit kembali"
-                  >
-                    <X className="w-3 h-3" /> Kembalikan ke Draft
-                  </button>
-                )}
-
-                {!activeDocumentAgreement.id.startsWith('pk-temp-') && canEditAgreement(activeDocumentAgreement.level) && (
-                  <button
-                    onClick={() => handleDeleteAgreement(activeDocumentAgreement.id)}
-                    className="px-3 py-1 bg-rose-600 hover:bg-rose-750 text-white text-[10px] font-black rounded-xl transition-colors uppercase tracking-wide shadow-xs cursor-pointer flex items-center gap-1"
-                    title="Hapus seluruh dokumen PK ini"
-                  >
-                    <Trash2 className="w-3 h-3" /> Hapus PK
-                  </button>
-                )}
-                
-                <button
-                  onClick={() => window.print()}
-                  className="px-3 py-1 bg-white hover:bg-slate-100 border border-slate-200 text-slate-700 text-[10px] font-black rounded-xl transition-all uppercase tracking-wide flex items-center gap-1 cursor-pointer"
-                >
-                  <Printer className="w-3.5 h-3.5" /> Cetak PK
-                </button>
-              </div>
-            </div>
-
-            {/* Print Area - Formal Legal Document style */}
-            <div className="border border-slate-300 p-8 md:p-12 bg-white text-slate-900 shadow-inner rounded-xl space-y-6 font-serif max-w-2xl mx-auto printable-document">
-              
-              {/* Formal Letter Head (Kop Surat) */}
-              <div className="text-center border-b-4 border-double border-slate-900 pb-4 relative space-y-1">
-                <div className="absolute left-0 top-0 w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center font-bold text-slate-400 text-xs border border-slate-200 select-none">
-                  LOGO
-                </div>
-                <h3 className="text-base font-black uppercase tracking-wide leading-tight">KEMENTERIAN KOMUNIKASI DAN INFORMATIKA</h3>
-                <h4 className="text-sm font-black uppercase tracking-tight leading-tight">DIREKTORAT JENDERAL PENYIARAN</h4>
-                <h2 className="text-md font-bold uppercase tracking-wider leading-none">{settings.namaInstansi.toUpperCase()}</h2>
-                <p className="text-[9px] font-mono leading-none text-slate-500 not-italic">{settings.alamat} • Telp: {settings.noTelp}</p>
-              </div>
-
-              {/* Document Title */}
-              <div className="text-center space-y-1 pt-2 font-serif">
-                <h1 className="text-md font-black underline uppercase tracking-wider">PERJANJIAN KINERJA TAHUN {selectedYear}</h1>
-                <p className="text-[10px] italic">Nomor: SPK/ST-RADIO/{selectedYear}/{activeDocumentAgreement.id.slice(-4).toUpperCase()}</p>
-              </div>
-
-              {/* Parties Intro Statement */}
-              <div className="text-xs leading-relaxed space-y-3 font-serif">
-                <p>Dalam rangka mewujudkan manajemen pemerintahan yang efektif, transparan, dan akuntabel serta berorientasi pada hasil, kami yang bertandatangan di bawah ini:</p>
-                
-                <div className="space-y-1.5 pl-4">
-                  <div className="flex">
-                    <span className="w-24 font-bold">Nama</span>
-                    <span className="mr-2">:</span>
-                    <span className="font-extrabold underline">{getSupervisorName(activeDocumentAgreement.level, activeDocumentAgreement.assignedToEmployeeId)}</span>
-                  </div>
-                  <div className="flex">
-                    <span className="w-24 font-bold">Jabatan</span>
-                    <span className="mr-2">:</span>
-                    <span>{getSupervisorLevel(activeDocumentAgreement.level)}</span>
-                  </div>
-                  <p className="italic text-[10px] text-slate-500">Selanjutnya disebut sebagai <span className="font-bold">PIHAK PERTAMA (Atasan Langsung)</span></p>
-                </div>
-
-                <div className="space-y-1.5 pl-4 pt-1">
-                  <div className="flex">
-                    <span className="w-24 font-bold">Nama</span>
-                    <span className="mr-2">:</span>
-                    <span className="font-extrabold underline">{activeDocumentAgreement.assignedToName}</span>
-                  </div>
-                  <div className="flex">
-                    <span className="w-24 font-bold">Jabatan</span>
-                    <span className="mr-2">:</span>
-                    <span>{activeDocumentAgreement.level}</span>
-                  </div>
-                  <p className="italic text-[10px] text-slate-500">Selanjutnya disebut sebagai <span className="font-bold">PIHAK KEDUA (Penerima Tugas)</span></p>
-                </div>
-
-                <p>PIHAK PERTAMA berjanji akan memberikan supervisi dan dukungan yang diperlukan. PIHAK KEDUA berjanji akan mewujudkan target kinerja yang ditetapkan dalam lampiran perjanjian ini.</p>
-              </div>
-
-              {/* Target Objectives Table */}
-              <div className="space-y-2">
-                <p className="text-[10px] font-bold uppercase tracking-wider font-sans">Lampiran Sasaran & Indikator Kinerja Utama:</p>
-                
-                <div className="border border-slate-800 rounded-lg overflow-hidden">
-                  <table className="w-full text-[10px] font-sans text-left border-collapse">
-                    <thead>
-                      <tr className="bg-slate-100 border-b border-slate-800 text-[9px] font-extrabold uppercase">
-                        <th className="p-2 border-r border-slate-800 text-center w-8">No</th>
-                        <th className="p-2 border-r border-slate-800">Sasaran / Indikator Kinerja Utama</th>
-                        <th className="p-2 border-r border-slate-800 text-center w-20">Target</th>
-                        <th className="p-2 border-r border-slate-800 text-center w-16 font-mono font-bold">Bobot (%)</th>
-                        <th className="p-2 text-center w-12 print:hidden">Aksi</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-300">
-                      {activeDocumentAgreement.objectives.length === 0 ? (
-                        <tr>
-                          <td colSpan={5} className="p-4 text-center text-slate-400 italic">Belum ada indikator sasaran yang terdaftar untuk dokumen ini.</td>
-                        </tr>
-                      ) : (
-                        activeDocumentAgreement.objectives.map((obj, i) => (
-                          <tr key={obj.id} className="hover:bg-slate-50/50">
-                            <td className="p-2 border-r border-slate-800 text-center font-mono font-bold">{i + 1}</td>
-                            <td className="p-2 border-r border-slate-800">
-                              <p className="font-bold text-slate-800">{obj.indicatorName}</p>
-                              {obj.parentIndicatorId && (
-                                <span className="text-[8px] px-1 py-0.1 bg-indigo-50 text-indigo-600 rounded font-bold uppercase tracking-wider">Kaskade</span>
-                              )}
-                            </td>
-                            <td className="p-2 border-r border-slate-800 text-center font-extrabold">{obj.target} {obj.unit}</td>
-                            <td className="p-2 border-r border-slate-800 text-center font-bold font-mono">{obj.weight}%</td>
-                            <td className="p-2 text-center print:hidden">
-                              {canEditAgreement(activeDocumentAgreement.level) ? (
-                                <button
-                                  onClick={() => handleDeleteIndicator(activeDocumentAgreement.id, obj.id)}
-                                  className="p-1 hover:bg-rose-50 text-rose-500 hover:text-rose-600 rounded transition-colors"
-                                  title="Batal / Hapus Sasaran"
-                                >
-                                  <Trash2 className="w-3.5 h-3.5 mx-auto" />
-                                </button>
-                              ) : (
-                                <span className="text-[10px] text-slate-400 italic">Hanya Baca</span>
-                              )}
-                            </td>
-                          </tr>
-                        ))
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-
-              {/* Dual Electronic Signatures Block */}
-              <div className="pt-6 font-serif">
-                <div className="grid grid-cols-2 gap-4 text-center text-xs">
-                  
-                  {/* Pihak Pertama (Atasan) */}
-                  <div className="flex flex-col items-center">
-                    <span className="font-bold block">PIHAK PERTAMA</span>
-                    <span className="text-[10px] text-slate-500 uppercase font-bold leading-none block mt-0.5">{getSupervisorLevel(activeDocumentAgreement.level)}</span>
-                    
-                    <div className="h-16 flex items-center justify-center my-2 border border-dashed border-slate-200 rounded-lg w-full bg-slate-50/50">
-                      {activeDocumentAgreement.signaturePembuat ? (
-                        <img src={activeDocumentAgreement.signaturePembuat} alt="Signature Pembuat" className="max-h-full object-contain mix-blend-multiply" />
-                      ) : (
-                        <div className="p-2 w-full">
-                          <SignaturePad
-                            value=""
-                            onChange={(dataUrl) => handleSignDocument(activeDocumentAgreement.id, 'pembuat', dataUrl)}
-                            height={60}
-                            label="Teken e-Signature Atasan"
-                          />
-                        </div>
-                      )}
-                    </div>
-                    <span className="font-extrabold underline block">{getSupervisorName(activeDocumentAgreement.level, activeDocumentAgreement.assignedToEmployeeId)}</span>
-                    <span className="text-[9px] text-slate-400 font-mono">NIP. 197805122003111002</span>
-                  </div>
-
-                  {/* Pihak Kedua (Pegawai / Penerima) */}
-                  <div className="flex flex-col items-center">
-                    <span className="font-bold block">PIHAK KEDUA</span>
-                    <span className="text-[10px] text-slate-500 uppercase font-bold leading-none block mt-0.5">{activeDocumentAgreement.level}</span>
-                    
-                    <div className="h-16 flex items-center justify-center my-2 border border-dashed border-slate-200 rounded-lg w-full bg-slate-50/50">
-                      {activeDocumentAgreement.signaturePenerima ? (
-                        <img src={activeDocumentAgreement.signaturePenerima} alt="Signature Penerima" className="max-h-full object-contain mix-blend-multiply" />
-                      ) : (
-                        <div className="p-2 w-full">
-                          <SignaturePad
-                            value=""
-                            onChange={(dataUrl) => handleSignDocument(activeDocumentAgreement.id, 'penerima', dataUrl)}
-                            height={60}
-                            label="Teken e-Signature Pihak Kedua"
-                          />
-                        </div>
-                      )}
-                    </div>
-                    <span className="font-extrabold underline block">{activeDocumentAgreement.assignedToName}</span>
-                    <span className="text-[9px] text-slate-400 font-mono">NIP. 198905222013111001</span>
-                  </div>
-
-                </div>
-              </div>
-
-            </div>
-
-            {/* Inline Quick Form to Edit Agreement Objectives directly on document view */}
-            {canEditAgreement(activeDocumentAgreement.level) ? (
-              <div className="bg-slate-50/60 p-4 rounded-2xl border border-slate-100 space-y-3">
-                <h4 className="text-xs font-black text-slate-500 uppercase tracking-wider flex items-center gap-1">
-                  <Plus className="w-3.5 h-3.5 text-indigo-600" />
-                  Kelola Indikator Dokumen Ini Secara Cepat
-                </h4>
-                
-                <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
-                  <div className="sm:col-span-2 space-y-0.5">
-                    <label className="text-[9px] font-bold text-slate-400 uppercase">Indikator Kinerja Utama (IKU)</label>
-                    <input
-                      type="text"
-                      value={newIndicatorName}
-                      onChange={(e) => setNewIndicatorName(e.target.value)}
-                      placeholder="Contoh: Indeks Pemirsa Berita TV/Radio"
-                      className="w-full bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs text-slate-700 font-bold focus:outline-hidden focus:ring-1 focus:ring-indigo-400"
-                    />
-                  </div>
-
-                  <div className="space-y-0.5">
-                    <label className="text-[9px] font-bold text-slate-400 uppercase">Target</label>
-                    <div className="flex gap-1">
-                      <input
-                        type="text"
-                        value={newIndicatorTarget}
-                        onChange={(e) => setNewIndicatorTarget(e.target.value)}
-                        placeholder="95"
-                        className="w-full bg-white border border-slate-200 rounded-lg px-2 py-1.5 text-xs text-slate-700 font-bold text-center focus:outline-hidden"
-                      />
-                      <input
-                        type="text"
-                        value={newIndicatorUnit}
-                        onChange={(e) => setNewIndicatorUnit(e.target.value)}
-                        placeholder="%"
-                        className="w-12 bg-white border border-slate-200 rounded-lg px-1 py-1.5 text-xs text-slate-700 font-bold text-center focus:outline-hidden"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="space-y-0.5">
-                    <label className="text-[9px] font-bold text-slate-400 uppercase">Bobot</label>
-                    <div className="flex items-center gap-2">
-                      <input
-                        type="number"
-                        value={newIndicatorWeight}
-                        onChange={(e) => setNewIndicatorWeight(parseInt(e.target.value) || 25)}
-                        className="w-full bg-white border border-slate-200 rounded-lg px-2 py-1.5 text-xs text-slate-700 font-bold text-center focus:outline-hidden"
-                      />
-                      <button
-                        onClick={() => handleAddIndicator(activeDocumentAgreement.id)}
-                        className="p-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg font-bold"
-                      >
-                        <Plus className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            ) : (
-              <div className="bg-amber-50 border border-amber-100 rounded-2xl p-4 flex items-center gap-3 text-amber-800 text-xs">
-                <ShieldCheck className="w-5 h-5 text-amber-600 shrink-0" />
-                <div className="space-y-1">
-                  <p className="font-extrabold">Akses Terbatas (Read-Only)</p>
-                  <p className="text-[10px] text-amber-700 leading-normal">
-                    Dokumen ini berada pada <span className="font-bold">{activeDocumentAgreement.level === 'Pegawai' ? 'Level 3 (Pegawai)' : 'Level 2 (Kabag/Ketua Tim)'}</span>. 
-                    {activeDocumentAgreement.level === 'Pegawai' 
-                      ? ' Pengeditan hanya diizinkan bagi Kepala Stasiun atau penerima delegasi Level 2 (Kabag/Ketua Tim) yang berwenang.'
-                      : ' Pengeditan indikator Level 1 dan Level 2 hanya dapat dilakukan oleh Kepala Stasiun.'
-                    }
-                  </p>
-                </div>
-              </div>
-            )}
-
-          </div>
-
-        </div>
-      ) : activeTab === 'evaluasi' ? (
+      ) : (
         // New Evaluasi Berkala Tab
         <div className="space-y-6">
           <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-xs space-y-6">
@@ -2810,9 +2524,8 @@ export default function PerformanceAgreementView({
                 return (
                   <div className="space-y-5">
                     {kepalaAg.objectives.map((rootObj) => {
-                      const rootTargetVal = rootObj._scaledTargetVal !== undefined ? rootObj._scaledTargetVal : (parseFloat(rootObj.target) || 100);
+                      const rootScore = getIndicatorScore(rootObj);
                       const rootReal = rootObj.achievement || 0;
-                      const rootScore = rootTargetVal > 0 ? Math.min(120, Math.round((rootReal / rootTargetVal) * 100)) : 0;
                       
                       // Find Level 2 descendants for this Level 1 objective
                       const level2Objects = periodAgreements
@@ -2844,19 +2557,6 @@ export default function PerformanceAgreementView({
 
                             {/* Circular/Badge Score Progress */}
                             <div className="flex items-center gap-2.5 shrink-0 self-start md:self-center">
-                              <button
-                                type="button"
-                                onClick={() => setSakipExpertData({
-                                  indicator: rootObj,
-                                  agreementId: kepalaAg.id,
-                                  assignedToName: kepalaAg.assignedToName,
-                                  level: kepalaAg.level
-                                })}
-                                className="flex items-center gap-1 px-2.5 py-1 bg-amber-50 hover:bg-amber-100 border border-amber-200 text-amber-800 text-[10px] font-black rounded-lg transition-all hover:scale-[1.02] shadow-2xs shrink-0 cursor-pointer"
-                              >
-                                <Sparkles className="w-3 h-3 text-amber-500 animate-pulse" />
-                                <span>Pakar SAKIP</span>
-                              </button>
                               <div className="w-20 bg-slate-100 rounded-full h-2 overflow-hidden hidden sm:block">
                                 <div 
                                   className={`h-full rounded-full transition-all duration-500 ${
@@ -2898,9 +2598,8 @@ export default function PerformanceAgreementView({
                             ) : (
                               <div className="space-y-3 pl-3 border-l border-indigo-100">
                                 {level2Objects.map(({ indicator: l2Obj, agreement: l2Ag }) => {
-                                  const l2TargetVal = l2Obj._scaledTargetVal !== undefined ? l2Obj._scaledTargetVal : (parseFloat(l2Obj.target) || 100);
+                                  const l2Score = getIndicatorScore(l2Obj);
                                   const l2Real = l2Obj.achievement || 0;
-                                  const l2Score = l2TargetVal > 0 ? Math.min(120, Math.round((l2Real / l2TargetVal) * 100)) : 0;
 
                                   // Find Level 3 descendants (Pegawai under this Level 2 indicator)
                                   const level3Objects = periodAgreements
@@ -2937,20 +2636,6 @@ export default function PerformanceAgreementView({
                                         </div>
 
                                         <div className="flex items-center gap-2 shrink-0">
-                                          <button
-                                            type="button"
-                                            onClick={() => setSakipExpertData({
-                                              indicator: l2Obj,
-                                              agreementId: l2Ag.id,
-                                              assignedToName: l2Ag.assignedToName,
-                                              level: l2Ag.level
-                                            })}
-                                            className="flex items-center gap-1 px-2 py-0.5 bg-amber-50 hover:bg-amber-100 border border-amber-200 text-amber-800 text-[9px] font-black rounded-md transition-all hover:scale-[1.02] shadow-2xs cursor-pointer select-none"
-                                            title="Buka Sistem Pakar SAKIP & ASN"
-                                          >
-                                            <Sparkles className="w-2.5 h-2.5 text-amber-500 animate-pulse" />
-                                            <span>Pakar SAKIP</span>
-                                          </button>
                                           <span className={`px-2 py-0.5 rounded-full text-[10px] font-black border shrink-0 font-mono ${
                                             l2Score >= 90 ? 'bg-emerald-50/80 text-emerald-700 border-emerald-200' : 
                                             l2Score >= 50 ? 'bg-amber-50/80 text-amber-700 border-amber-200' : 
@@ -2967,9 +2652,8 @@ export default function PerformanceAgreementView({
                                           <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest block mb-1.5 pl-1">Kontributor Kinerja Pelaksana (Level 3 - Pegawai):</span>
                                           <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                                             {level3Objects.map(({ indicator: l3Obj, agreement: l3Ag }) => {
-                                              const l3TargetVal = l3Obj._scaledTargetVal !== undefined ? l3Obj._scaledTargetVal : (parseFloat(l3Obj.target) || 100);
+                                              const l3Score = getIndicatorScore(l3Obj);
                                               const l3Real = l3Obj.achievement || 0;
-                                              const l3Score = l3TargetVal > 0 ? Math.min(120, Math.round((l3Real / l3TargetVal) * 100)) : 0;
 
                                               return (
                                                 <div key={l3Obj.id} className="bg-white p-3 rounded-lg border border-slate-150 flex flex-col justify-between gap-2.5 text-[11px] shadow-2xs hover:border-blue-200 transition-colors">
@@ -2987,7 +2671,11 @@ export default function PerformanceAgreementView({
                                                       </div>
                                                     </div>
 
-                                                    <div className="flex flex-col items-end gap-1 shrink-0"><span className={`px-1.5 py-0.5 rounded-md text-[9px] font-black font-mono shrink-0 ${l3Score >= 90 ? "bg-emerald-50 text-emerald-700 border border-emerald-200" : l3Score >= 50 ? "bg-amber-50 text-amber-700 border border-amber-200" : "bg-rose-50 text-rose-700 border-rose-200"}`}>{l3Score}%</span><button type="button" onClick={() => setSakipExpertData({ indicator: l3Obj, agreementId: l3Ag.id, assignedToName: l3Ag.assignedToName, level: l3Ag.level })} className="flex items-center gap-0.5 px-1.5 py-0.5 bg-amber-50 hover:bg-amber-100 border border-amber-200 text-amber-800 text-[8px] font-bold rounded cursor-pointer select-none" title="Sistem Pakar SAKIP"><Sparkles className="w-2.5 h-2.5 text-amber-500 animate-pulse" /><span>Pakar</span></button></div>
+                                                    <div className="flex flex-col items-end gap-1 shrink-0">
+                                                      <span className={`px-1.5 py-0.5 rounded-md text-[9px] font-black font-mono shrink-0 ${l3Score >= 90 ? "bg-emerald-50 text-emerald-700 border border-emerald-200" : l3Score >= 50 ? "bg-amber-50 text-amber-700 border border-amber-200" : "bg-rose-50 text-rose-700 border-rose-200"}`}>
+                                                        {l3Score}%
+                                                      </span>
+                                                    </div>
                                                   </div>
 
                                                   {/* Level 3 Comments */}
@@ -3034,7 +2722,9 @@ export default function PerformanceAgreementView({
 
           </div>
         </div>
-      ) : (
+      )}
+
+      {/* SAKIP Expert Tab Removed */ false && (
         // Pakar SAKIP & ASN Tab
         <div className="space-y-6 animate-in fade-in duration-200">
           {/* Header Card */}
@@ -3967,8 +3657,8 @@ ${tindakLanjut}
         </div>
       )}
 
-      {/* SAKIP & ASN Performance Expert Assistant Modal */}
-      {sakipExpertData && (() => {
+      {/* SAKIP & ASN Performance Expert Assistant Modal Removed */}
+      {false && sakipExpertData && (() => {
         const ind = sakipExpertData.indicator;
         const targetVal = parseFloat(ind.target) || 100;
         const realVal = ind.achievement || 0;

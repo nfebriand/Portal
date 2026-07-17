@@ -1516,6 +1516,15 @@ export default function App() {
               onUpdateSettings={handleUpdateSettings}
               onUpdateIdentity={handleUpdateIdentity}
               employees={employees}
+              onUpdateEmployees={handleUpdateEmployees}
+              notifications={notifications}
+              onUpdateNotifications={handleUpdateNotifications}
+              agreements={agreements}
+              onUpdateAgreements={handleUpdateAgreements}
+              contracts={contracts}
+              onUpdateContracts={handleUpdateContracts}
+              reporterTargets={reporterTargets}
+              onUpdateReporterTargets={handleUpdateReporterTargets}
               onResetToProductionMode={handleResetToProductionMode}
               onExportDatabase={handleExportDatabase}
               onImportDatabase={handleImportDatabase}

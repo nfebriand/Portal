@@ -84,6 +84,7 @@ export default function InputCapaianPKView({
   // Temporary local state for draft edits to avoid updating database on every keystroke
   // Formatted as { [indicatorId]: number[] }
   const [localAchievements, setLocalAchievements] = useState<{ [key: string]: number[] }>({});
+  const [localPeriodTypes, setLocalPeriodTypes] = useState<{ [key: string]: 'tahunan' | 'triwulanan' | 'semesteran' }>({});
   const [activeObjectiveId, setActiveObjectiveId] = useState<string | null>(null);
 
   // Find agreement for the selected level
@@ -91,23 +92,27 @@ export default function InputCapaianPKView({
     return agreements.find(ag => ag.level === selectedLevel);
   }, [agreements, selectedLevel]);
 
-  // Initialize local achievements from agreement objectives
+  // Initialize local achievements and period types from agreement objectives
   React.useEffect(() => {
     if (activeAgreement) {
       const initial: { [key: string]: number[] } = {};
+      const initialPeriods: { [key: string]: 'tahunan' | 'triwulanan' | 'semesteran' } = {};
       activeAgreement.objectives.forEach(obj => {
         if (Array.isArray(obj.monthlyAchievements) && obj.monthlyAchievements.length === 12) {
           initial[obj.id] = [...obj.monthlyAchievements];
         } else {
           initial[obj.id] = Array(12).fill(obj.achievement / 12 || 0);
         }
+        initialPeriods[obj.id] = obj.periodType || 'tahunan';
       });
       setLocalAchievements(initial);
+      setLocalPeriodTypes(initialPeriods);
       if (activeAgreement.objectives.length > 0) {
         setActiveObjectiveId(activeAgreement.objectives[0].id);
       }
     } else {
       setLocalAchievements({});
+      setLocalPeriodTypes({});
       setActiveObjectiveId(null);
     }
   }, [activeAgreement]);
@@ -168,6 +173,7 @@ export default function InputCapaianPKView({
             return {
               ...obj,
               monthlyAchievements: currentAchievements,
+              periodType: localPeriodTypes[obj.id] || 'tahunan',
               achievement: Math.round(annualAchievement * 10) / 10
             };
           })
@@ -202,6 +208,7 @@ export default function InputCapaianPKView({
   const activeCalculations = useMemo(() => {
     if (!activeObjective) return null;
     const achievements = localAchievements[activeObjective.id] || Array(12).fill(0);
+    const pType = localPeriodTypes[activeObjective.id] || activeObjective.periodType || 'tahunan';
     
     const type = activeObjective.trajectoryType || (
       activeObjective.unit === '%' || 
@@ -218,25 +225,78 @@ export default function InputCapaianPKView({
 
     let computedAchievement = 0;
     let targetVal = baseTargetVal;
+    let percentage = 0;
 
-    if (isUsingTrajectory) {
-      if (type === 'constant') {
-        targetVal = (activeObjective.trajectory || []).reduce((sum, val) => sum + val, 0) / 12;
-        computedAchievement = achievements.reduce((sum, v) => sum + v, 0) / 12;
-      } else {
-        targetVal = (activeObjective.trajectory || []).reduce((sum, val) => sum + val, 0);
-        computedAchievement = achievements.reduce((sum, v) => sum + v, 0);
+    const trajectory = isUsingTrajectory ? (activeObjective.trajectory || []) : Array(12).fill(baseTargetVal / 12);
+
+    if (pType === 'triwulanan') {
+      const qScores: number[] = [];
+      let totalReal = 0;
+      for (let q = 0; q < 4; q++) {
+        const startIndex = q * 3;
+        const qTarget = isUsingTrajectory
+          ? (type === 'constant'
+            ? (trajectory[startIndex] + trajectory[startIndex+1] + trajectory[startIndex+2]) / 3
+            : (trajectory[startIndex] + trajectory[startIndex+1] + trajectory[startIndex+2]))
+          : (type === 'constant' ? baseTargetVal : baseTargetVal / 4);
+        
+        const qReal = type === 'constant'
+          ? (achievements[startIndex] + achievements[startIndex+1] + achievements[startIndex+2]) / 3
+          : (achievements[startIndex] + achievements[startIndex+1] + achievements[startIndex+2]);
+
+        totalReal += (achievements[startIndex] + achievements[startIndex+1] + achievements[startIndex+2]);
+
+        const qScore = qTarget > 0 ? (qReal / qTarget) * 100 : 0;
+        qScores.push(Math.min(120, Math.max(0, qScore)));
       }
-    } else {
+      computedAchievement = type === 'constant' ? totalReal / 12 : totalReal;
       targetVal = baseTargetVal;
-      if (type === 'constant') {
-        computedAchievement = achievements.reduce((sum, v) => sum + v, 0) / 12;
-      } else {
-        computedAchievement = achievements.reduce((sum, v) => sum + v, 0);
+      percentage = Math.round(qScores.reduce((sum, s) => sum + s, 0) / 4);
+    } else if (pType === 'semesteran') {
+      const sScores: number[] = [];
+      let totalReal = 0;
+      for (let s = 0; s < 2; s++) {
+        const startIndex = s * 6;
+        let sTarget = 0;
+        let sReal = 0;
+        for (let i = 0; i < 6; i++) {
+          sTarget += isUsingTrajectory ? trajectory[startIndex + i] : (type === 'constant' ? baseTargetVal / 6 : baseTargetVal / 12);
+          sReal += achievements[startIndex + i];
+        }
+        totalReal += sReal;
+        if (type === 'constant') {
+          sTarget = isUsingTrajectory ? sTarget / 6 : baseTargetVal;
+          sReal = sReal / 6;
+        } else if (!isUsingTrajectory) {
+          sTarget = baseTargetVal / 2;
+        }
+
+        const sScore = sTarget > 0 ? (sReal / sTarget) * 100 : 0;
+        sScores.push(Math.min(120, Math.max(0, sScore)));
       }
+      computedAchievement = type === 'constant' ? totalReal / 12 : totalReal;
+      targetVal = baseTargetVal;
+      percentage = Math.round(sScores.reduce((sum, s) => sum + s, 0) / 2);
+    } else {
+      if (isUsingTrajectory) {
+        if (type === 'constant') {
+          targetVal = (activeObjective.trajectory || []).reduce((sum, val) => sum + val, 0) / 12;
+          computedAchievement = achievements.reduce((sum, v) => sum + v, 0) / 12;
+        } else {
+          targetVal = (activeObjective.trajectory || []).reduce((sum, val) => sum + val, 0);
+          computedAchievement = achievements.reduce((sum, v) => sum + v, 0);
+        }
+      } else {
+        targetVal = baseTargetVal;
+        if (type === 'constant') {
+          computedAchievement = achievements.reduce((sum, v) => sum + v, 0) / 12;
+        } else {
+          computedAchievement = achievements.reduce((sum, v) => sum + v, 0);
+        }
+      }
+      percentage = targetVal > 0 ? Math.round((computedAchievement / targetVal) * 100) : 0;
     }
 
-    const percentage = targetVal > 0 ? Math.round((computedAchievement / targetVal) * 100) : 0;
     const clampedPercentage = Math.min(120, Math.max(0, percentage));
 
     return {
@@ -244,9 +304,10 @@ export default function InputCapaianPKView({
       isUsingTrajectory,
       targetVal,
       computedAchievement: Math.round(computedAchievement * 10) / 10,
-      percentage: clampedPercentage
+      percentage: clampedPercentage,
+      periodType: pType
     };
-  }, [activeObjective, localAchievements]);
+  }, [activeObjective, localAchievements, localPeriodTypes]);
 
   return (
     <div className="space-y-6">
@@ -455,6 +516,34 @@ export default function InputCapaianPKView({
                           : '✗ Tidak ada proyeksi khusus'
                         }
                       </p>
+                    </div>
+                  </div>
+
+                  {/* Pilihan Capaian SAKIP */}
+                  <div className="pt-3 border-t border-slate-200/60 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-3.5 rounded-xl border border-slate-100 shadow-2xs">
+                    <div className="space-y-0.5">
+                      <p className="text-[10px] font-extrabold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
+                        <span>Frekuensi Evaluasi Capaian PK</span>
+                        <span className="text-indigo-600 font-mono font-black text-[9px] bg-indigo-50 px-1 py-0.5 rounded border border-indigo-100">BARU</span>
+                      </p>
+                      <p className="text-[11px] text-slate-400">Tentukan apakah capaian dihitung per semester, triwulan, atau akumulasi tahunan terhadap target tahunan.</p>
+                    </div>
+                    <div className="shrink-0">
+                      <select
+                        value={localPeriodTypes[activeObjective.id] || 'tahunan'}
+                        onChange={(e) => {
+                          const val = e.target.value as 'tahunan' | 'triwulanan' | 'semesteran';
+                          setLocalPeriodTypes(prev => ({
+                            ...prev,
+                            [activeObjective.id]: val
+                          }));
+                        }}
+                        className="bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-xl px-3 py-1.5 text-xs font-black text-slate-700 focus:outline-hidden focus:ring-2 focus:ring-indigo-500 transition-all cursor-pointer"
+                      >
+                        <option value="tahunan">Tahunan / Bulanan (Akumulasi)</option>
+                        <option value="triwulanan">Triwulanan (Rata-rata 4 Triwulan)</option>
+                        <option value="semesteran">Semesteran (Rata-rata 2 Semester)</option>
+                      </select>
                     </div>
                   </div>
 

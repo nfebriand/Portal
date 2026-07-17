@@ -1,7 +1,13 @@
 import React, { useState } from 'react';
-import { AppSettings, InstitutionalIdentity, Employee, NewsReport } from '../types';
+import { AppSettings, InstitutionalIdentity, Employee, NewsReport, CriticalNotification, PerformanceAgreement, CooperationContract, ReporterTarget } from '../types';
 import SignaturePad from './SignaturePad';
-import { Building, Award, PenTool, Check, FileText, Phone, MapPin, Printer, Database, Download, Upload, Radio, FileSpreadsheet, AlertCircle, Clock, UserCheck, RefreshCw, Layers, Share2 } from 'lucide-react';
+import DatabaseExplorer from './DatabaseExplorer';
+import { 
+  Building, Award, PenTool, Check, FileText, Phone, MapPin, Printer, 
+  Database, Download, Upload, Radio, FileSpreadsheet, AlertCircle, 
+  Clock, UserCheck, RefreshCw, Layers, Share2, Search, Plus, 
+  Trash2, Edit3, Save, FileJson, X, ShieldAlert 
+} from 'lucide-react';
 import * as XLSX from 'xlsx';
 
 interface AppAdminViewProps {
@@ -10,6 +16,15 @@ interface AppAdminViewProps {
   onUpdateSettings: (settings: AppSettings) => void;
   onUpdateIdentity: (identity: InstitutionalIdentity) => void;
   employees?: Employee[];
+  onUpdateEmployees?: (employees: Employee[]) => void;
+  notifications?: CriticalNotification[];
+  onUpdateNotifications?: (notifications: CriticalNotification[]) => void;
+  agreements?: PerformanceAgreement[];
+  onUpdateAgreements?: (agreements: PerformanceAgreement[]) => void;
+  contracts?: CooperationContract[];
+  onUpdateContracts?: (contracts: CooperationContract[]) => void;
+  reporterTargets?: ReporterTarget[];
+  onUpdateReporterTargets?: (targets: ReporterTarget[]) => void;
   onResetToProductionMode?: () => void;
   onExportDatabase?: () => void;
   onImportDatabase?: (jsonData: string) => Promise<boolean>;
@@ -30,6 +45,15 @@ export default function AppAdminView({
   onUpdateSettings,
   onUpdateIdentity,
   employees = [],
+  onUpdateEmployees,
+  notifications = [],
+  onUpdateNotifications,
+  agreements = [],
+  onUpdateAgreements,
+  contracts = [],
+  onUpdateContracts,
+  reporterTargets = [],
+  onUpdateReporterTargets,
   onResetToProductionMode,
   onExportDatabase,
   onImportDatabase,
@@ -43,6 +67,8 @@ export default function AppAdminView({
     if (emp.gelarBelakang) full = `${full}, ${emp.gelarBelakang}`;
     return full;
   };
+
+  const [activeMainTab, setActiveMainTab] = useState<'settings' | 'explorer'>('settings');
 
   // General Settings Local State
   const [instansiNama, setInstansiNama] = useState(settings.namaInstansi);
@@ -526,7 +552,50 @@ export default function AppAdminView({
   }
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+    <div className="space-y-6">
+      {/* Tab Selector Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-white p-4 rounded-2xl border border-slate-200/60 shadow-xs">
+        <div className="flex items-center gap-3">
+          <div className="p-2.5 bg-slate-800 text-white rounded-xl">
+            <Database className="w-5 h-5" />
+          </div>
+          <div>
+            <h1 className="text-base font-extrabold text-slate-800 tracking-tight">Administrasi & Pengelola Portal</h1>
+            <p className="text-xs text-slate-400">Konfigurasi stasiun, kelola tanda tangan pejabat, dan jelajahi seluruh database utama Swara.</p>
+          </div>
+        </div>
+        <div className="flex p-1 bg-slate-100 rounded-xl">
+          <button
+            onClick={() => setActiveMainTab('settings')}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+              activeMainTab === 'settings'
+                ? 'bg-white text-slate-800 shadow-xs font-bold'
+                : 'text-slate-500 hover:text-slate-800 font-medium'
+            }`}
+          >
+            <Building className="w-3.5 h-3.5" />
+            Pengaturan Aplikasi & TTD
+          </button>
+          <button
+            onClick={() => setActiveMainTab('explorer')}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer relative ${
+              activeMainTab === 'explorer'
+                ? 'bg-white text-slate-800 shadow-xs font-bold'
+                : 'text-slate-500 hover:text-slate-800 font-medium'
+            }`}
+          >
+            <Database className="w-3.5 h-3.5" />
+            Penjelajah & Pengelola DB
+            <span className="absolute -top-1 -right-1 flex h-2 w-2">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+            </span>
+          </button>
+        </div>
+      </div>
+
+      {activeMainTab === 'settings' ? (
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
       
       {/* Left Settings Panel */}
       <div className="lg:col-span-7 space-y-6">
@@ -1565,6 +1634,38 @@ export default function AppAdminView({
 
         </div>
       </div>
+    </div>
+      ) : (
+        <div className="bg-white border border-slate-200 rounded-3xl p-6 shadow-xs">
+          <div className="flex items-center gap-2.5 border-b border-slate-100 pb-3 mb-6">
+            <div className="p-2.5 bg-slate-800 text-white rounded-xl">
+              <Database className="w-5 h-5 animate-pulse" />
+            </div>
+            <div>
+              <h2 className="text-sm font-bold text-slate-800">Penjelajah & Pengelola Database</h2>
+              <p className="text-[10px] text-slate-400">Kelola dan jelajahi seluruh 8 tabel/koleksi utama database secara aman.</p>
+            </div>
+          </div>
+          <DatabaseExplorer
+            employees={employees}
+            onUpdateEmployees={onUpdateEmployees}
+            settings={settings}
+            onUpdateSettings={onUpdateSettings}
+            identity={identity}
+            onUpdateIdentity={onUpdateIdentity}
+            notifications={notifications}
+            onUpdateNotifications={onUpdateNotifications}
+            agreements={agreements}
+            onUpdateAgreements={onUpdateAgreements}
+            contracts={contracts}
+            onUpdateContracts={onUpdateContracts}
+            reporterTargets={reporterTargets}
+            onUpdateReporterTargets={onUpdateReporterTargets}
+            newsReports={newsReports}
+            onUpdateNewsReports={onUpdateNewsReports}
+          />
+        </div>
+      )}
 
     </div>
   );
