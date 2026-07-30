@@ -371,8 +371,16 @@ export default function DatabaseExplorer({
       if (!confirmImport) return;
 
       if (activeCol.update) {
-        activeCol.update(itemsToImport);
-        alert(`Berhasil mengimpor ${itemsToImport.length} data ke tabel ${activeCol.label}!`);
+        if (Array.isArray(activeCol.data)) {
+          const existingIds = new Set(activeCol.data.map((item: any) => item?.id));
+          const newItems = itemsToImport.filter((item: any) => !existingIds.has(item?.id));
+          const merged = [...newItems, ...activeCol.data];
+          activeCol.update(merged);
+          alert(`Berhasil menambahkan ${newItems.length} data baru ke tabel '${activeCol.label}'! Total saat ini: ${merged.length} data.`);
+        } else {
+          activeCol.update(itemsToImport);
+          alert(`Berhasil memperbarui data ${activeCol.label}!`);
+        }
         setIsBulkImportOpen(false);
         setBulkImportText('');
       } else {

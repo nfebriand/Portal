@@ -403,6 +403,7 @@ export default function AppAdminView({
           date: datePart,
           category: String(subKategori),
           publishDateTime: String(publishStr),
+          writerName: matchedReporter ? matchedReporter.nama : String(pembuat),
           reporterName: matchedReporter ? matchedReporter.nama : String(pembuat),
           editorName: matchedEditor ? matchedEditor.nama : String(editor),
           daerah: String(daerah),
@@ -427,9 +428,12 @@ export default function AppAdminView({
     }
 
     try {
-      const updatedReports = [...parsedNews, ...newsReports];
+      // Append parsed news as additional data to existing news reports
+      const existingIds = new Set(newsReports.map(r => r.id));
+      const newItems = parsedNews.filter(r => !existingIds.has(r.id));
+      const updatedReports = [...newItems, ...newsReports];
       onUpdateNewsReports(updatedReports);
-      setImportSuccess(`Berhasil menyimpan ${parsedNews.length} data berita ke database Firestore!`);
+      setImportSuccess(`Berhasil menambahkan ${newItems.length} data berita baru ke database Firestore! (Total data berita: ${updatedReports.length})`);
       setParsedNews([]);
       setNewsImportText('');
     } catch (error) {

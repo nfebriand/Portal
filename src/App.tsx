@@ -567,7 +567,19 @@ const recalculateCascade = (
     updated = updated.map(ag => {
       if (ag.level === 'Pegawai' && ag.assignedToEmployeeId) {
         const empId = ag.assignedToEmployeeId;
-        const empReports = currentNewsReports.filter(r => r.employeeId === empId);
+        const empObj = INITIAL_EMPLOYEES.find(e => e.id === empId);
+        const empNameLower = empObj ? empObj.nama.toLowerCase().trim() : '';
+
+        const empReports = currentNewsReports.filter(r => {
+          if (r.employeeId === empId) return true;
+          if (empNameLower) {
+            const repName = (r.reporterName || r.writerName || '').toLowerCase().trim();
+            if (repName && (repName === empNameLower || repName.includes(empNameLower) || empNameLower.includes(repName))) {
+              return true;
+            }
+          }
+          return false;
+        });
 
         const objectives = ag.objectives.map(obj => {
           const nameLower = obj.indicatorName.toLowerCase();
@@ -637,6 +649,22 @@ const recalculateCascade = (
             const l2TargetVal = parseFloat(l2Obj.target) || 100;
             const newAchievement = Math.round((avgProgress / 100) * l2TargetVal * 10) / 10;
             return { ...l2Obj, achievement: newAchievement };
+          }
+        } else {
+          // Direct news count fallback for L2 if no child L3 objectives linked
+          const nameLower = l2Obj.indicatorName.toLowerCase();
+          if (nameLower.includes('ringan') || nameLower.includes('lpu')) {
+            const count = currentNewsReports.filter(r => r.type === 'Berita Ringan' || r.type === 'Berita Ringan LPU').length;
+            return { ...l2Obj, achievement: count };
+          } else if (nameLower.includes('radio')) {
+            const count = currentNewsReports.filter(r => r.type === 'Berita Radio').length;
+            return { ...l2Obj, achievement: count };
+          } else if (nameLower.includes('konten siaran') || (nameLower.includes('siaran') && !nameLower.includes('radio') && !nameLower.includes('pemilu'))) {
+            const count = currentNewsReports.filter(r => r.type === 'Konten Siaran').length;
+            return { ...l2Obj, achievement: count };
+          } else if (nameLower.includes('online') || nameLower.includes('kbrn') || nameLower.includes('media baru')) {
+            const count = currentNewsReports.filter(r => r.type === 'Berita Online').length;
+            return { ...l2Obj, achievement: count };
           }
         }
         return l2Obj;

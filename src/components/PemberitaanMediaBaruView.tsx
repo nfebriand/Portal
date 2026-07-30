@@ -5,6 +5,7 @@ import {
   Globe, 
   Plus, 
   Trash2, 
+  Pencil,
   Settings, 
   Layers, 
   TrendingUp, 
@@ -77,6 +78,7 @@ export default function PemberitaanMediaBaruView({
 
   // Form states - News Report/Evidence
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
+  const [editingReport, setEditingReport] = useState<NewsReport | null>(null);
   const [reportEmployeeId, setReportEmployeeId] = useState('');
   const [reportTitle, setReportTitle] = useState('');
   const [reportUrl, setReportUrl] = useState('');
@@ -90,6 +92,48 @@ export default function PemberitaanMediaBaruView({
   const [reportPrograma, setReportPrograma] = useState<'Programa 1' | 'Programa 2' | 'Programa 3' | 'Programa 4'>('Programa 1');
   const [reportWriterName, setReportWriterName] = useState<string>('');
   const [reportEditorName, setReportEditorName] = useState<string>('');
+
+  const handleOpenCreateReport = () => {
+    setEditingReport(null);
+    if (reporters.length > 0) {
+      setReportEmployeeId(reporters[0].id);
+      const emp = employees.find(e => e.id === reporters[0].id);
+      setReportWriterName(emp ? emp.nama : '');
+    } else if (employees.length > 0) {
+      setReportEmployeeId(employees[0].id);
+      setReportWriterName(employees[0].nama);
+    }
+    if (activeSubTab === 'online') setReportType('Berita Online');
+    else if (activeSubTab === 'ringan') setReportType('Berita Ringan LPU');
+    else if (activeSubTab === 'radio') setReportType('Berita Radio');
+    else if (activeSubTab === 'siaran') setReportType('Konten Siaran');
+    
+    setReportTitle('');
+    setReportUrl('');
+    setReportDate(new Date().toISOString().split('T')[0]);
+    setReportEditorId('');
+    setReportDaerah('');
+    setReportCategory('Politik');
+    setReportPrograma('Programa 1');
+    setReportEditorName('');
+    setIsReportModalOpen(true);
+  };
+
+  const handleOpenEditReport = (report: NewsReport) => {
+    setEditingReport(report);
+    setReportEmployeeId(report.employeeId || '');
+    setReportTitle(report.title || '');
+    setReportUrl(report.url || '');
+    setReportType(report.type || 'Berita Online');
+    setReportDate(report.date || new Date().toISOString().split('T')[0]);
+    setReportEditorId(report.editorId || '');
+    setReportDaerah(report.daerah || '');
+    setReportCategory(report.category || 'Politik');
+    setReportPrograma(report.programa || 'Programa 1');
+    setReportWriterName(report.writerName || report.reporterName || '');
+    setReportEditorName(report.editorName || '');
+    setIsReportModalOpen(true);
+  };
 
   // News Import states
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
@@ -324,6 +368,7 @@ export default function PemberitaanMediaBaruView({
           date: datePart,
           category: String(subKategori),
           publishDateTime: String(publishStr),
+          writerName: matchedReporter ? matchedReporter.nama : String(pembuat),
           reporterName: matchedReporter ? matchedReporter.nama : String(pembuat),
           editorName: matchedEditor ? matchedEditor.nama : String(editor),
           daerah: String(daerah),
@@ -343,9 +388,12 @@ export default function PemberitaanMediaBaruView({
   const handleSaveImportedNews = () => {
     if (parsedNews.length === 0) return;
     try {
-      const updatedReports = [...parsedNews, ...newsReports];
+      // Append parsed news as additional data to existing news reports
+      const existingIds = new Set(newsReports.map(r => r.id));
+      const newItems = parsedNews.filter(r => !existingIds.has(r.id));
+      const updatedReports = [...newItems, ...newsReports];
       onUpdateNewsReports(updatedReports);
-      setImportSuccess(`Berhasil menyimpan ${parsedNews.length} data berita ke database RRI Swara!`);
+      setImportSuccess(`Berhasil menambahkan ${newItems.length} data berita baru ke database RRI Swara! (Total data berita: ${updatedReports.length})`);
       setParsedNews([]);
       setNewsImportText('');
       setTimeout(() => {
@@ -531,8 +579,8 @@ export default function PemberitaanMediaBaruView({
     const empObj = employees.find(e => e.id === reportEmployeeId);
     const editorObj = employees.find(e => e.id === finalEditorId);
 
-    const newReport: NewsReport = {
-      id: `rep-${Date.now()}`,
+    const reportData: NewsReport = {
+      id: editingReport ? editingReport.id : `rep-${Date.now()}`,
       employeeId: reportEmployeeId,
       title: reportTitle,
       url: reportUrl,
@@ -542,15 +590,22 @@ export default function PemberitaanMediaBaruView({
       daerah: reportDaerah || undefined,
       category: ['Berita Online', 'Berita Ringan LPU'].includes(reportType) ? (reportCategory || 'Politik') : undefined,
       programa: ['Berita Radio', 'Konten Siaran'].includes(reportType) ? reportPrograma : undefined,
+      reporterName: reportWriterName || empObj?.nama || undefined,
       writerName: reportWriterName || empObj?.nama || undefined,
       editorName: reportEditorName || editorObj?.nama || undefined
     };
 
-    const updatedReports = [newReport, ...newsReports];
+    let updatedReports: NewsReport[];
+    if (editingReport) {
+      updatedReports = newsReports.map(r => r.id === editingReport.id ? reportData : r);
+    } else {
+      updatedReports = [reportData, ...newsReports];
+    }
     onUpdateNewsReports(updatedReports);
 
     // Reset Form
     setIsReportModalOpen(false);
+    setEditingReport(null);
     setReportTitle('');
     setReportUrl('');
     setReportType('Berita Online');
@@ -1264,18 +1319,7 @@ export default function PemberitaanMediaBaruView({
               </button>
 
               <button
-                onClick={() => {
-                  if (reporters.length > 0) {
-                    setReportEmployeeId(reporters[0].id);
-                  }
-                  // Pre-set report category type
-                  if (activeSubTab === 'online') setReportType('Berita Online');
-                  else if (activeSubTab === 'ringan') setReportType('Berita Ringan LPU');
-                  else if (activeSubTab === 'radio') setReportType('Berita Radio');
-                  else if (activeSubTab === 'siaran') setReportType('Konten Siaran');
-                  
-                  setIsReportModalOpen(true);
-                }}
+                onClick={handleOpenCreateReport}
                 className="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs px-3.5 py-2.5 rounded-xl transition-all shadow-xs flex items-center gap-1.5 cursor-pointer shrink-0"
               >
                 <Plus className="w-4 h-4" />
@@ -1400,13 +1444,22 @@ export default function PemberitaanMediaBaruView({
                         </td>
 
                         <td className="px-5 py-3.5 text-right">
-                          <button
-                            onClick={() => handleDeleteReport(rep.id)}
-                            className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all inline-block"
-                            title="Hapus rilis"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
+                          <div className="flex items-center justify-end gap-1">
+                            <button
+                              onClick={() => handleOpenEditReport(rep)}
+                              className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all inline-block cursor-pointer"
+                              title="Edit laporan berita"
+                            >
+                              <Pencil className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={() => handleDeleteReport(rep.id)}
+                              className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all inline-block cursor-pointer"
+                              title="Hapus rilis"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     );
@@ -1542,8 +1595,8 @@ export default function PemberitaanMediaBaruView({
           <div className="bg-white rounded-2xl border border-slate-100 w-full max-w-md p-6 shadow-2xl space-y-5 animate-in fade-in zoom-in-95 duration-150">
             <div className="flex justify-between items-center border-b border-slate-50 pb-3">
               <h4 className="text-sm font-black text-slate-800 uppercase tracking-tight flex items-center gap-2">
-                <Plus className="w-4 h-4 text-indigo-600" />
-                Tambah Laporan Produksi
+                {editingReport ? <Pencil className="w-4 h-4 text-indigo-600" /> : <Plus className="w-4 h-4 text-indigo-600" />}
+                {editingReport ? 'Edit Laporan Produksi' : 'Tambah Laporan Produksi'}
               </h4>
               <button
                 onClick={() => setIsReportModalOpen(false)}
