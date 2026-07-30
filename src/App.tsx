@@ -33,7 +33,8 @@ import {
   Handshake,
   Share2,
   Cpu,
-  Calendar
+  Calendar,
+  LogOut
 } from 'lucide-react';
 
 // Reusable clean SVG vector signature data-urls for preloaded employees
@@ -1177,7 +1178,19 @@ export default function App() {
         </div>
 
         {/* Navigation Tabs List */}
-        <nav className="flex-1 p-4 space-y-1.5 pt-4 flex flex-col">
+        <nav className="flex-1 p-4 space-y-1.5 pt-3 flex flex-col">
+          {/* Top Logout Action Button in Sidebar */}
+          <button
+            onClick={handleLogout}
+            className="w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all text-rose-300 hover:text-white bg-rose-950/40 hover:bg-rose-900/60 border border-rose-800/40 shadow-2xs mb-2 shrink-0 cursor-pointer"
+          >
+            <div className="flex items-center gap-2.5">
+              <LogOut className="w-4 h-4 text-rose-400" />
+              <span>Keluar Aplikasi</span>
+            </div>
+            <span className="text-[10px] bg-rose-900/80 text-rose-200 px-2 py-0.5 rounded font-mono">Exit</span>
+          </button>
+
           <button
             onClick={() => setActiveTab('dashboard')}
             className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-semibold tracking-wide transition-all ${
@@ -1294,15 +1307,6 @@ export default function App() {
           )}
 
           <div className="flex-1" />
-
-          {/* Logout Button */}
-          <button
-            onClick={handleLogout}
-            className="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-semibold tracking-wide transition-all text-rose-400 hover:text-rose-200 hover:bg-rose-950/40 border border-dashed border-rose-900/30 shrink-0"
-          >
-            <X className="w-4 h-4 text-rose-500" />
-            Keluar Aplikasi
-          </button>
         </nav>
 
         {/* Sidebar Footer Info */}
@@ -1328,10 +1332,19 @@ export default function App() {
         </div>
 
         <div className="flex items-center gap-2">
+          {/* Quick Top Logout button for Mobile Header */}
+          <button
+            onClick={handleLogout}
+            className="flex items-center gap-1.5 px-2.5 py-1.5 bg-rose-950/70 hover:bg-rose-900 border border-rose-800/60 text-rose-300 text-[10px] font-bold rounded-xl transition-colors cursor-pointer"
+            title="Keluar Aplikasi"
+          >
+            <LogOut className="w-3.5 h-3.5 text-rose-400" />
+            <span>Keluar</span>
+          </button>
           {/* Hamburger toggle */}
           <button
             onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-            className="p-2 hover:bg-slate-800 rounded-lg text-slate-300"
+            className="p-2 hover:bg-slate-800 rounded-lg text-slate-300 cursor-pointer"
           >
             {isMobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
           </button>
@@ -1341,6 +1354,17 @@ export default function App() {
       {/* Mobile Drawer menu */}
       {isMobileMenuOpen && (
         <div className="md:hidden bg-slate-900 border-t border-slate-800 text-white p-4 space-y-2 select-none shadow-inner z-50">
+          <button
+            onClick={() => { handleLogout(); setIsMobileMenuOpen(false); }}
+            className="w-full flex items-center justify-between px-4 py-3 rounded-xl text-xs font-bold text-rose-300 bg-rose-950/60 border border-rose-800/50 mb-2 cursor-pointer"
+          >
+            <div className="flex items-center gap-3">
+              <LogOut className="w-4 h-4 text-rose-400" />
+              <span>Keluar Aplikasi</span>
+            </div>
+            <span className="text-[10px] bg-rose-900 text-rose-200 px-2 py-0.5 rounded font-mono">Exit</span>
+          </button>
+
           <button
             onClick={() => { setActiveTab('dashboard'); setIsMobileMenuOpen(false); }}
             className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-semibold tracking-wide transition-colors ${
@@ -1437,14 +1461,6 @@ export default function App() {
               Administrasi Aplikasi
             </button>
           )}
-
-          <button
-            onClick={() => { handleLogout(); setIsMobileMenuOpen(false); }}
-            className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-semibold tracking-wide text-rose-400 hover:bg-rose-950/40"
-          >
-            <X className="w-4 h-4 text-rose-500" />
-            Keluar Aplikasi
-          </button>
         </div>
       )}
 
@@ -1452,11 +1468,11 @@ export default function App() {
       <main className="flex-1 flex flex-col min-w-0">
         
         {/* Workspace Top Header (Desktop only) */}
-        <header className="hidden md:flex justify-between items-center px-8 py-4 bg-white border-b border-slate-100 select-none">
+        <header className="hidden md:flex justify-between items-center px-8 py-3.5 bg-white border-b border-slate-200/80 shadow-2xs select-none sticky top-0 z-30">
           <div className="flex items-center gap-4">
             <button
               onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
-              className="p-1.5 hover:bg-slate-100 active:bg-slate-200 rounded-lg text-slate-600 border border-slate-200 flex items-center gap-2 transition-colors"
+              className="p-1.5 hover:bg-slate-100 active:bg-slate-200 rounded-lg text-slate-600 border border-slate-200 flex items-center gap-2 transition-colors cursor-pointer"
               title={isSidebarCollapsed ? "Tampilkan Sidebar" : "Sembunyikan Sidebar"}
             >
               <Menu className="w-4 h-4 text-indigo-600" />
@@ -1468,6 +1484,32 @@ export default function App() {
                 {settings.namaInstansi.toUpperCase()}
               </span>
             </div>
+          </div>
+
+          {/* User Profile & Quick Logout Button at the Top Workspace Header */}
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2.5 px-3 py-1.5 bg-slate-50 border border-slate-200/80 rounded-xl">
+              {currentUser.photo ? (
+                <img src={currentUser.photo} alt={currentUser.name} className="w-6 h-6 rounded-full object-cover border border-slate-200" />
+              ) : (
+                <div className="w-6 h-6 rounded-full bg-indigo-100 text-indigo-700 font-black text-xs flex items-center justify-center border border-indigo-200">
+                  {currentUser.name.charAt(0)}
+                </div>
+              )}
+              <div className="text-left hidden sm:block">
+                <span className="text-xs font-bold text-slate-800 block leading-none">{currentUser.name}</span>
+                <span className="text-[9px] font-semibold text-slate-400 font-mono block mt-0.5">{currentUser.role} {currentUser.division ? `• ${currentUser.division}` : ''}</span>
+              </div>
+            </div>
+
+            <button
+              onClick={handleLogout}
+              className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-bold text-rose-600 bg-rose-50 hover:bg-rose-100 active:bg-rose-200 border border-rose-200/80 shadow-2xs transition-all cursor-pointer"
+              title="Keluar dari Aplikasi"
+            >
+              <LogOut className="w-3.5 h-3.5 text-rose-600" />
+              <span>Keluar Aplikasi</span>
+            </button>
           </div>
         </header>
 

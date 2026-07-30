@@ -56,9 +56,19 @@ function calculateObjectivePerformance(
   period: string,
   selectedMonthIndex: number
 ): ObjectivePerformanceResult {
+  if (obj._computedPct !== undefined && (obj._scaledTargetVal !== undefined || typeof obj.target === 'string')) {
+    const targetVal = obj._scaledTargetVal !== undefined ? obj._scaledTargetVal : (parseFloat(obj.target) || 100);
+    return {
+      targetVal,
+      targetStr: typeof obj.target === 'string' ? obj.target : `${targetVal} ${obj.unit || ''}`,
+      achievement: typeof obj.achievement === 'number' ? obj.achievement : parseFloat(obj.achievement) || 0,
+      percentage: obj._computedPct
+    };
+  }
+
   const isUsingTrajectory = Array.isArray(obj.trajectory) && obj.trajectory.length === 12;
 
-  // 1. Get active months indices
+  // Get active months indices
   let activeMonths: number[] = [];
   switch (period) {
     case 'Semester 1':
@@ -88,18 +98,19 @@ function calculateObjectivePerformance(
       break;
   }
 
-  const numMatch = obj.target.match(/([\d\.,]+)/);
-  const baseTargetVal = numMatch ? parseFloat(numMatch[1].replace(/,/g, '')) : 100;
-  const nonNumPart = obj.target.replace(/[\d\.,]+/g, '').trim();
+  const numMatch = typeof obj.target === 'string' ? obj.target.match(/([\d\.,]+)/) : null;
+  const baseTargetVal = numMatch ? parseFloat(numMatch[1].replace(/,/g, '')) : (parseFloat(obj.target) || 100);
+  const nonNumPart = typeof obj.target === 'string' ? obj.target.replace(/[\d\.,]+/g, '').trim() : (obj.unit || '');
 
   let targetVal = baseTargetVal;
-  let achievement = obj.achievement;
+  let achievement = typeof obj.achievement === 'number' ? obj.achievement : parseFloat(obj.achievement) || 0;
+
+  const isConstant = obj.unit === '%' || obj.indicatorName?.toLowerCase().includes('ikpa') || obj.indicatorName?.toLowerCase().includes('nilai');
 
   if (isUsingTrajectory) {
-    const type = obj.trajectoryType || (obj.unit === '%' || obj.indicatorName.toLowerCase().includes('ikpa') || obj.indicatorName.toLowerCase().includes('nilai') ? 'constant' : 'cumulative');
+    const type = obj.trajectoryType || (isConstant ? 'constant' : 'cumulative');
 
     if (type === 'constant') {
-      // Target is average of the active months
       const sumTargets = activeMonths.reduce((sum, idx) => sum + (obj.trajectory?.[idx] ?? 0), 0);
       targetVal = sumTargets / activeMonths.length;
 
@@ -108,14 +119,12 @@ function calculateObjectivePerformance(
         achievement = sumAch / activeMonths.length;
       }
     } else {
-      // Cumulative: Target is sum of active months
       targetVal = activeMonths.reduce((sum, idx) => sum + (obj.trajectory?.[idx] ?? 0), 0);
 
       if (Array.isArray(obj.monthlyAchievements) && obj.monthlyAchievements.length === 12) {
         achievement = activeMonths.reduce((sum, idx) => sum + (obj.monthlyAchievements?.[idx] ?? 0), 0);
       } else {
-        // Fallback if no monthly achievements: scale proportionally to active months based on trajectory sum
-        const totalTrajectoryTarget = obj.trajectory.reduce((sum, val) => sum + val, 0);
+        const totalTrajectoryTarget = obj.trajectory.reduce((sum: number, val: number) => sum + val, 0);
         if (totalTrajectoryTarget > 0) {
           const activeTrajectoryTarget = activeMonths.reduce((sum, idx) => sum + (obj.trajectory?.[idx] ?? 0), 0);
           const ratio = activeTrajectoryTarget / totalTrajectoryTarget;
@@ -126,57 +135,29 @@ function calculateObjectivePerformance(
       }
     }
   } else {
-    // Non-trajectory logic
     let targetFactor = 1.0;
-    let achievementFactor = 1.0;
-
     switch (period) {
       case 'Triwulan 1':
-        targetFactor = 0.25;
-        achievementFactor = 0.22;
-        break;
       case 'Triwulan 2':
-        targetFactor = 0.50;
-        achievementFactor = 0.45;
-        break;
       case 'Triwulan 3':
-        targetFactor = 0.75;
-        achievementFactor = 0.68;
-        break;
       case 'Triwulan 4':
-        targetFactor = 1.0;
-        achievementFactor = 0.95;
+        targetFactor = isConstant ? 1.0 : 0.25;
         break;
       case 'Semester 1':
-        targetFactor = 0.50;
-        achievementFactor = 0.47;
-        break;
       case 'Semester 2':
-        targetFactor = 1.0;
-        achievementFactor = 0.92;
+        targetFactor = isConstant ? 1.0 : 0.50;
         break;
       case 'Bulanan':
-        const monthNum = selectedMonthIndex + 1;
-        const isConstant = obj.unit === '%' || obj.indicatorName.toLowerCase().includes('ikpa') || obj.indicatorName.toLowerCase().includes('nilai');
-        if (isConstant) {
-          targetFactor = 1.0;
-          achievementFactor = 1.0;
-        } else {
-          targetFactor = monthNum / 12;
-          achievementFactor = (monthNum / 12) * 0.95;
-        }
+        targetFactor = isConstant ? 1.0 : 1 / 12;
         break;
       case 'Tahunan':
       default:
         targetFactor = 1.0;
-        achievementFactor = 1.0;
         break;
     }
 
     targetVal = baseTargetVal * targetFactor;
-    achievement = obj.achievement * achievementFactor;
-
-    // Fallback/direct monthly achievement if monthly achievements are supplied
+    
     if (period === 'Bulanan' && Array.isArray(obj.monthlyAchievements) && obj.monthlyAchievements.length === 12) {
       achievement = obj.monthlyAchievements[selectedMonthIndex];
     }
@@ -444,14 +425,174 @@ export default function DashboardView({
     };
   }, [agreements]);
 
+  // Process agreements according to selected period for synchronized metrics
+  const currentPeriodAgreements = useMemo(() => {
+    const selectedYear = new Date().getFullYear();
+    const evalPeriod = selectedKpiPeriod === 'Triwulan 1' ? 'q1'
+      : selectedKpiPeriod === 'Triwulan 2' ? 'q2'
+      : selectedKpiPeriod === 'Triwulan 3' ? 'q3'
+      : selectedKpiPeriod === 'Triwulan 4' ? 'q4'
+      : selectedKpiPeriod === 'Semester 1' ? 's1'
+      : selectedKpiPeriod === 'Semester 2' ? 's2'
+      : 'tahunan';
+
+    const isReportInPeriod = (r: NewsReport) => {
+      const d = new Date(r.date);
+      if (d.getFullYear() !== selectedYear) return false;
+      const m = d.getMonth();
+      if (evalPeriod === 'q1') return m >= 0 && m <= 2;
+      if (evalPeriod === 'q2') return m >= 3 && m <= 5;
+      if (evalPeriod === 'q3') return m >= 6 && m <= 8;
+      if (evalPeriod === 'q4') return m >= 9 && m <= 11;
+      if (evalPeriod === 's1') return m >= 0 && m <= 5;
+      if (evalPeriod === 's2') return m >= 6 && m <= 11;
+      if (selectedKpiPeriod === 'Bulanan') return m === selectedKpiMonth;
+      return true;
+    };
+
+    const isContractInPeriod = (c: CooperationContract) => {
+      const d = new Date(c.startDate);
+      if (d.getFullYear() !== selectedYear) return false;
+      const m = d.getMonth();
+      if (evalPeriod === 'q1') return m >= 0 && m <= 2;
+      if (evalPeriod === 'q2') return m >= 3 && m <= 5;
+      if (evalPeriod === 'q3') return m >= 6 && m <= 8;
+      if (evalPeriod === 'q4') return m >= 9 && m <= 11;
+      if (evalPeriod === 's1') return m >= 0 && m <= 5;
+      if (evalPeriod === 's2') return m >= 6 && m <= 11;
+      if (selectedKpiPeriod === 'Bulanan') return m === selectedKpiMonth;
+      return true;
+    };
+
+    const filteredContracts = (contracts || []).filter(c => isContractInPeriod(c));
+    const totalPnbpForPeriod = filteredContracts
+      .filter(c => c.linkedIndicatorId === 'ind-11')
+      .reduce((sum, c) => sum + c.value, 0);
+
+    const activeMonthIndices = selectedKpiPeriod === 'Triwulan 1' ? [0, 1, 2]
+      : selectedKpiPeriod === 'Triwulan 2' ? [3, 4, 5]
+      : selectedKpiPeriod === 'Triwulan 3' ? [6, 7, 8]
+      : selectedKpiPeriod === 'Triwulan 4' ? [9, 10, 11]
+      : selectedKpiPeriod === 'Semester 1' ? [0, 1, 2, 3, 4, 5]
+      : selectedKpiPeriod === 'Semester 2' ? [6, 7, 8, 9, 10, 11]
+      : selectedKpiPeriod === 'Bulanan' ? [selectedKpiMonth]
+      : [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11];
+
+    const updatedAgreements = agreements.map(ag => {
+      const empReports = (newsReports || []).filter(r => r.employeeId === ag.assignedToEmployeeId && isReportInPeriod(r));
+      const empReportCount = empReports.length;
+
+      const newObjectives = ag.objectives.map(obj => {
+        let baseTgt = parseFloat(obj.target) || 100;
+        let scaledTarget = baseTgt;
+
+        if (evalPeriod.startsWith('q')) {
+          scaledTarget = baseTgt / 4;
+        } else if (evalPeriod.startsWith('s')) {
+          scaledTarget = baseTgt / 2;
+        } else if (selectedKpiPeriod === 'Bulanan') {
+          scaledTarget = baseTgt / 12;
+        }
+
+        const isConstant = obj.unit === '%' || obj.indicatorName.toLowerCase().includes('ikpa') || obj.indicatorName.toLowerCase().includes('nilai');
+        if (isConstant) {
+          scaledTarget = baseTgt;
+        }
+
+        let computedAch = obj.achievement || 0;
+        if (obj.id === 'ind-11') {
+          computedAch = totalPnbpForPeriod;
+        } else if (ag.level === 'Pegawai' && (obj.id.startsWith('ind-rep-') || obj.indicatorName.toLowerCase().includes('berita'))) {
+          computedAch = empReportCount;
+        } else if (obj.trajectory && obj.trajectory.length === 12) {
+          const tType = obj.trajectoryType || (isConstant ? 'constant' : 'cumulative');
+          const activeTrajectoryTarget = activeMonthIndices.reduce((sum, idx) => sum + (obj.trajectory?.[idx] ?? 0), 0);
+          scaledTarget = tType === 'constant' ? (activeTrajectoryTarget / activeMonthIndices.length) : activeTrajectoryTarget;
+
+          if (obj.monthlyAchievements && obj.monthlyAchievements.length === 12) {
+            const activeReal = activeMonthIndices.reduce((sum, idx) => sum + (obj.monthlyAchievements?.[idx] ?? 0), 0);
+            computedAch = tType === 'constant' ? (activeReal / activeMonthIndices.length) : activeReal;
+          }
+        }
+
+        const tgtVal = scaledTarget > 0 ? scaledTarget : 1;
+        const pct = Math.min(120, Math.max(0, Math.round((computedAch / tgtVal) * 100)));
+
+        return {
+          ...obj,
+          target: isConstant ? `${baseTgt} ${obj.unit}` : `${Math.round(scaledTarget * 10) / 10} ${obj.unit}`,
+          achievement: Math.round(computedAch * 10) / 10,
+          _scaledTargetVal: scaledTarget,
+          _computedPct: pct
+        };
+      });
+
+      return {
+        ...ag,
+        objectives: newObjectives
+      };
+    });
+
+    // Rollup Level 3 -> Level 2 -> Level 1
+    const level2Agreements = updatedAgreements.filter(a => a.level !== 'Kepala Stasiun' && a.level !== 'Pegawai');
+    const pegawaiAgreements = updatedAgreements.filter(a => a.level === 'Pegawai');
+
+    level2Agreements.forEach(l2Ag => {
+      l2Ag.objectives.forEach(l2Obj => {
+        if (l2Obj.calculationType === 'manual') return;
+
+        const childObjs: any[] = [];
+        pegawaiAgreements.forEach(pAg => {
+          pAg.objectives.forEach(pObj => {
+            if (pObj.parentIndicatorId === l2Obj.id) {
+              childObjs.push(pObj);
+            }
+          });
+        });
+
+        if (childObjs.length > 0) {
+          const sumPct = childObjs.reduce((acc, curr) => acc + (curr._computedPct || 0), 0);
+          const avgPct = Math.round(sumPct / childObjs.length);
+          const tgtVal = l2Obj._scaledTargetVal || parseFloat(l2Obj.target) || 100;
+          l2Obj.achievement = Math.round(((avgPct / 100) * tgtVal) * 10) / 10;
+          l2Obj._computedPct = avgPct;
+        }
+      });
+    });
+
+    const kepalaAg = updatedAgreements.find(a => a.level === 'Kepala Stasiun');
+    if (kepalaAg) {
+      kepalaAg.objectives.forEach(kObj => {
+        if (kObj.calculationType === 'manual') return;
+
+        const childObjs: any[] = [];
+        level2Agreements.forEach(l2Ag => {
+          l2Ag.objectives.forEach(l2Obj => {
+            if (l2Obj.parentIndicatorId === kObj.id) {
+              childObjs.push(l2Obj);
+            }
+          });
+        });
+
+        if (childObjs.length > 0) {
+          const sumPct = childObjs.reduce((acc, curr) => acc + (curr._computedPct || 0), 0);
+          const avgPct = Math.round(sumPct / childObjs.length);
+          const tgtVal = kObj._scaledTargetVal || parseFloat(kObj.target) || 100;
+          kObj.achievement = Math.round(((avgPct / 100) * tgtVal) * 10) / 10;
+          kObj._computedPct = avgPct;
+        }
+      });
+    }
+
+    return updatedAgreements;
+  }, [agreements, contracts, newsReports, selectedKpiPeriod, selectedKpiMonth]);
+
   // Dynamic active PK (Perjanjian Kinerja) mapping for the 6 divisions/sections
   const activeDivisionsData = useMemo(() => {
     const findActiveAg = (level: string) => {
-      // First try to find one with status === 'Aktif'
-      let ag = agreements.find(a => a.level === level && a.status === 'Aktif');
+      let ag = currentPeriodAgreements.find(a => a.level === level && a.status === 'Aktif');
       if (!ag) {
-        // Fallback to any agreement with this level
-        ag = agreements.find(a => a.level === level);
+        ag = currentPeriodAgreements.find(a => a.level === level);
       }
       return ag;
     };
@@ -463,13 +604,11 @@ export default function DashboardView({
     const siaranAg = findActiveAg('Ketua Tim Siaran');
     const tuAg = findActiveAg('Kabid Tata Usaha');
 
-    // Helper to calculate total percentage of an agreement's objectives
     const getAvgPercentage = (ag: PerformanceAgreement | undefined) => {
       if (!ag || !ag.objectives || ag.objectives.length === 0) return 0;
       let sum = 0;
-      ag.objectives.forEach(obj => {
-        const targetVal = parseFloat(obj.target) || 100;
-        sum += targetVal > 0 ? (obj.achievement / targetVal) * 100 : 0;
+      ag.objectives.forEach((obj: any) => {
+        sum += obj._computedPct !== undefined ? obj._computedPct : 0;
       });
       return Math.round(sum / ag.objectives.length);
     };
@@ -548,7 +687,7 @@ export default function DashboardView({
         iconName: 'Tata Usaha / Umum'
       }
     ];
-  }, [agreements]);
+  }, [currentPeriodAgreements]);
 
   // Find the selected Division Data
   const selectedDivData = useMemo(() => {
@@ -560,36 +699,24 @@ export default function DashboardView({
     const percentages: Record<string, number> = {};
     
     activeDivisionsData.forEach(div => {
-      if (!div.agreement || !div.agreement.objectives || div.agreement.objectives.length === 0) {
-        percentages[div.key] = 0;
-        return;
-      }
-      
-      let sum = 0;
-      div.agreement.objectives.forEach(obj => {
-        const result = calculateObjectivePerformance(obj, selectedKpiPeriod, selectedKpiMonth);
-        sum += result.percentage;
-      });
-      
-      percentages[div.key] = Math.round(sum / div.agreement.objectives.length);
+      percentages[div.key] = div.percentage;
     });
     
     return percentages;
-  }, [activeDivisionsData, selectedKpiPeriod, selectedKpiMonth]);
+  }, [activeDivisionsData]);
 
   // Adjust objectives based on the selected period
   const adjustedObjectives = useMemo(() => {
     if (!selectedDivData || !selectedDivData.agreement) return [];
-    return selectedDivData.agreement.objectives.map(obj => {
-      const result = calculateObjectivePerformance(obj, selectedKpiPeriod, selectedKpiMonth);
+    return selectedDivData.agreement.objectives.map((obj: any) => {
       return {
         ...obj,
-        target: result.targetStr,
-        achievement: result.achievement,
-        percentage: result.percentage
+        target: typeof obj.target === 'string' ? obj.target : `${obj.target}`,
+        achievement: obj.achievement,
+        percentage: obj._computedPct !== undefined ? obj._computedPct : 0
       };
     });
-  }, [selectedDivData, selectedKpiPeriod, selectedKpiMonth]);
+  }, [selectedDivData]);
 
   // Average Achievement percentage for adjusted objectives
   const adjustedDivPercentage = useMemo(() => {
