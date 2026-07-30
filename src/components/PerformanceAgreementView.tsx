@@ -158,10 +158,6 @@ export default function PerformanceAgreementView({
     return false;
   };
   
-  // For Document Tab selection
-  const [selectedDocLevel, setSelectedDocLevel] = useState<string>('Kepala Stasiun');
-  const [selectedDocEmployeeId, setSelectedDocEmployeeId] = useState<string>('');
-
   // For inline indicator addition
   const [editingAgreementId, setEditingAgreementId] = useState<string | null>(null);
   const [newIndicatorName, setNewIndicatorName] = useState('');
@@ -269,48 +265,6 @@ export default function PerformanceAgreementView({
     }
     return 'Belum ditugaskan';
   };
-
-  // Helper to resolve level supervisor (pemberi delegasi)
-  const getSupervisorLevel = (level: string) => {
-    if (level === 'Kepala Stasiun') return 'Atasan Pusat';
-    if (level === 'Pegawai') return 'Ketua Tim / Kabid';
-    return 'Kepala Stasiun';
-  };
-
-  const getSupervisorName = (level: string, assignedToEmployeeId?: string) => {
-    if (level === 'Kepala Stasiun') return 'Direktur Utama / Dewan Pengawas';
-    if (level === 'Pegawai' && assignedToEmployeeId) {
-      const emp = employees.find(e => e.id === assignedToEmployeeId);
-      if (!emp) return 'Ketua Tim';
-      // Find suitable team head based on division
-      if (emp.divisi === 'Tata Usaha / Umum') return identity.kepalaBidangNama || 'Kepala Bagian Tata Usaha';
-      if (emp.divisi === 'Pemberitaan') return identity.ketuaTimPemberitaanNama || 'Ketua Tim Pemberitaan';
-      if (emp.divisi === 'Siaran') return identity.ketuaTimSiaranNama || 'Ketua Tim Siaran';
-      if (emp.divisi === 'Teknologi dan Media Baru') return identity.ketuaTimTeknikNama || 'Ketua Tim Teknologi & MB';
-      if (emp.divisi === 'Konten Media Baru') return identity.ketuaTimKontenNama || 'Ketua Tim Konten MB';
-      if (emp.divisi === 'Layanan Pengembangan Usaha') return identity.ketuaTimLayananNama || 'Ketua Tim Layanan PU';
-    }
-    return identity.kepalaStasiunNama || 'Kepala Stasiun';
-  };
-
-  // Active agreement on Document Tab
-  const activeDocumentAgreement = useMemo(() => {
-    const existing = agreements.find(a => a.year === selectedYear && a.level === selectedDocLevel && (selectedDocLevel !== 'Pegawai' || a.assignedToEmployeeId === selectedDocEmployeeId));
-    if (existing) return existing;
-
-    // Return a temporary draft so we can display it cleanly without rendering errors
-    const tempAg: PerformanceAgreement = {
-      id: `pk-temp-${selectedDocLevel}-${selectedDocEmployeeId || 'none'}`,
-      year: selectedYear,
-      level: selectedDocLevel as any,
-      assignedToEmployeeId: selectedDocLevel === 'Pegawai' ? selectedDocEmployeeId : undefined,
-      assignedToName: resolveLevelName(selectedDocLevel, selectedDocEmployeeId),
-      objectives: [],
-      status: 'Aktif',
-      createdAt: new Date().toISOString()
-    };
-    return tempAg;
-  }, [selectedDocLevel, selectedDocEmployeeId, agreements, selectedYear]);
 
   const [evalPeriod, setEvalPeriod] = useState<'q1' | 'q2' | 'q3' | 'q4' | 's1' | 's2' | 'tahunan'>('tahunan');
   const [scaleTargets, setScaleTargets] = useState<boolean>(false);
@@ -672,26 +626,10 @@ export default function PerformanceAgreementView({
       achievement: 0
     };
 
-    const isTemp = agreementId.startsWith('pk-temp-');
     const isNewKepala = agreementId.startsWith('pk-kepala-');
     let updated: PerformanceAgreement[];
 
-    if (isTemp) {
-      const targetLevel = selectedDocLevel;
-      const targetEmpId = selectedDocLevel === 'Pegawai' ? selectedDocEmployeeId : undefined;
-      
-      const newAg: PerformanceAgreement = {
-        id: `pk-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
-        year: selectedYear,
-        level: targetLevel as any,
-        assignedToEmployeeId: targetEmpId,
-        assignedToName: resolveLevelName(targetLevel, targetEmpId),
-        objectives: [newObj],
-        status: 'Aktif',
-        createdAt: new Date().toISOString()
-      };
-      updated = [...agreements, newAg];
-    } else if (isNewKepala) {
+    if (isNewKepala) {
       const newAg: PerformanceAgreement = {
         id: agreementId,
         year: selectedYear,
@@ -1206,128 +1144,6 @@ export default function PerformanceAgreementView({
 
     // Close delegation state
     setDelegatingIndicator(null);
-  };
-
-  // Sign document
-  const handleSignDocument = (agreementId: string, role: 'pembuat' | 'penerima', dataUrl: string) => {
-    const isTemp = agreementId.startsWith('pk-temp-');
-    let updated: PerformanceAgreement[];
-
-    if (isTemp) {
-      const signField = role === 'pembuat' ? 'signaturePembuat' : 'signaturePenerima';
-      const newAg: PerformanceAgreement = {
-        id: `pk-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
-        year: selectedYear,
-        level: selectedDocLevel as any,
-        assignedToEmployeeId: selectedDocLevel === 'Pegawai' ? selectedDocEmployeeId : undefined,
-        assignedToName: resolveLevelName(selectedDocLevel, selectedDocLevel === 'Pegawai' ? selectedDocEmployeeId : undefined),
-        objectives: [],
-        status: 'Aktif',
-        createdAt: new Date().toISOString(),
-        [signField]: dataUrl
-      };
-      updated = [...agreements, newAg];
-    } else {
-      updated = agreements.map(ag => {
-        if (ag.id === agreementId) {
-          const signField = role === 'pembuat' ? 'signaturePembuat' : 'signaturePenerima';
-          const isSignedBoth = (role === 'pembuat' && ag.signaturePenerima) || (role === 'penerima' && ag.signaturePembuat);
-          
-          return {
-            ...ag,
-            [signField]: dataUrl,
-            status: isSignedBoth ? 'Aktif' : ag.status
-          };
-        }
-        return ag;
-      });
-    }
-    onUpdateAgreements(updated);
-  };
-
-  // Quick Action to activate/approve
-  const handleApproveDocument = (agreementId: string) => {
-    const isTemp = agreementId.startsWith('pk-temp-');
-    let updated: PerformanceAgreement[];
-
-    if (isTemp) {
-      const newAg: PerformanceAgreement = {
-        id: `pk-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
-        year: selectedYear,
-        level: selectedDocLevel as any,
-        assignedToEmployeeId: selectedDocLevel === 'Pegawai' ? selectedDocEmployeeId : undefined,
-        assignedToName: resolveLevelName(selectedDocLevel, selectedDocLevel === 'Pegawai' ? selectedDocEmployeeId : undefined),
-        objectives: [],
-        status: 'Aktif',
-        createdAt: new Date().toISOString()
-      };
-      updated = [...agreements, newAg];
-    } else {
-      updated = agreements.map(ag => {
-        if (ag.id === agreementId) {
-          return {
-            ...ag,
-            status: 'Aktif' as const
-          };
-        }
-        return ag;
-      });
-    }
-    onUpdateAgreements(updated);
-  };
-
-  // Quick Action to reset active document back to Draft and clear electronic signatures
-  const handleResetDocumentToDraft = (agreementId: string) => {
-    if (!window.confirm("Apakah Anda yakin ingin membatalkan keaktifan dokumen ini dan mengembalikannya ke status Draft? Tanda tangan elektronik kedua belah pihak akan dihapus agar dokumen dapat direvisi kembali.")) return;
-
-    const updated = agreements.map(ag => {
-      if (ag.id === agreementId) {
-        return {
-          ...ag,
-          status: 'Draft' as const,
-          signaturePembuat: undefined,
-          signaturePenerima: undefined
-        };
-      }
-      return ag;
-    });
-
-    onUpdateAgreements(updated);
-
-    if (onAddNotification) {
-      onAddNotification({
-        id: `notif-pk-reset-${Date.now()}`,
-        title: "Status PK Dikembalikan ke Draft",
-        message: `Perjanjian Kinerja untuk ${activeDocumentAgreement.assignedToName} (${activeDocumentAgreement.level}) telah berhasil dikembalikan ke status Draft untuk direvisi.`,
-        type: "info",
-        timestamp: new Date().toISOString(),
-        isRead: false
-      });
-    }
-  };
-
-  // Quick Action to delete the entire agreement document
-  const handleDeleteAgreement = (agreementId: string) => {
-    if (agreementId.startsWith('pk-temp-')) {
-      alert("Dokumen ini masih berupa draft kosong sementara dan belum disimpan ke database.");
-      return;
-    }
-
-    if (!window.confirm("Apakah Anda yakin ingin menghapus seluruh dokumen Perjanjian Kinerja ini beserta semua indikator sasaran dan tanda tangan di dalamnya secara permanen?")) return;
-
-    const updated = agreements.filter(ag => ag.id !== agreementId);
-    onUpdateAgreements(updated);
-
-    if (onAddNotification) {
-      onAddNotification({
-        id: `notif-pk-deleted-${Date.now()}`,
-        title: "Dokumen PK Dihapus",
-        message: `Dokumen Perjanjian Kinerja untuk ${activeDocumentAgreement.assignedToName} (${activeDocumentAgreement.level}) telah berhasil dihapus sepenuhnya dari sistem.`,
-        type: "critical",
-        timestamp: new Date().toISOString(),
-        isRead: false
-      });
-    }
   };
 
   return (
