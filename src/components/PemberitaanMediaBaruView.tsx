@@ -250,14 +250,16 @@ export default function PemberitaanMediaBaruView({
           return undefined;
         };
 
-        const judul = getVal(['judul berita', 'judul_berita', 'judul', 'title', 'nama', 'headline', 'name']) || '';
-        const link = getVal(['url', 'link', 'eviden', 'linkeviden', 'website']) || '';
-        const pembuat = getVal(['penulis', 'pembuat', 'reporter', 'creator', 'writer', 'penyiar', 'author']) || '';
-        const kategoriRaw = getVal(['kategori', 'category', 'type', 'jenis']) || 'online';
-        const kategori = String(kategoriRaw).toLowerCase().trim();
-        const publishStr = getVal(['waktu publish', 'waktu_publish', 'waktupublish', 'tgl_jam_publish', 'tgl jampublish', 'publishdatetime', 'publish_date', 'date', 'tanggal', 'publish', 'tgl']) || new Date().toISOString();
+        const judul = getVal(['judul berita', 'judul_berita', 'judul', 'title', 'nama', 'headline', 'name', 'nama konten', 'nama_konten']) || '';
+        const link = getVal(['link eviden', 'link_eviden', 'url', 'link', 'eviden', 'linkeviden', 'website']) || '';
+        const pembuat = getVal(['penulis', 'pembuat', 'reporter', 'creator', 'writer', 'penyiar', 'author', 'penulis (reporter)', 'penulis/reporter']) || '';
+        const kategoriRaw = getVal(['jenis berita', 'jenis_berita', 'tipe berita', 'tipe_berita', 'kategori', 'category', 'type', 'jenis', 'jenis/tipe berita']) || 'Berita Online';
+        const kategoriStr = String(kategoriRaw).toLowerCase().trim();
+        const publishStr = getVal(['waktu publish', 'waktu_publish', 'waktupublish', 'tgl_jam_publish', 'tgl jampublish', 'publishdatetime', 'publish_date', 'date', 'tanggal', 'publish', 'tgl', 'tanggal publish', 'waktu terbit']) || new Date().toISOString();
         const editor = getVal(['editor', 'reviewer', 'pemeriksa']) || '';
         const daerah = getVal(['daerah', 'region', 'lokasi', 'location', 'kota', 'city', 'wilayah']) || '';
+        const programa = getVal(['programa', 'pro', 'channel', 'saluran']) || 'Programa 1';
+        const subKategori = getVal(['kategori berita', 'kategori_berita', 'subkategori', 'sub_kategori', 'topik', 'kategori_topik']) || 'Politik';
 
         if (!judul) {
           throw new Error(`Baris ke-${idx + 1} tidak memiliki judul.`);
@@ -301,11 +303,13 @@ export default function PemberitaanMediaBaruView({
           // ignore
         }
 
-        let reportType: 'Berita Ringan' | 'Berita Radio' | 'Berita Online' = 'Berita Online';
-        if (kategori.includes('ringan')) {
-          reportType = 'Berita Ringan';
-        } else if (kategori.includes('radio') || kategori.includes('siaran')) {
+        let reportType: 'Berita Ringan LPU' | 'Berita Radio' | 'Berita Online' | 'Konten Siaran' = 'Berita Online';
+        if (kategoriStr.includes('ringan') || kategoriStr.includes('lpu')) {
+          reportType = 'Berita Ringan LPU';
+        } else if (kategoriStr.includes('radio')) {
           reportType = 'Berita Radio';
+        } else if (kategoriStr.includes('siaran') || kategoriStr.includes('konten')) {
+          reportType = 'Konten Siaran';
         } else {
           reportType = 'Berita Online';
         }
@@ -318,11 +322,12 @@ export default function PemberitaanMediaBaruView({
           url: String(link),
           type: reportType,
           date: datePart,
-          category: ['teks', 'radio', 'adlibs', 'feature', 'podcast', 'sosmed'].includes(kategori) ? kategori : 'teks',
+          category: String(subKategori),
           publishDateTime: String(publishStr),
           reporterName: matchedReporter ? matchedReporter.nama : String(pembuat),
           editorName: matchedEditor ? matchedEditor.nama : String(editor),
-          daerah: String(daerah)
+          daerah: String(daerah),
+          programa: String(programa)
         };
       });
 
@@ -359,27 +364,55 @@ export default function PemberitaanMediaBaruView({
 
     const sampleData = [
       {
-        "Judul Berita": "Sosialisasi Digitalisasi Penyiaran Swara FM",
-        "Waktu Publish": "2026-07-06 09:30:00",
+        "Jenis Berita": "Berita Online",
+        "Judul Berita": "Sosialisasi Digitalisasi Penyiaran RRI Bandar Lampung",
+        "Waktu Publish": "2026-07-29 09:30:00",
         "Penulis": "Nanda Febriand",
         "Editor": "Kepala Bidang",
-        "Daerah": "Bandung",
-        "URL": "https://rri.co.id/swara/news/12345"
+        "Kategori Berita": "Politik",
+        "Programa": "-",
+        "Daerah": "Bandar Lampung",
+        "Link Eviden": "https://rri.co.id/bandar-lampung/berita/12345"
       },
       {
-        "Judul Berita": "Dialog Interaktif Tantangan Radio Publik di Era Podcast",
-        "Waktu Publish": "2026-07-05 15:00:00",
-        "Penulis": "1871102702910002",
-        "Editor": "1871102702910001",
-        "Daerah": "Surakarta",
-        "URL": "https://rri.co.id/swara/radio/9876"
+        "Jenis Berita": "Berita Ringan LPU",
+        "Judul Berita": "Tips Menjaga Kesehatan Telinga Saat Mendengarkan Radio",
+        "Waktu Publish": "2026-07-29 10:15:00",
+        "Penulis": "Nanda Febriand",
+        "Editor": "Editor LPU",
+        "Kategori Berita": "Sosial",
+        "Programa": "-",
+        "Daerah": "Bandar Lampung",
+        "Link Eviden": "https://rri.co.id/bandar-lampung/lpu/67890"
+      },
+      {
+        "Jenis Berita": "Berita Radio",
+        "Judul Berita": "Laporan Siaran Warta Berita Pagi Daerah",
+        "Waktu Publish": "2026-07-29 07:00:00",
+        "Penulis": "Penyiar Radio",
+        "Editor": "-",
+        "Kategori Berita": "-",
+        "Programa": "Programa 1",
+        "Daerah": "Bandar Lampung",
+        "Link Eviden": "https://rri.co.id/audio/warta-pagi-20260729.mp3"
+      },
+      {
+        "Jenis Berita": "Konten Siaran",
+        "Judul Berita": "Dialog Interaktif Tantangan Penyiaran Publik di Era Digital",
+        "Waktu Publish": "2026-07-29 14:00:00",
+        "Penulis": "Tim Siaran",
+        "Editor": "-",
+        "Kategori Berita": "-",
+        "Programa": "Programa 2",
+        "Daerah": "Bandar Lampung",
+        "Link Eviden": "https://youtube.com/watch?v=sample123"
       }
     ];
 
     if (type === 'xlsx') {
       const worksheet = XLSX.utils.json_to_sheet(sampleData);
       const workbook = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(workbook, worksheet, "Template Laporan");
+      XLSX.utils.book_append_sheet(workbook, worksheet, "Template Import Berita");
       XLSX.writeFile(workbook, "template_import_berita.xlsx");
       return;
     }
@@ -388,9 +421,11 @@ export default function PemberitaanMediaBaruView({
       content = JSON.stringify(sampleData, null, 2);
       filename = 'template_import_berita.json';
     } else {
-      content = "Judul Berita,Waktu Publish,Penulis,Editor,Daerah,URL\n" +
-                "Sosialisasi Digitalisasi Penyiaran Swara FM,2026-07-06 09:30:00,Nanda Febriand,Kepala Bidang,Bandung,https://rri.co.id/swara/news/12345\n" +
-                "Dialog Interaktif Tantangan Radio Publik di Era Podcast,2026-07-05 15:00:00,1871102702910002,1871102702910001,Surakarta,https://rri.co.id/swara/radio/9876";
+      content = "Jenis Berita,Judul Berita,Waktu Publish,Penulis,Editor,Kategori Berita,Programa,Daerah,Link Eviden\n" +
+                "Berita Online,Sosialisasi Digitalisasi Penyiaran RRI Bandar Lampung,2026-07-29 09:30:00,Nanda Febriand,Kepala Bidang,Politik,-,Bandar Lampung,https://rri.co.id/bandar-lampung/berita/12345\n" +
+                "Berita Ringan LPU,Tips Menjaga Kesehatan Telinga Saat Mendengarkan Radio,2026-07-29 10:15:00,Nanda Febriand,Editor LPU,Sosial,-,Bandar Lampung,https://rri.co.id/bandar-lampung/lpu/67890\n" +
+                "Berita Radio,Laporan Siaran Warta Berita Pagi Daerah,2026-07-29 07:00:00,Penyiar Radio,-,-,Programa 1,Bandar Lampung,https://rri.co.id/audio/warta-pagi-20260729.mp3\n" +
+                "Konten Siaran,Dialog Interaktif Tantangan Penyiaran Publik di Era Digital,2026-07-29 14:00:00,Tim Siaran,-,-,Programa 2,Bandar Lampung,https://youtube.com/watch?v=sample123";
       filename = 'template_import_berita.csv';
     }
 
