@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useRef } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { 
   FileText, 
   Link2, 
@@ -20,6 +20,9 @@ import {
   Search,
   Check,
   ChevronRight,
+  ChevronLeft,
+  ChevronsLeft,
+  ChevronsRight,
   Filter,
   Radio,
   Upload,
@@ -28,11 +31,15 @@ import {
   UserCheck,
   RefreshCw,
   FileSpreadsheet,
-  Clock
+  Clock,
+  Eye
 } from 'lucide-react';
 import { Employee, PerformanceAgreement, ReporterTarget, NewsReport } from '../types';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Cell, Legend } from 'recharts';
 import * as XLSX from 'xlsx';
+import NewsDetailModal from './NewsDetailModal';
+import { filterNewsForIndicator } from '../utils/newsFilter';
+import { syncNewsAchievements } from '../utils/syncNewsAchievements';
 
 interface PemberitaanMediaBaruViewProps {
   employees: Employee[];
@@ -68,6 +75,15 @@ export default function PemberitaanMediaBaruView({
   const [reportSearch, setReportSearch] = useState('');
   const [reportEmpFilter, setReportEmpFilter] = useState<string>('Semua');
 
+  // Pagination states for news lists
+  const [itemsPerPage, setItemsPerPage] = useState<number>(10);
+  const [currentPage, setCurrentPage] = useState<number>(1);
+
+  // Reset pagination to page 1 whenever filter, search, active subtab, or items per page changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [reportSearch, reportEmpFilter, activeSubTab, itemsPerPage]);
+
   // Form states - Reporter Target
   const [isTargetModalOpen, setIsTargetModalOpen] = useState(false);
   const [selectedEmployeeId, setSelectedEmployeeId] = useState('');
@@ -78,6 +94,45 @@ export default function PemberitaanMediaBaruView({
 
   // Form states - News Report/Evidence
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
+
+  // News detail modal state
+  const [newsModalConfig, setNewsModalConfig] = useState<{
+    isOpen: boolean;
+    title: string;
+    indicatorName: string;
+    periodLabel: string;
+    newsReports: NewsReport[];
+    targetValue?: string | number;
+    achievementValue?: number;
+    assignedToName?: string;
+  }>({
+    isOpen: false,
+    title: '',
+    indicatorName: '',
+    periodLabel: '',
+    newsReports: []
+  });
+
+  const handleOpenNewsModal = (obj: any, agreement?: any) => {
+    const { filteredReports, periodLabel, typeLabel } = filterNewsForIndicator({
+      indicator: obj,
+      agreement: agreement,
+      newsReports: newsReports || [],
+      period: 'tahunan',
+      selectedYear: new Date().getFullYear()
+    });
+
+    setNewsModalConfig({
+      isOpen: true,
+      title: `Eviden List ${typeLabel}`,
+      indicatorName: obj.indicatorName,
+      periodLabel: periodLabel,
+      newsReports: filteredReports,
+      targetValue: obj.target,
+      achievementValue: obj.achievement || 0,
+      assignedToName: agreement?.assignedToName || 'Pegawai'
+    });
+  };
   const [editingReport, setEditingReport] = useState<NewsReport | null>(null);
   const [reportEmployeeId, setReportEmployeeId] = useState('');
   const [reportTitle, setReportTitle] = useState('');
@@ -358,6 +413,12 @@ export default function PemberitaanMediaBaruView({
           reportType = 'Berita Online';
         }
 
+        let normPrograma: 'Programa 1' | 'Programa 2' | 'Programa 3' | 'Programa 4' = 'Programa 1';
+        const progLower = String(programa).toLowerCase();
+        if (progLower.includes('2')) normPrograma = 'Programa 2';
+        else if (progLower.includes('3')) normPrograma = 'Programa 3';
+        else if (progLower.includes('4')) normPrograma = 'Programa 4';
+
         return {
           id: `rep-imported-${Date.now()}-${idx}-${Math.floor(Math.random() * 1000)}`,
           employeeId: reporterId,
@@ -372,7 +433,7 @@ export default function PemberitaanMediaBaruView({
           reporterName: matchedReporter ? matchedReporter.nama : String(pembuat),
           editorName: matchedEditor ? matchedEditor.nama : String(editor),
           daerah: String(daerah),
-          programa: String(programa)
+          programa: normPrograma
         };
       });
 
@@ -393,7 +454,14 @@ export default function PemberitaanMediaBaruView({
       const newItems = parsedNews.filter(r => !existingIds.has(r.id));
       const updatedReports = [...newItems, ...newsReports];
       onUpdateNewsReports(updatedReports);
-      setImportSuccess(`Berhasil menambahkan ${newItems.length} data berita baru ke database RRI Swara! (Total data berita: ${updatedReports.length})`);
+
+      // Automatically sync and update PK monthly achievements for reporters & higher levels
+      if (agreements && onUpdateAgreements) {
+        const updatedAgreements = syncNewsAchievements(updatedReports, agreements, reporterTargets, employees);
+        onUpdateAgreements(updatedAgreements);
+      }
+
+      setImportSuccess(`Berhasil menambahkan ${newItems.length} data berita baru dan mengupdate capaian bulanan PK! (Total data berita: ${updatedReports.length})`);
       setParsedNews([]);
       setNewsImportText('');
       setTimeout(() => {
@@ -603,6 +671,12 @@ export default function PemberitaanMediaBaruView({
     }
     onUpdateNewsReports(updatedReports);
 
+    // Sync PK monthly achievements
+    if (agreements && onUpdateAgreements) {
+      const updatedAgreements = syncNewsAchievements(updatedReports, agreements, reporterTargets, employees);
+      onUpdateAgreements(updatedAgreements);
+    }
+
     // Reset Form
     setIsReportModalOpen(false);
     setEditingReport(null);
@@ -619,7 +693,12 @@ export default function PemberitaanMediaBaruView({
 
   const handleDeleteReport = (id: string) => {
     if (confirm('Apakah Anda yakin ingin menghapus laporan berita/konten ini?')) {
-      onUpdateNewsReports(newsReports.filter(r => r.id !== id));
+      const remainingReports = newsReports.filter(r => r.id !== id);
+      onUpdateNewsReports(remainingReports);
+      if (agreements && onUpdateAgreements) {
+        const updatedAgreements = syncNewsAchievements(remainingReports, agreements, reporterTargets, employees);
+        onUpdateAgreements(updatedAgreements);
+      }
     }
   };
 
@@ -696,6 +775,16 @@ export default function PemberitaanMediaBaruView({
       return matchSearch && matchType && matchEmp;
     });
   }, [newsReports, reportSearch, activeSubTab, reportEmpFilter, employees]);
+
+  // Pagination calculations for news list
+  const totalItems = filteredReports.length;
+  const totalPages = Math.max(1, Math.ceil(totalItems / itemsPerPage));
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = Math.min(startIndex + itemsPerPage, totalItems);
+
+  const paginatedReports = useMemo(() => {
+    return filteredReports.slice(startIndex, startIndex + itemsPerPage);
+  }, [filteredReports, startIndex, itemsPerPage]);
 
   // Cascading Path Tracker for Selected Reporter
   const [selectedTrackerEmployeeId, setSelectedTrackerEmployeeId] = useState<string>(reporterTargets[0]?.employeeId || '');
@@ -1041,7 +1130,15 @@ export default function PemberitaanMediaBaruView({
                     <div className="flex justify-between items-center pt-1.5 border-t border-slate-50">
                       <div>
                         <span className="text-[10px] text-slate-400 block font-medium">Realisasi</span>
-                        <span className="text-sm font-black text-indigo-600">{cascadingPath.l3.objective.achievement} {cascadingPath.l3.objective.unit}</span>
+                        <button
+                          type="button"
+                          onClick={() => handleOpenNewsModal(cascadingPath.l3.objective, cascadingPath.l3.agreement)}
+                          className="inline-flex items-center gap-1 text-sm font-black text-indigo-600 hover:text-indigo-800 cursor-pointer hover:underline"
+                          title="Klik untuk lihat eviden berita"
+                        >
+                          <Eye className="w-3.5 h-3.5" />
+                          {cascadingPath.l3.objective.achievement} {cascadingPath.l3.objective.unit}
+                        </button>
                       </div>
                       <div className="text-right">
                         <span className="text-[10px] text-slate-400 block font-medium">Target PK</span>
@@ -1050,10 +1147,14 @@ export default function PemberitaanMediaBaruView({
                     </div>
                   </div>
 
-                  <div className="text-[10px] text-indigo-600 font-bold bg-white/80 py-1.5 px-2.5 rounded-lg text-center flex items-center justify-center gap-1 border border-indigo-100">
-                    <CheckCircle2 className="w-3.5 h-3.5" />
-                    Berdasarkan {newsReports.filter(r => r.employeeId === selectedTrackerEmployeeId).length} rilis eviden
-                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handleOpenNewsModal(cascadingPath.l3.objective, cascadingPath.l3.agreement)}
+                    className="text-[10px] text-indigo-600 font-bold bg-white/80 hover:bg-indigo-50 py-1.5 px-2.5 rounded-lg text-center flex items-center justify-center gap-1 border border-indigo-100 transition-colors cursor-pointer w-full"
+                  >
+                    <Eye className="w-3.5 h-3.5" />
+                    Lihat {newsReports.filter(r => r.employeeId === selectedTrackerEmployeeId).length} rilis eviden
+                  </button>
                 </div>
 
                 {/* Level 2: Ketua Tim (Pemberitaan / Konten) */}
@@ -1073,7 +1174,15 @@ export default function PemberitaanMediaBaruView({
                       <div className="flex justify-between items-center pt-1.5 border-t border-slate-50">
                         <div>
                           <span className="text-[10px] text-slate-400 block font-medium">Realisasi</span>
-                          <span className="text-sm font-black text-amber-600">{cascadingPath.l2.objective.achievement} {cascadingPath.l2.objective.unit}</span>
+                          <button
+                            type="button"
+                            onClick={() => handleOpenNewsModal(cascadingPath.l2.objective, cascadingPath.l2.agreement)}
+                            className="inline-flex items-center gap-1 text-sm font-black text-amber-600 hover:text-amber-800 cursor-pointer hover:underline"
+                            title="Klik untuk lihat eviden berita"
+                          >
+                            <Eye className="w-3.5 h-3.5" />
+                            {cascadingPath.l2.objective.achievement} {cascadingPath.l2.objective.unit}
+                          </button>
                         </div>
                         <div className="text-right">
                           <span className="text-[10px] text-slate-400 block font-medium">Target PK</span>
@@ -1110,7 +1219,15 @@ export default function PemberitaanMediaBaruView({
                       <div className="flex justify-between items-center pt-1.5 border-t border-slate-50">
                         <div>
                           <span className="text-[10px] text-slate-400 block font-medium">Realisasi</span>
-                          <span className="text-sm font-black text-emerald-600">{cascadingPath.l1.objective.achievement} {cascadingPath.l1.objective.unit}</span>
+                          <button
+                            type="button"
+                            onClick={() => handleOpenNewsModal(cascadingPath.l1.objective, cascadingPath.l1.agreement)}
+                            className="inline-flex items-center gap-1 text-sm font-black text-emerald-600 hover:text-emerald-800 cursor-pointer hover:underline"
+                            title="Klik untuk lihat eviden berita"
+                          >
+                            <Eye className="w-3.5 h-3.5" />
+                            {cascadingPath.l1.objective.achievement} {cascadingPath.l1.objective.unit}
+                          </button>
                         </div>
                         <div className="text-right">
                           <span className="text-[10px] text-slate-400 block font-medium">Target PK</span>
@@ -1348,7 +1465,8 @@ export default function PemberitaanMediaBaruView({
               Belum ada data laporan untuk kategori ini atau tidak cocok dengan pencarian filter.
             </div>
           ) : (
-            <div className="overflow-x-auto">
+            <>
+              <div className="overflow-x-auto">
               <table className="w-full text-left text-xs text-slate-600 divide-y divide-slate-100">
                 <thead>
                   {/* Headers for Online / Ringan */}
@@ -1374,7 +1492,7 @@ export default function PemberitaanMediaBaruView({
                   )}
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {filteredReports.map(rep => {
+                  {paginatedReports.map(rep => {
                     const emp = employees.find(e => e.id === rep.employeeId);
                     const reportEditor = employees.find(e => e.id === rep.editorId);
                     const reporterTarget = reporterTargets.find(t => t.employeeId === rep.employeeId);
@@ -1467,6 +1585,105 @@ export default function PemberitaanMediaBaruView({
                 </tbody>
               </table>
             </div>
+
+            {/* Pagination Bar Controls */}
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-4 border-t border-slate-100 text-xs text-slate-600">
+              <div className="flex flex-wrap items-center gap-3">
+                <div className="flex items-center gap-1.5">
+                  <span className="text-slate-500 font-medium">Tampilkan:</span>
+                  <select
+                    value={itemsPerPage}
+                    onChange={(e) => setItemsPerPage(Number(e.target.value))}
+                    className="bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1 text-xs font-bold text-slate-700 focus:outline-hidden cursor-pointer"
+                  >
+                    <option value={10}>10</option>
+                    <option value={50}>50</option>
+                    <option value={100}>100</option>
+                  </select>
+                  <span className="text-slate-500 font-medium">data per halaman</span>
+                </div>
+
+                <div className="text-slate-400 font-mono text-[11px] border-l border-slate-200 pl-3">
+                  {totalItems > 0 ? (
+                    <>Menampilkan <strong className="text-slate-700">{startIndex + 1}</strong> - <strong className="text-slate-700">{endIndex}</strong> dari <strong className="text-slate-700">{totalItems}</strong> data berita</>
+                  ) : (
+                    'Tidak ada data'
+                  )}
+                </div>
+              </div>
+
+              {totalPages > 1 && (
+                <div className="flex items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={() => setCurrentPage(1)}
+                    disabled={currentPage === 1}
+                    className="p-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed transition-all cursor-pointer"
+                    title="Halaman Pertama"
+                  >
+                    <ChevronsLeft className="w-4 h-4" />
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                    disabled={currentPage === 1}
+                    className="p-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed transition-all flex items-center gap-1 text-xs px-2 cursor-pointer"
+                    title="Halaman Sebelumnya"
+                  >
+                    <ChevronLeft className="w-4 h-4" />
+                    <span className="hidden sm:inline">Prev</span>
+                  </button>
+
+                  <div className="flex items-center gap-1 px-1 font-mono text-xs">
+                    {Array.from({ length: totalPages }, (_, i) => i + 1)
+                      .filter(p => p === 1 || p === totalPages || Math.abs(p - currentPage) <= 2)
+                      .map((page, idx, array) => {
+                        const prevPage = array[idx - 1];
+                        const showEllipsis = prevPage && page - prevPage > 1;
+                        return (
+                          <React.Fragment key={page}>
+                            {showEllipsis && <span className="text-slate-400 px-1">...</span>}
+                            <button
+                              type="button"
+                              onClick={() => setCurrentPage(page)}
+                              className={`px-3 py-1 rounded-lg font-bold transition-all cursor-pointer ${
+                                currentPage === page
+                                  ? 'bg-indigo-600 text-white shadow-xs'
+                                  : 'border border-slate-200 text-slate-700 hover:bg-slate-100'
+                              }`}
+                            >
+                              {page}
+                            </button>
+                          </React.Fragment>
+                        );
+                      })}
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                    disabled={currentPage === totalPages}
+                    className="p-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed transition-all flex items-center gap-1 text-xs px-2 cursor-pointer"
+                    title="Halaman Selanjutnya"
+                  >
+                    <span className="hidden sm:inline">Next</span>
+                    <ChevronRight className="w-4 h-4" />
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setCurrentPage(totalPages)}
+                    disabled={currentPage === totalPages}
+                    className="p-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed transition-all cursor-pointer"
+                    title="Halaman Terakhir"
+                  >
+                    <ChevronsRight className="w-4 h-4" />
+                  </button>
+                </div>
+              )}
+            </div>
+          </>
           )}
         </div>
       )}
@@ -2075,6 +2292,18 @@ export default function PemberitaanMediaBaruView({
           </div>
         </div>
       )}
+      {/* News Detail Evidence Modal */}
+      <NewsDetailModal
+        isOpen={newsModalConfig.isOpen}
+        onClose={() => setNewsModalConfig(prev => ({ ...prev, isOpen: false }))}
+        title={newsModalConfig.title}
+        indicatorName={newsModalConfig.indicatorName}
+        periodLabel={newsModalConfig.periodLabel}
+        newsReports={newsModalConfig.newsReports}
+        targetValue={newsModalConfig.targetValue}
+        achievementValue={newsModalConfig.achievementValue}
+        assignedToName={newsModalConfig.assignedToName}
+      />
     </div>
   );
 }

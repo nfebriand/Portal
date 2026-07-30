@@ -24,8 +24,12 @@ import {
   ShieldAlert,
   Edit,
   GraduationCap,
-  Layers
+  Layers,
+  Eye,
+  BarChart3
 } from 'lucide-react';
+import NewsDetailModal from './NewsDetailModal';
+import { filterNewsForIndicator } from '../utils/newsFilter';
 
 interface DashboardBidangViewProps {
   currentUser: { id: string; name: string; role: 'Kepala' | 'Staff' | 'Ketua Bidang' | 'Superadmin'; division?: string; photo?: string };
@@ -66,6 +70,48 @@ export default function DashboardBidangView({
     unit: string;
   } | null>(null);
   const [newAchievementVal, setNewAchievementVal] = useState('');
+
+  // Mode visualisasi target PK per divisi
+  const [visualizerMode, setVisualizerMode] = useState<'auto' | 'akumulatif' | 'triwulanan' | 'bulanan_tahunan' | 'gauge'>('auto');
+
+  // News detail modal state
+  const [newsModalConfig, setNewsModalConfig] = useState<{
+    isOpen: boolean;
+    title: string;
+    indicatorName: string;
+    periodLabel: string;
+    newsReports: NewsReport[];
+    targetValue?: string | number;
+    achievementValue?: number;
+    assignedToName?: string;
+  }>({
+    isOpen: false,
+    title: '',
+    indicatorName: '',
+    periodLabel: '',
+    newsReports: []
+  });
+
+  const handleOpenNewsModal = (obj: any, agreement?: any) => {
+    const { filteredReports, periodLabel, typeLabel } = filterNewsForIndicator({
+      indicator: obj,
+      agreement: agreement,
+      newsReports: newsReports || [],
+      period: 'tahunan',
+      selectedYear: new Date().getFullYear()
+    });
+
+    setNewsModalConfig({
+      isOpen: true,
+      title: `Eviden List ${typeLabel}`,
+      indicatorName: obj.indicatorName,
+      periodLabel: periodLabel,
+      newsReports: filteredReports,
+      targetValue: obj.target,
+      achievementValue: obj.achievement || 0,
+      assignedToName: agreement?.assignedToName || currentUser.name
+    });
+  };
 
   // Stats for Tata Usaha dashboard duplication
   const [hoveredDonutSegment, setHoveredDonutSegment] = useState<string | null>(null);
@@ -465,22 +511,81 @@ export default function DashboardBidangView({
 
       {activeTab === 'summary' && (
         <>
-          {/* SECTION VISUALISASI CAPAIAN IKP PER BIDANG (HALF CIRCLE GAUGES) FOR LEVEL 3 */}
+          {/* SECTION VISUALISASI CAPAIAN IKP PER BIDANG (MULTI-MODE VISUALIZER) FOR LEVEL 3 */}
           <div id="trend-bidang-section" className="bg-[#f0f4f8] p-5 rounded-2xl border border-slate-200/80 shadow-md space-y-4 mb-4">
             
-            {/* Header Dashboard */}
-            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-slate-200/60 pb-3">
-              <div className="space-y-1">
-                <div className="flex items-center gap-3">
-                  <h2 className="text-base font-extrabold text-slate-800 flex items-center gap-2">
-                    <Target className="w-4 h-4 text-indigo-600 animate-pulse" />
-                    Capaian Indikator Kinerja Program Divisi {activeDivision}
-                  </h2>
-                </div>
+            {/* Header Dashboard & Mode Selector */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200/60 pb-3">
+              <div className="space-y-0.5">
+                <h2 className="text-base font-extrabold text-slate-800 flex items-center gap-2">
+                  <Target className="w-4 h-4 text-indigo-600 animate-pulse" />
+                  Capaian Indikator Kinerja Program Divisi {activeDivision}
+                </h2>
+                <p className="text-[10px] text-slate-500">Format tampilan kartu menyesuaikan tipe PK atau pilihan manual di kanan</p>
+              </div>
+
+              {/* Mode Selector Buttons */}
+              <div className="flex flex-wrap items-center gap-1 bg-white p-1 rounded-xl border border-slate-200 text-[10px] font-bold shadow-xs">
+                <span className="text-slate-400 px-2 font-mono uppercase text-[9px]">Mode:</span>
+                <button
+                  type="button"
+                  onClick={() => setVisualizerMode('auto')}
+                  className={`px-2.5 py-1 rounded-lg transition-all ${
+                    visualizerMode === 'auto'
+                      ? 'bg-indigo-600 text-white shadow-xs'
+                      : 'text-slate-600 hover:bg-slate-100'
+                  }`}
+                >
+                  Otomatis
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setVisualizerMode('akumulatif')}
+                  className={`px-2.5 py-1 rounded-lg transition-all ${
+                    visualizerMode === 'akumulatif'
+                      ? 'bg-indigo-600 text-white shadow-xs'
+                      : 'text-slate-600 hover:bg-slate-100'
+                  }`}
+                >
+                  Akumulatif
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setVisualizerMode('triwulanan')}
+                  className={`px-2.5 py-1 rounded-lg transition-all ${
+                    visualizerMode === 'triwulanan'
+                      ? 'bg-indigo-600 text-white shadow-xs'
+                      : 'text-slate-600 hover:bg-slate-100'
+                  }`}
+                >
+                  Triwulan (Q1-Q4)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setVisualizerMode('bulanan_tahunan')}
+                  className={`px-2.5 py-1 rounded-lg transition-all ${
+                    visualizerMode === 'bulanan_tahunan'
+                      ? 'bg-indigo-600 text-white shadow-xs'
+                      : 'text-slate-600 hover:bg-slate-100'
+                  }`}
+                >
+                  Bulanan/Tahunan
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setVisualizerMode('gauge')}
+                  className={`px-2.5 py-1 rounded-lg transition-all ${
+                    visualizerMode === 'gauge'
+                      ? 'bg-indigo-600 text-white shadow-xs'
+                      : 'text-slate-600 hover:bg-slate-100'
+                  }`}
+                >
+                  Gauge
+                </button>
               </div>
             </div>
 
-            {/* Clean Grid of Cards with Half Circle Gauges for each Indicator of this Division */}
+            {/* Clean Grid of Cards */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {teamObjectives.length === 0 ? (
                 <div className="text-center py-12 text-sm text-slate-400 italic col-span-full bg-white rounded-2xl border border-dashed border-slate-200">
@@ -488,122 +593,222 @@ export default function DashboardBidangView({
                 </div>
               ) : (
                 teamObjectives.map((obj, idx) => {
-                  const pct = parseFloat(obj.target) > 0 ? Math.round((obj.achievement / parseFloat(obj.target)) * 100) : 0;
+                  const targetNum = parseFloat(obj.target) || 100;
+                  const pct = targetNum > 0 ? Math.round((obj.achievement / targetNum) * 100) : 0;
                   const fillPercentage = Math.min(100, Math.max(0, pct));
                   const remaining = 100 - fillPercentage;
 
-                  // Give different color palettes for each card ("berikan warna berbeda untuk tiap grafik dan kotaknya")
+                  // Color palettes for cards
                   const divColors = [
                     {
-                      gaugeColor: '#0ea5e9', // Sky
-                      bgColor: 'bg-sky-50/10 hover:bg-sky-50/20',
-                      borderColor: 'border-sky-200/80 hover:border-sky-400',
-                      hoverRingColor: 'hover:ring-sky-500/10',
-                      accentColor: 'bg-sky-500',
-                      textColor: 'text-sky-600',
+                      gaugeColor: '#0ea5e9', bgColor: 'bg-white', borderColor: 'border-sky-200/80 hover:border-sky-400',
+                      hoverRingColor: 'hover:ring-sky-500/10', accentColor: 'bg-sky-500', textColor: 'text-sky-600',
                     },
                     {
-                      gaugeColor: '#6366f1', // Indigo
-                      bgColor: 'bg-indigo-50/10 hover:bg-indigo-50/20',
-                      borderColor: 'border-indigo-200/80 hover:border-indigo-400',
-                      hoverRingColor: 'hover:ring-indigo-500/10',
-                      accentColor: 'bg-indigo-500',
-                      textColor: 'text-indigo-600',
+                      gaugeColor: '#6366f1', bgColor: 'bg-white', borderColor: 'border-indigo-200/80 hover:border-indigo-400',
+                      hoverRingColor: 'hover:ring-indigo-500/10', accentColor: 'bg-indigo-500', textColor: 'text-indigo-600',
                     },
                     {
-                      gaugeColor: '#10b981', // Emerald
-                      bgColor: 'bg-emerald-50/10 hover:bg-emerald-50/20',
-                      borderColor: 'border-emerald-200/80 hover:border-emerald-400',
-                      hoverRingColor: 'hover:ring-emerald-500/10',
-                      accentColor: 'bg-emerald-500',
-                      textColor: 'text-emerald-600',
+                      gaugeColor: '#10b981', bgColor: 'bg-white', borderColor: 'border-emerald-200/80 hover:border-emerald-400',
+                      hoverRingColor: 'hover:ring-emerald-500/10', accentColor: 'bg-emerald-500', textColor: 'text-emerald-600',
                     },
                     {
-                      gaugeColor: '#ec4899', // Pink
-                      bgColor: 'bg-pink-50/10 hover:bg-pink-50/20',
-                      borderColor: 'border-pink-200/80 hover:border-pink-400',
-                      hoverRingColor: 'hover:ring-pink-500/10',
-                      accentColor: 'bg-pink-500',
-                      textColor: 'text-pink-600',
+                      gaugeColor: '#ec4899', bgColor: 'bg-white', borderColor: 'border-pink-200/80 hover:border-pink-400',
+                      hoverRingColor: 'hover:ring-pink-500/10', accentColor: 'bg-pink-500', textColor: 'text-pink-600',
                     },
                     {
-                      gaugeColor: '#f59e0b', // Amber
-                      bgColor: 'bg-amber-50/10 hover:bg-amber-50/20',
-                      borderColor: 'border-amber-200/80 hover:border-amber-400',
-                      hoverRingColor: 'hover:ring-amber-500/10',
-                      accentColor: 'bg-amber-500',
-                      textColor: 'text-amber-600',
+                      gaugeColor: '#f59e0b', bgColor: 'bg-white', borderColor: 'border-amber-200/80 hover:border-amber-400',
+                      hoverRingColor: 'hover:ring-amber-500/10', accentColor: 'bg-amber-500', textColor: 'text-amber-600',
                     },
                     {
-                      gaugeColor: '#8b5cf6', // Violet
-                      bgColor: 'bg-violet-50/10 hover:bg-violet-50/20',
-                      borderColor: 'border-violet-200/80 hover:border-violet-400',
-                      hoverRingColor: 'hover:ring-violet-500/10',
-                      accentColor: 'bg-violet-500',
-                      textColor: 'text-violet-600',
+                      gaugeColor: '#8b5cf6', bgColor: 'bg-white', borderColor: 'border-violet-200/80 hover:border-violet-400',
+                      hoverRingColor: 'hover:ring-violet-500/10', accentColor: 'bg-violet-500', textColor: 'text-violet-600',
                     }
                   ];
 
                   const style = divColors[idx % divColors.length];
 
+                  // Determine effective mode per indicator
+                  let mode = visualizerMode;
+                  if (mode === 'auto') {
+                    if (activeDivision === 'Pemberitaan' || activeDivision === 'Layanan Publik' || obj.unit === 'Rilis' || obj.indicatorName?.toLowerCase().includes('berita')) {
+                      mode = 'akumulatif';
+                    } else if (activeDivision === 'Tata Usaha / Umum' || activeDivision === 'TMB' || obj.unit === '%' || obj.indicatorName?.toLowerCase().includes('sakip')) {
+                      mode = 'triwulanan';
+                    } else {
+                      mode = 'bulanan_tahunan';
+                    }
+                  }
+
+                  // Quarters Q1..Q4 estimates
+                  const qData = [1, 2, 3, 4].map(qNum => {
+                    const qTarget = obj.unit === '%' ? targetNum : Math.round((targetNum / 4) * 10) / 10;
+                    const qAch = obj.unit === '%' ? obj.achievement : Math.round((obj.achievement / 4) * 10) / 10;
+                    const qPct = qTarget > 0 ? Math.min(120, Math.round((qAch / qTarget) * 100)) : 0;
+                    return { qNum, target: qTarget, ach: qAch, pct: qPct };
+                  });
+
                   return (
                     <div
                       key={obj.id}
-                      className={`relative ${style.bgColor} p-5 rounded-2xl border ${style.borderColor} hover:ring-2 ${style.hoverRingColor} shadow-xs hover:shadow-md transition-all duration-300 flex flex-col items-center justify-between space-y-4 select-none overflow-hidden pt-6`}
+                      className={`relative ${style.bgColor} p-5 rounded-2xl border ${style.borderColor} hover:ring-2 ${style.hoverRingColor} shadow-xs hover:shadow-md transition-all duration-300 flex flex-col justify-between space-y-3 select-none overflow-hidden pt-6`}
                     >
-                      {/* Elegant status line at the top of the card */}
+                      {/* Top status bar */}
                       <div className={`absolute top-0 left-0 right-0 h-[3.5px] ${style.accentColor}`} />
 
-                      {/* Top content */}
-                      <div className="text-center w-full min-h-[36px] flex flex-col justify-center">
-                        <span className="text-xs md:text-sm font-black text-slate-800 uppercase tracking-tight leading-tight line-clamp-2">
+                      {/* Header block */}
+                      <div className="w-full space-y-1">
+                        <div className="flex justify-between items-center gap-2">
+                          <span className="text-[8px] font-black text-slate-400 font-mono tracking-wider uppercase">
+                            INDIKATOR BIDANG
+                          </span>
+                          <span className={`text-[8px] font-bold px-2 py-0.5 rounded-full uppercase font-mono ${
+                            mode === 'akumulatif' ? 'bg-indigo-50 text-indigo-600 border border-indigo-200' :
+                            mode === 'triwulanan' ? 'bg-emerald-50 text-emerald-600 border border-emerald-200' :
+                            mode === 'bulanan_tahunan' ? 'bg-amber-50 text-amber-600 border border-amber-200' :
+                            'bg-slate-100 text-slate-600 border border-slate-200'
+                          }`}>
+                            {mode === 'akumulatif' ? 'Akumulatif' : mode === 'triwulanan' ? 'Q1-Q4' : mode === 'bulanan_tahunan' ? 'Bln vs Thn' : 'Gauge'}
+                          </span>
+                        </div>
+                        <span className="text-xs md:text-sm font-bold text-slate-800 leading-snug line-clamp-2 block" title={obj.indicatorName}>
                           {obj.indicatorName}
                         </span>
                       </div>
 
-                      {/* Gauge Half Circle */}
-                      <div className="relative w-full h-44 flex items-center justify-center overflow-hidden">
-                        <ResponsiveContainer width="100%" height="100%">
-                          <PieChart margin={{ top: 12, left: 0, right: 0, bottom: 0 }}>
-                            <Pie
-                              data={[
-                                { value: fillPercentage },
-                                { value: remaining }
-                              ]}
-                              cx="50%"
-                              cy="95%"
-                              startAngle={180}
-                              endAngle={0}
-                              innerRadius={68}
-                              outerRadius={92}
-                              paddingAngle={0}
-                              dataKey="value"
-                            >
-                              <Cell fill={style.gaugeColor} />
-                              <Cell fill="#cbd5e1" />
-                            </Pie>
-                          </PieChart>
-                        </ResponsiveContainer>
+                      {/* MODE 1: AKUMULATIF BULANAN */}
+                      {mode === 'akumulatif' && (
+                        <div className="space-y-3 my-1">
+                          <div className="bg-indigo-50/50 p-3 rounded-xl border border-indigo-100 space-y-1.5">
+                            <div className="flex justify-between items-baseline">
+                              <span className="text-[9px] font-bold text-indigo-700 uppercase font-mono">Pencapaian Akumulatif YTD</span>
+                              <span className="text-base font-black text-indigo-700 font-mono">{pct}%</span>
+                            </div>
+                            <div className="w-full bg-slate-200/80 rounded-full h-2 overflow-hidden">
+                              <div className="bg-indigo-600 h-2 rounded-full transition-all duration-500" style={{ width: `${Math.min(100, pct)}%` }} />
+                            </div>
+                            <div className="flex justify-between text-[10px] text-slate-600 pt-0.5">
+                              <span>Realisasi: <strong className="text-slate-800 font-mono">{obj.achievement} {obj.unit}</strong></span>
+                              <span>Target: <strong className="text-slate-800 font-mono">{obj.target} {obj.unit}</strong></span>
+                            </div>
+                          </div>
 
-                        {/* Center label */}
-                        <div className="absolute inset-x-0 bottom-2 flex flex-col items-center">
-                          <span className="text-3xl font-black text-slate-800 font-mono tracking-tight leading-none">
-                            {pct}%
-                          </span>
-                          <span className="text-[9px] text-slate-500 font-extrabold uppercase tracking-widest mt-1">Capaian</span>
+                          <div className="space-y-1">
+                            <span className="text-[8px] font-bold text-slate-400 uppercase font-mono block">Proyeksi Bulan 1-12:</span>
+                            <div className="grid grid-cols-6 gap-1 text-[8px] font-mono">
+                              {['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'].map((mName, mIdx) => {
+                                const mAch = Math.round(((obj.achievement || 0) / 12) * (mIdx + 1));
+                                return (
+                                  <div key={mIdx} className="p-1 rounded text-center border bg-slate-50 border-slate-200 text-slate-700">
+                                    <span className="block text-[7px] uppercase font-bold opacity-80">{mName}</span>
+                                    <span className="truncate block font-extrabold">{mAch}</span>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
                         </div>
-                      </div>
+                      )}
 
-                      {/* Metrics Footer Boxes with different colors */}
+                      {/* MODE 2: BREAKDOWN TRIWULAN (Q1 - Q4) */}
+                      {mode === 'triwulanan' && (
+                        <div className="space-y-2 my-1">
+                          <div className="grid grid-cols-2 gap-1.5">
+                            {qData.map(q => (
+                              <div key={q.qNum} className="p-2 rounded-xl bg-slate-50 border border-slate-200/80 space-y-1">
+                                <div className="flex justify-between items-center text-[9px] font-bold">
+                                  <span className="text-slate-600 font-mono uppercase">Triwulan {q.qNum}</span>
+                                  <span className={`px-1.5 py-0.2 rounded text-[8px] font-extrabold ${
+                                    q.pct >= 100 ? 'bg-emerald-100 text-emerald-800 border border-emerald-300' :
+                                    q.pct > 0 ? 'bg-amber-100 text-amber-800 border border-amber-300' : 'bg-slate-200 text-slate-600'
+                                  }`}>
+                                    {q.pct >= 100 ? 'Tercapai' : q.pct > 0 ? `${q.pct}%` : 'Belum'}
+                                  </span>
+                                </div>
+                                <div className="text-[10px] flex justify-between font-mono pt-0.5 border-t border-slate-200/50">
+                                  <span className="text-slate-400">Target: <strong className="text-slate-700">{q.target}</strong></span>
+                                  <span className="text-indigo-600 font-bold">Real: <strong>{q.ach}</strong></span>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* MODE 3: BULANAN VS TAHUNAN */}
+                      {mode === 'bulanan_tahunan' && (
+                        <div className="space-y-2 my-1">
+                          <div className="grid grid-cols-2 gap-2">
+                            <div className="p-2.5 rounded-xl bg-amber-50/60 border border-amber-200/80 space-y-1">
+                              <span className="text-[8px] font-bold text-amber-800 uppercase font-mono block">Rerata Bulanan</span>
+                              <div className="text-lg font-black text-amber-900 font-mono leading-none">
+                                {Math.round((obj.achievement || 0) / 12)} <span className="text-[10px] font-normal text-amber-700">{obj.unit}</span>
+                              </div>
+                              <span className="text-[9px] text-amber-700 block font-mono">Tgt/Bln: {Math.round(targetNum / 12)}</span>
+                            </div>
+
+                            <div className="p-2.5 rounded-xl bg-indigo-50/60 border border-indigo-200/80 space-y-1">
+                              <span className="text-[8px] font-bold text-indigo-800 uppercase font-mono block">Total Tahunan YTD</span>
+                              <div className="text-lg font-black text-indigo-900 font-mono leading-none">
+                                {obj.achievement} <span className="text-[10px] font-normal text-indigo-700">{obj.unit}</span>
+                              </div>
+                              <span className="text-[9px] text-indigo-700 block font-mono">Tgt/Thn: {obj.target}</span>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* MODE 4: GAUGE */}
+                      {mode === 'gauge' && (
+                        <div className="relative w-full h-36 flex items-center justify-center overflow-hidden">
+                          <ResponsiveContainer width="100%" height="100%">
+                            <PieChart margin={{ top: 8, left: 0, right: 0, bottom: 0 }}>
+                              <Pie
+                                data={[
+                                  { value: fillPercentage },
+                                  { value: remaining }
+                                ]}
+                                cx="50%"
+                                cy="95%"
+                                startAngle={180}
+                                endAngle={0}
+                                innerRadius={60}
+                                outerRadius={80}
+                                paddingAngle={0}
+                                dataKey="value"
+                              >
+                                <Cell fill={style.gaugeColor} />
+                                <Cell fill="#cbd5e1" />
+                              </Pie>
+                            </PieChart>
+                          </ResponsiveContainer>
+                          <div className="absolute inset-x-0 bottom-1 flex flex-col items-center">
+                            <span className="text-2xl font-black text-slate-800 font-mono tracking-tight leading-none">
+                              {pct}%
+                            </span>
+                            <span className="text-[8px] text-slate-500 font-extrabold uppercase tracking-widest mt-1">Capaian</span>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Metrics Footer Boxes */}
                       <div className="grid grid-cols-2 gap-2 w-full pt-2 border-t border-slate-200/80 text-[10px]">
-                        <div className={`${style.bgColor} p-2 rounded-lg border ${style.borderColor} min-w-0`}>
+                        <div className="p-2 rounded-lg bg-slate-50 border border-slate-200/80 min-w-0">
                           <span className="text-[8px] text-slate-500 font-bold block uppercase font-mono">Target</span>
                           <span className="font-extrabold text-slate-800 font-mono truncate block" title={`${obj.target} ${obj.unit}`}>{obj.target} {obj.unit}</span>
                         </div>
-                        <div className={`${style.bgColor} p-2 rounded-lg border ${style.borderColor} min-w-0`}>
-                          <span className="text-[8px] text-slate-500 font-bold block uppercase font-mono">Realisasi</span>
+                        <button
+                          type="button"
+                          className="p-2 rounded-lg bg-indigo-50/80 hover:bg-indigo-100 border border-indigo-200/80 min-w-0 cursor-pointer transition-colors text-left group"
+                          onClick={() => handleOpenNewsModal(obj)}
+                          title="Klik untuk melihat eviden berita terfilter"
+                        >
+                          <span className="text-[8px] text-indigo-600 font-bold uppercase font-mono flex items-center justify-between">
+                            <span>Realisasi</span>
+                            <Eye className="w-2.5 h-2.5 text-indigo-600 group-hover:scale-110 transition-transform" />
+                          </span>
                           <span className={`font-extrabold ${style.textColor} font-mono truncate block`} title={`${obj.achievement} ${obj.unit}`}>{obj.achievement} {obj.unit}</span>
-                        </div>
+                        </button>
                       </div>
                     </div>
                   );
@@ -1467,6 +1672,19 @@ export default function DashboardBidangView({
           </div>
         </div>
       )}
+
+      {/* News Detail Evidence Modal */}
+      <NewsDetailModal
+        isOpen={newsModalConfig.isOpen}
+        onClose={() => setNewsModalConfig(prev => ({ ...prev, isOpen: false }))}
+        title={newsModalConfig.title}
+        indicatorName={newsModalConfig.indicatorName}
+        periodLabel={newsModalConfig.periodLabel}
+        newsReports={newsModalConfig.newsReports}
+        targetValue={newsModalConfig.targetValue}
+        achievementValue={newsModalConfig.achievementValue}
+        assignedToName={newsModalConfig.assignedToName}
+      />
 
     </div>
   );

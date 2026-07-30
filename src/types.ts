@@ -111,6 +111,7 @@ export interface ReporterTarget {
   employeeId: string;
   dailyTarget: number;
   monthlyTarget: number;
+  mediaType?: string; // e.g. 'Berita Online', 'Berita Radio', 'Berita Ringan LPU', 'Konten Siaran'
   linkedIndicatorId: string; // ID of the Pegawai performance indicator this target links to
   year: number;
   editorId?: string; // Designated Editor's Employee ID

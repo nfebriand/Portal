@@ -23,8 +23,16 @@ import {
   Share2,
   Globe,
   GitFork,
-  ArrowLeft
+  ArrowLeft,
+  Eye,
+  Calendar,
+  BarChart3,
+  ListFilter,
+  Clock,
+  CheckCircle
 } from 'lucide-react';
+import NewsDetailModal from './NewsDetailModal';
+import { filterNewsForIndicator } from '../utils/newsFilter';
 
 interface DashboardViewProps {
   employees: Employee[];
@@ -197,6 +205,48 @@ export default function DashboardView({
   const [drillDownActive, setDrillDownActive] = useState<boolean>(false);
   const [hoveredDataPoint, setHoveredDataPoint] = useState<{ month: string; value: number } | null>(null);
   const [hoveredDonutSegment, setHoveredDonutSegment] = useState<string | null>(null);
+
+  // Dynamic visualizer display mode toggle for target PKs
+  const [globalVisualizerMode, setGlobalVisualizerMode] = useState<'auto' | 'akumulatif' | 'triwulanan' | 'bulanan_tahunan' | 'gauge'>('auto');
+
+  // News detail modal state for evidence review
+  const [newsModalConfig, setNewsModalConfig] = useState<{
+    isOpen: boolean;
+    title: string;
+    indicatorName: string;
+    periodLabel: string;
+    newsReports: NewsReport[];
+    targetValue?: string | number;
+    achievementValue?: number;
+    assignedToName?: string;
+  }>({
+    isOpen: false,
+    title: '',
+    indicatorName: '',
+    periodLabel: '',
+    newsReports: []
+  });
+
+  const handleOpenNewsModal = (obj: any, agreement?: any) => {
+    const { filteredReports, periodLabel, typeLabel } = filterNewsForIndicator({
+      indicator: obj,
+      agreement: agreement,
+      newsReports: newsReports || [],
+      period: 'tahunan',
+      selectedYear: new Date().getFullYear()
+    });
+
+    setNewsModalConfig({
+      isOpen: true,
+      title: `Eviden List ${typeLabel}`,
+      indicatorName: obj.indicatorName,
+      periodLabel: periodLabel,
+      newsReports: filteredReports,
+      targetValue: obj.target,
+      achievementValue: obj.achievement || 0,
+      assignedToName: agreement?.assignedToName || 'Penanggung Jawab'
+    });
+  };
 
   // 1. Data Processing with interactive filters
   const filteredEmployees = useMemo(() => {
@@ -1066,15 +1116,76 @@ export default function DashboardView({
               </div>
             </div>
 
-            {/* Custom spacious metrics grid list containing high-fidelity half circle gauges */}
+            {/* Custom spacious metrics grid list containing high-fidelity visualizer cards */}
             <div className="bg-[#f8fafc] p-6 rounded-2xl border border-slate-200/80 shadow-xs space-y-4">
-              <div className="flex justify-between items-center border-b border-slate-200/60 pb-3">
-                <h4 className="text-xs font-extrabold text-slate-500 uppercase tracking-wider font-mono">
-                  Daftar Ketercapaian Indikator (Level 3)
-                </h4>
-                <span className="text-[10px] text-indigo-600 bg-indigo-50 font-bold font-mono px-2.5 py-1 rounded-md border border-indigo-100">
-                  Periode: {selectedKpiPeriod === 'Bulanan' ? `Bulanan (${INDONESIAN_MONTHS[selectedKpiMonth]})` : selectedKpiPeriod}
-                </span>
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200/60 pb-3">
+                <div>
+                  <h4 className="text-xs font-extrabold text-slate-700 uppercase tracking-wider font-mono flex items-center gap-2">
+                    <BarChart3 className="w-4 h-4 text-indigo-600" />
+                    Daftar Ketercapaian Indikator (Level 3)
+                  </h4>
+                  <p className="text-[10px] text-slate-500 mt-0.5">Format visualisasi menyesuaikan jenis target PK divisi atau dapat diubah manual</p>
+                </div>
+
+                {/* Mode Selector */}
+                <div className="flex flex-wrap items-center gap-1 bg-white p-1 rounded-xl border border-slate-200 text-[10px] font-bold shadow-xs">
+                  <span className="text-slate-400 px-2 font-mono uppercase text-[9px]">Tampilan:</span>
+                  <button
+                    type="button"
+                    onClick={() => setGlobalVisualizerMode('auto')}
+                    className={`px-2 py-1 rounded-lg transition-all ${
+                      globalVisualizerMode === 'auto'
+                        ? 'bg-indigo-600 text-white shadow-xs'
+                        : 'text-slate-600 hover:bg-slate-100'
+                    }`}
+                  >
+                    Otomatis
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setGlobalVisualizerMode('akumulatif')}
+                    className={`px-2 py-1 rounded-lg transition-all ${
+                      globalVisualizerMode === 'akumulatif'
+                        ? 'bg-indigo-600 text-white shadow-xs'
+                        : 'text-slate-600 hover:bg-slate-100'
+                    }`}
+                  >
+                    Akumulatif
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setGlobalVisualizerMode('triwulanan')}
+                    className={`px-2 py-1 rounded-lg transition-all ${
+                      globalVisualizerMode === 'triwulanan'
+                        ? 'bg-indigo-600 text-white shadow-xs'
+                        : 'text-slate-600 hover:bg-slate-100'
+                    }`}
+                  >
+                    Triwulan Q1-Q4
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setGlobalVisualizerMode('bulanan_tahunan')}
+                    className={`px-2 py-1 rounded-lg transition-all ${
+                      globalVisualizerMode === 'bulanan_tahunan'
+                        ? 'bg-indigo-600 text-white shadow-xs'
+                        : 'text-slate-600 hover:bg-slate-100'
+                    }`}
+                  >
+                    Bulanan/Tahunan
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setGlobalVisualizerMode('gauge')}
+                    className={`px-2 py-1 rounded-lg transition-all ${
+                      globalVisualizerMode === 'gauge'
+                        ? 'bg-indigo-600 text-white shadow-xs'
+                        : 'text-slate-600 hover:bg-slate-100'
+                    }`}
+                  >
+                    Gauge
+                  </button>
+                </div>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -1094,144 +1205,226 @@ export default function DashboardView({
 
                     const level3Palettes = [
                       {
-                        gaugeColor: '#10b981', // Emerald
-                        textColor: 'text-emerald-600',
-                        accentColor: 'bg-emerald-500',
-                        bgColor: 'bg-emerald-50/5 hover:bg-emerald-50/15',
-                        borderColor: 'border-emerald-100/80',
-                        hoverBorderColor: 'hover:border-emerald-400',
+                        gaugeColor: '#10b981', textColor: 'text-emerald-600', accentColor: 'bg-emerald-500',
+                        bgColor: 'bg-white', borderColor: 'border-emerald-200/80', hoverBorderColor: 'hover:border-emerald-400',
                       },
                       {
-                        gaugeColor: '#0ea5e9', // Sky
-                        textColor: 'text-sky-600',
-                        accentColor: 'bg-sky-500',
-                        bgColor: 'bg-sky-50/5 hover:bg-sky-50/15',
-                        borderColor: 'border-sky-100/80',
-                        hoverBorderColor: 'hover:border-sky-400',
+                        gaugeColor: '#0ea5e9', textColor: 'text-sky-600', accentColor: 'bg-sky-500',
+                        bgColor: 'bg-white', borderColor: 'border-sky-200/80', hoverBorderColor: 'hover:border-sky-400',
                       },
                       {
-                        gaugeColor: '#8b5cf6', // Violet
-                        textColor: 'text-violet-600',
-                        accentColor: 'bg-violet-500',
-                        bgColor: 'bg-violet-50/5 hover:bg-violet-50/15',
-                        borderColor: 'border-violet-100/80',
-                        hoverBorderColor: 'hover:border-violet-400',
+                        gaugeColor: '#8b5cf6', textColor: 'text-violet-600', accentColor: 'bg-violet-500',
+                        bgColor: 'bg-white', borderColor: 'border-violet-200/80', hoverBorderColor: 'hover:border-violet-400',
                       },
                       {
-                        gaugeColor: '#f59e0b', // Amber
-                        textColor: 'text-amber-600',
-                        accentColor: 'bg-amber-500',
-                        bgColor: 'bg-amber-50/5 hover:bg-amber-50/15',
-                        borderColor: 'border-amber-100/80',
-                        hoverBorderColor: 'hover:border-amber-400',
+                        gaugeColor: '#f59e0b', textColor: 'text-amber-600', accentColor: 'bg-amber-500',
+                        bgColor: 'bg-white', borderColor: 'border-amber-200/80', hoverBorderColor: 'hover:border-amber-400',
                       },
                       {
-                        gaugeColor: '#ec4899', // Pink
-                        textColor: 'text-pink-600',
-                        accentColor: 'bg-pink-50/5 hover:bg-pink-50/15',
-                        borderColor: 'border-pink-100/80',
-                        hoverBorderColor: 'hover:border-pink-400',
-                      },
-                      {
-                        gaugeColor: '#6366f1', // Indigo
-                        textColor: 'text-indigo-600',
-                        accentColor: 'bg-indigo-500',
-                        bgColor: 'bg-indigo-50/5 hover:bg-indigo-50/15',
-                        borderColor: 'border-indigo-100/80',
-                        hoverBorderColor: 'hover:border-indigo-400',
-                      },
-                      {
-                        gaugeColor: '#14b8a6', // Teal
-                        textColor: 'text-teal-600',
-                        accentColor: 'bg-teal-500',
-                        bgColor: 'bg-teal-50/5 hover:bg-teal-50/15',
-                        borderColor: 'border-teal-100/80',
-                        hoverBorderColor: 'hover:border-teal-400',
-                      },
-                      {
-                        gaugeColor: '#f97316', // Orange
-                        textColor: 'text-orange-600',
-                        accentColor: 'bg-orange-500',
-                        bgColor: 'bg-orange-50/5 hover:bg-orange-50/15',
-                        borderColor: 'border-orange-100/80',
-                        hoverBorderColor: 'hover:border-orange-400',
-                      },
-                      {
-                        gaugeColor: '#06b6d4', // Cyan
-                        textColor: 'text-cyan-600',
-                        accentColor: 'bg-cyan-500',
-                        bgColor: 'bg-cyan-50/5 hover:bg-cyan-50/15',
-                        borderColor: 'border-cyan-100/80',
-                        hoverBorderColor: 'hover:border-cyan-400',
-                      },
-                      {
-                        gaugeColor: '#d946ef', // Fuchsia
-                        textColor: 'text-fuchsia-600',
-                        accentColor: 'bg-fuchsia-500',
-                        bgColor: 'bg-fuchsia-50/5 hover:bg-fuchsia-50/15',
-                        borderColor: 'border-fuchsia-100/80',
-                        hoverBorderColor: 'hover:border-fuchsia-400',
+                        gaugeColor: '#6366f1', textColor: 'text-indigo-600', accentColor: 'bg-indigo-500',
+                        bgColor: 'bg-white', borderColor: 'border-indigo-200/80', hoverBorderColor: 'hover:border-indigo-400',
                       }
                     ];
 
                     const palette = level3Palettes[idx % level3Palettes.length];
+
+                    // Determine effective card display mode
+                    let cardMode = globalVisualizerMode;
+                    if (cardMode === 'auto') {
+                      const divKey = selectedDivData?.key || '';
+                      if (divKey === 'Pemberitaan' || divKey === 'Layanan Publik' || obj.unit === 'Rilis' || obj.indicatorName?.toLowerCase().includes('berita')) {
+                        cardMode = 'akumulatif';
+                      } else if (divKey === 'Tata Usaha / Umum' || divKey === 'TMB' || obj.unit === '%' || obj.indicatorName?.toLowerCase().includes('sakip')) {
+                        cardMode = 'triwulanan';
+                      } else {
+                        cardMode = 'bulanan_tahunan';
+                      }
+                    }
+
+                    // Prepare quarterly & monthly data
+                    const isUsingTraj = Array.isArray(obj.trajectory) && obj.trajectory.length === 12;
+                    const isUsingAch = Array.isArray(obj.monthlyAchievements) && obj.monthlyAchievements.length === 12;
+
+                    const numMatch = typeof obj.target === 'string' ? obj.target.match(/([\d\.,]+)/) : null;
+                    const baseTargetVal = numMatch ? parseFloat(numMatch[1].replace(/,/g, '')) : (parseFloat(obj.target) || 100);
+
+                    // Quarters Q1..Q4 breakdown
+                    const qData = [1, 2, 3, 4].map(qNum => {
+                      const mStart = (qNum - 1) * 3;
+                      const mIndices = [mStart, mStart + 1, mStart + 2];
+                      let qTarget = isUsingTraj ? mIndices.reduce((s, i) => s + (obj.trajectory[i] || 0), 0) : baseTargetVal / 4;
+                      let qAch = isUsingAch ? mIndices.reduce((s, i) => s + (obj.monthlyAchievements[i] || 0), 0) : (obj.achievement || 0) / 4;
+                      if (obj.unit === '%' || obj.trajectoryType === 'constant') {
+                        qTarget = isUsingTraj ? qTarget / 3 : baseTargetVal;
+                        qAch = isUsingAch ? qAch / 3 : (obj.achievement || 0);
+                      }
+                      const qPct = qTarget > 0 ? Math.min(120, Math.round((qAch / qTarget) * 100)) : 0;
+                      return { qNum, target: Math.round(qTarget * 10) / 10, ach: Math.round(qAch * 10) / 10, pct: qPct };
+                    });
 
                     return (
                       <div 
                         key={obj.id} 
                         className={`relative p-5 rounded-2xl border ${palette.borderColor} ${palette.bgColor} flex flex-col justify-between space-y-3 shadow-xs hover:shadow-md ${palette.hoverBorderColor} transition-all duration-300 overflow-hidden pt-6`}
                       >
-                        {/* Elegant status line at the top of the card */}
+                        {/* Status bar header */}
                         <div className={`absolute top-0 left-0 right-0 h-[3.5px] ${palette.accentColor}`} />
 
-                        {/* Title block */}
-                        <div className="space-y-0.5 min-w-0">
-                          <span className="text-[8px] font-black text-slate-400 font-mono tracking-wider block">INDIKATOR SASARAN</span>
-                          <span className="text-xs font-bold text-slate-800 leading-snug line-clamp-2" title={obj.indicatorName}>
+                        {/* Card Header & Title */}
+                        <div className="space-y-1 min-w-0">
+                          <div className="flex justify-between items-center gap-2">
+                            <span className="text-[8px] font-black text-slate-400 font-mono tracking-wider uppercase block">
+                              INDIKATOR SASARAN
+                            </span>
+                            <span className={`text-[8px] font-bold px-2 py-0.5 rounded-full uppercase font-mono ${
+                              cardMode === 'akumulatif' ? 'bg-indigo-50 text-indigo-600 border border-indigo-200' :
+                              cardMode === 'triwulanan' ? 'bg-emerald-50 text-emerald-600 border border-emerald-200' :
+                              cardMode === 'bulanan_tahunan' ? 'bg-amber-50 text-amber-600 border border-amber-200' :
+                              'bg-slate-100 text-slate-600 border border-slate-200'
+                            }`}>
+                              {cardMode === 'akumulatif' ? 'Akumulatif Bulanan' :
+                               cardMode === 'triwulanan' ? 'Breakdown Triwulan' :
+                               cardMode === 'bulanan_tahunan' ? 'Bulanan vs Tahunan' : 'Gauge'}
+                            </span>
+                          </div>
+                          <span className="text-xs font-bold text-slate-800 leading-snug line-clamp-2 block" title={obj.indicatorName}>
                             {obj.indicatorName}
                           </span>
                         </div>
 
-                        {/* Individual Half Circle Gauge instead of standard linear progress */}
-                        <div className="relative w-full h-36 flex items-center justify-center overflow-hidden">
-                          <ResponsiveContainer width="100%" height="100%">
-                            <PieChart margin={{ top: 4, left: 0, right: 0, bottom: 0 }}>
-                              <Pie
-                                data={objGaugeData}
-                                cx="50%"
-                                cy="95%"
-                                startAngle={180}
-                                endAngle={0}
-                                innerRadius={60}
-                                outerRadius={80}
-                                paddingAngle={0}
-                                dataKey="value"
-                              >
-                                <Cell fill={palette.gaugeColor} />
-                                <Cell fill="#cbd5e1" />
-                              </Pie>
-                            </PieChart>
-                          </ResponsiveContainer>
+                        {/* DYNAMIC CARD CONTENT BASED ON MODE */}
 
-                          {/* Gauge center percentage */}
-                          <div className="absolute inset-x-0 bottom-1 flex flex-col items-center">
-                            <span className={`text-3xl font-black font-mono tracking-tight leading-none ${palette.textColor}`}>
-                              {objPercentage}%
-                            </span>
-                            <span className="text-[8px] text-slate-400 font-bold uppercase tracking-wider mt-1">TERCAPAI</span>
-                          </div>
-                        </div>
+                        {/* MODE 1: AKUMULATIF BULANAN (Pemberitaan / Media Baru) */}
+                        {cardMode === 'akumulatif' && (
+                          <div className="space-y-3 my-1">
+                            {/* YTD Big Progress */}
+                            <div className="bg-indigo-50/50 p-3 rounded-xl border border-indigo-100 space-y-1.5">
+                              <div className="flex justify-between items-baseline">
+                                <span className="text-[9px] font-bold text-indigo-700 uppercase font-mono">Pencapaian Akumulatif YTD</span>
+                                <span className="text-base font-black text-indigo-700 font-mono">{objPercentage}%</span>
+                              </div>
+                              <div className="w-full bg-slate-200/80 rounded-full h-2 overflow-hidden">
+                                <div className="bg-indigo-600 h-2 rounded-full transition-all duration-500" style={{ width: `${Math.min(100, objPercentage)}%` }} />
+                              </div>
+                              <div className="flex justify-between text-[10px] text-slate-600 pt-0.5">
+                                <span>Realisasi: <strong className="text-slate-800 font-mono">{obj.achievement} {obj.unit}</strong></span>
+                                <span>Target: <strong className="text-slate-800 font-mono">{obj.target}</strong></span>
+                              </div>
+                            </div>
 
-                        {/* Metrics footer */}
-                        <div className="grid grid-cols-2 gap-2 border-t border-slate-100 pt-2 text-[10px]">
-                          <div className="bg-[#f8fafc] p-2 rounded-lg border border-slate-200/50 min-w-0">
-                            <span className="text-[8px] text-slate-400 block font-mono">TARGET</span>
-                            <span className="font-extrabold text-slate-700 font-mono truncate block" title={obj.target}>{obj.target}</span>
+                            {/* Monthly Accumulation Timeline */}
+                            <div className="space-y-1">
+                              <span className="text-[8px] font-bold text-slate-400 uppercase font-mono block">Tren Akumulasi Bulan 1 - 12:</span>
+                              <div className="grid grid-cols-6 gap-1 text-[9px] font-mono">
+                                {INDONESIAN_MONTHS.map((mName, mIdx) => {
+                                  const mAch = isUsingAch ? obj.monthlyAchievements[mIdx] : Math.round(((obj.achievement || 0) / 12) * (mIdx + 1));
+                                  const isCurrent = mIdx === selectedKpiMonth;
+                                  return (
+                                    <div key={mIdx} className={`p-1 rounded text-center border ${isCurrent ? 'bg-indigo-600 text-white border-indigo-700 font-black' : 'bg-slate-50 border-slate-200 text-slate-700'}`} title={`${mName}: ${mAch} ${obj.unit}`}>
+                                      <span className="block text-[7px] uppercase font-bold opacity-80">{mName.substring(0, 3)}</span>
+                                      <span className="truncate block font-extrabold">{mAch}</span>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            </div>
                           </div>
-                          <div className="bg-[#f8fafc] p-2 rounded-lg border border-slate-200/50 min-w-0">
-                            <span className="text-[8px] text-slate-400 block font-mono">REALISASI</span>
-                            <span className="font-extrabold text-slate-700 font-mono truncate block" title={`${obj.achievement} ${obj.unit}`}>{obj.achievement} {obj.unit}</span>
+                        )}
+
+                        {/* MODE 2: BREAKDOWN TRIWULAN Q1 - Q4 (Tata Usaha / SAKIP) */}
+                        {cardMode === 'triwulanan' && (
+                          <div className="space-y-2 my-1">
+                            <div className="grid grid-cols-2 gap-1.5">
+                              {qData.map(q => (
+                                <div key={q.qNum} className="p-2 rounded-xl bg-slate-50 border border-slate-200/80 space-y-1">
+                                  <div className="flex justify-between items-center text-[9px] font-bold">
+                                    <span className="text-slate-600 font-mono uppercase">Triwulan {q.qNum}</span>
+                                    <span className={`px-1.5 py-0.2 rounded text-[8px] font-extrabold ${
+                                      q.pct >= 100 ? 'bg-emerald-100 text-emerald-800 border border-emerald-300' :
+                                      q.pct > 0 ? 'bg-amber-100 text-amber-800 border border-amber-300' : 'bg-slate-200 text-slate-600'
+                                    }`}>
+                                      {q.pct >= 100 ? 'Tercapai' : q.pct > 0 ? `${q.pct}%` : 'Belum'}
+                                    </span>
+                                  </div>
+                                  <div className="text-[10px] flex justify-between font-mono pt-0.5 border-t border-slate-200/50">
+                                    <span className="text-slate-400">Target: <strong className="text-slate-700">{q.target}</strong></span>
+                                    <span className="text-indigo-600 font-bold">Real: <strong>{q.ach}</strong></span>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
                           </div>
+                        )}
+
+                        {/* MODE 3: BULANAN VS TAHUNAN (Siaran / Program Acara / Teknik) */}
+                        {cardMode === 'bulanan_tahunan' && (
+                          <div className="space-y-2 my-1">
+                            <div className="grid grid-cols-2 gap-2">
+                              {/* Bulan Berjalan */}
+                              <div className="p-2.5 rounded-xl bg-amber-50/60 border border-amber-200/80 space-y-1">
+                                <span className="text-[8px] font-bold text-amber-800 uppercase font-mono block">Bulan {INDONESIAN_MONTHS[selectedKpiMonth]}</span>
+                                <div className="text-lg font-black text-amber-900 font-mono leading-none">
+                                  {isUsingAch ? obj.monthlyAchievements[selectedKpiMonth] : Math.round((obj.achievement || 0) / 12)} <span className="text-[10px] font-normal text-amber-700">{obj.unit}</span>
+                                </div>
+                                <span className="text-[9px] text-amber-700 block font-mono">Target Bln: {isUsingTraj ? obj.trajectory[selectedKpiMonth] : Math.round(baseTargetVal / 12)}</span>
+                              </div>
+
+                              {/* Total Tahunan */}
+                              <div className="p-2.5 rounded-xl bg-indigo-50/60 border border-indigo-200/80 space-y-1">
+                                <span className="text-[8px] font-bold text-indigo-800 uppercase font-mono block">Total Tahunan YTD</span>
+                                <div className="text-lg font-black text-indigo-900 font-mono leading-none">
+                                  {obj.achievement} <span className="text-[10px] font-normal text-indigo-700">{obj.unit}</span>
+                                </div>
+                                <span className="text-[9px] text-indigo-700 block font-mono">Target Thn: {obj.target}</span>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* MODE 4: GAUGE (Classic Half Circle Gauge) */}
+                        {cardMode === 'gauge' && (
+                          <div className="relative w-full h-32 flex items-center justify-center overflow-hidden">
+                            <ResponsiveContainer width="100%" height="100%">
+                              <PieChart margin={{ top: 4, left: 0, right: 0, bottom: 0 }}>
+                                <Pie
+                                  data={objGaugeData}
+                                  cx="50%"
+                                  cy="95%"
+                                  startAngle={180}
+                                  endAngle={0}
+                                  innerRadius={55}
+                                  outerRadius={75}
+                                  paddingAngle={0}
+                                  dataKey="value"
+                                >
+                                  <Cell fill={palette.gaugeColor} />
+                                  <Cell fill="#cbd5e1" />
+                                </Pie>
+                              </PieChart>
+                            </ResponsiveContainer>
+                            <div className="absolute inset-x-0 bottom-1 flex flex-col items-center">
+                              <span className={`text-2xl font-black font-mono tracking-tight leading-none ${palette.textColor}`}>
+                                {objPercentage}%
+                              </span>
+                              <span className="text-[8px] text-slate-400 font-bold uppercase tracking-wider mt-1">TERCAPAI</span>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Metrics footer & Eviden Button */}
+                        <div className="border-t border-slate-100 pt-2 flex items-center justify-between gap-2 text-[10px]">
+                          <div className="min-w-0">
+                            <span className="text-[8px] text-slate-400 block font-mono">TARGET: <strong className="text-slate-700">{obj.target}</strong></span>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => handleOpenNewsModal(obj, selectedDivData?.agreement)}
+                            className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-extrabold rounded-lg border border-indigo-200 transition-all cursor-pointer font-mono"
+                            title="Klik untuk melihat bukti rilis / eviden berita"
+                          >
+                            <Eye className="w-3 h-3 text-indigo-600" />
+                            <span>Realisasi: {obj.achievement} {obj.unit}</span>
+                          </button>
                         </div>
                       </div>
                     );
@@ -1253,6 +1446,19 @@ export default function DashboardView({
           </div>
         )}
       </div>
+
+      {/* Evidence News Detail Modal */}
+      <NewsDetailModal
+        isOpen={newsModalConfig.isOpen}
+        onClose={() => setNewsModalConfig(prev => ({ ...prev, isOpen: false }))}
+        title={newsModalConfig.title}
+        indicatorName={newsModalConfig.indicatorName}
+        periodLabel={newsModalConfig.periodLabel}
+        newsReports={newsModalConfig.newsReports}
+        targetValue={newsModalConfig.targetValue}
+        achievementValue={newsModalConfig.achievementValue}
+        assignedToName={newsModalConfig.assignedToName}
+      />
     </div>
   );
 }

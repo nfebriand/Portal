@@ -31,11 +31,15 @@ import {
   Calculator,
   Table,
   Save,
-  RotateCcw
+  RotateCcw,
+  Eye,
+  ListFilter
 } from 'lucide-react';
 import { Employee, InstitutionalIdentity, PerformanceAgreement, PerformanceIndicator, AppSettings, CriticalNotification, NewsReport, CooperationContract, ReporterTarget, IndicatorComment } from '../types';
 import SignaturePad from './SignaturePad';
 import IndicatorCommentsSection from './IndicatorCommentsSection';
+import NewsDetailModal from './NewsDetailModal';
+import { filterNewsForIndicator } from '../utils/newsFilter';
 
 // Helper to calculate indicator achievement percentage score based on periodType
 const getIndicatorScore = (obj: PerformanceIndicator) => {
@@ -266,7 +270,7 @@ export default function PerformanceAgreementView({
     return 'Belum ditugaskan';
   };
 
-  const [evalPeriod, setEvalPeriod] = useState<'q1' | 'q2' | 'q3' | 'q4' | 's1' | 's2' | 'tahunan'>('tahunan');
+  const [evalPeriod, setEvalPeriod] = useState<string>('tahunan');
   const [scaleTargets, setScaleTargets] = useState<boolean>(false);
   const [sakipExpertData, setSakipExpertData] = useState<{
     indicator: PerformanceIndicator;
@@ -274,6 +278,45 @@ export default function PerformanceAgreementView({
     assignedToName: string;
     level: string;
   } | null>(null);
+
+  // News detail modal state
+  const [newsModalConfig, setNewsModalConfig] = useState<{
+    isOpen: boolean;
+    title: string;
+    indicatorName: string;
+    periodLabel: string;
+    newsReports: NewsReport[];
+    targetValue?: string | number;
+    achievementValue?: number;
+    assignedToName?: string;
+  }>({
+    isOpen: false,
+    title: '',
+    indicatorName: '',
+    periodLabel: '',
+    newsReports: []
+  });
+
+  const handleOpenNewsModal = (obj: any, agreement?: any) => {
+    const { filteredReports, periodLabel, typeLabel } = filterNewsForIndicator({
+      indicator: obj,
+      agreement: agreement,
+      newsReports: newsReports,
+      period: evalPeriod,
+      selectedYear: selectedYear
+    });
+
+    setNewsModalConfig({
+      isOpen: true,
+      title: `Eviden List ${typeLabel}`,
+      indicatorName: obj.indicatorName,
+      periodLabel: periodLabel,
+      newsReports: filteredReports,
+      targetValue: obj._scaledTargetString || obj.target,
+      achievementValue: obj.achievement || 0,
+      assignedToName: agreement?.assignedToName
+    });
+  };
 
   // Period helpers
   const isReportInPeriod = (r: NewsReport, period: string, year: number) => {
@@ -283,6 +326,10 @@ export default function PerformanceAgreementView({
     if (d.getFullYear() !== year) return false;
     
     const month = d.getMonth(); // 0-11
+    if (period.startsWith('m')) {
+      const mIdx = parseInt(period.substring(1), 10);
+      return month === mIdx;
+    }
     switch (period) {
       case 'q1': return month >= 0 && month <= 2;
       case 'q2': return month >= 3 && month <= 5;
@@ -303,6 +350,10 @@ export default function PerformanceAgreementView({
     if (d.getFullYear() !== year) return false;
     
     const month = d.getMonth(); // 0-11
+    if (period.startsWith('m')) {
+      const mIdx = parseInt(period.substring(1), 10);
+      return month === mIdx;
+    }
     switch (period) {
       case 'q1': return month >= 0 && month <= 2;
       case 'q2': return month >= 3 && month <= 5;
@@ -337,6 +388,10 @@ export default function PerformanceAgreementView({
     });
 
     const getMonthIndicesForPeriod = (period: string): number[] => {
+      if (period.startsWith('m')) {
+        const idx = parseInt(period.substring(1), 10);
+        return [idx];
+      }
       switch (period) {
         case 'q1': return [0, 1, 2];
         case 'q2': return [3, 4, 5];
@@ -2257,7 +2312,7 @@ export default function PerformanceAgreementView({
                     ].map(p => (
                       <button
                         key={p.id}
-                        onClick={() => setEvalPeriod(p.id as any)}
+                        onClick={() => setEvalPeriod(p.id)}
                         className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all border ${
                           evalPeriod === p.id 
                             ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm' 
@@ -2267,6 +2322,25 @@ export default function PerformanceAgreementView({
                         {p.label}
                       </button>
                     ))}
+
+                    <div className="flex items-center gap-1.5 pl-2 border-l border-slate-200">
+                      <span className="text-[10px] font-bold text-slate-400 uppercase font-mono">Bulan:</span>
+                      <select
+                        value={evalPeriod.startsWith('m') ? evalPeriod : ''}
+                        onChange={(e) => {
+                          if (e.target.value) setEvalPeriod(e.target.value);
+                        }}
+                        className="bg-white border border-slate-200 rounded-xl px-2.5 py-1.5 text-xs font-bold text-slate-700 focus:outline-hidden cursor-pointer"
+                      >
+                        <option value="">-- Filter Bulan --</option>
+                        {[
+                          'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
+                          'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
+                        ].map((m, idx) => (
+                          <option key={idx} value={`m${idx}`}>{m}</option>
+                        ))}
+                      </select>
+                    </div>
                   </div>
                 </div>
 
@@ -2398,7 +2472,18 @@ export default function PerformanceAgreementView({
                               <p className="text-[10px] text-slate-400 flex items-center gap-2">
                                 <span>Target: <span className="font-extrabold text-slate-700">{rootObj._scaledTargetString || rootObj.target} {rootObj.unit}</span></span>
                                 <span>•</span>
-                                <span>Realisasi: <span className="font-extrabold text-indigo-600">{rootReal} {rootObj.unit}</span></span>
+                                <span>
+                                  Realisasi:{' '}
+                                  <button
+                                    type="button"
+                                    onClick={() => handleOpenNewsModal(rootObj, kepalaAg)}
+                                    className="inline-flex items-center gap-1 font-extrabold text-indigo-600 hover:text-indigo-800 bg-indigo-50/80 hover:bg-indigo-100 px-2 py-0.5 rounded-md transition-all cursor-pointer border border-indigo-200 ml-1"
+                                    title="Klik untuk melihat list berita terfilter"
+                                  >
+                                    <Eye className="w-3 h-3 text-indigo-500" />
+                                    {rootReal} {rootObj.unit}
+                                  </button>
+                                </span>
                                 <span>•</span>
                                 <span>Bobot: <span className="font-extrabold text-purple-600">{rootObj.weight}%</span></span>
                               </p>
@@ -2478,7 +2563,18 @@ export default function PerformanceAgreementView({
                                           <div className="flex items-center gap-2 text-[10px] text-slate-400 mt-1">
                                             <span>Target: <span className="font-extrabold text-slate-600">{l2Obj._scaledTargetString || l2Obj.target} {l2Obj.unit}</span></span>
                                             <span>•</span>
-                                            <span>Realisasi: <span className="font-extrabold text-indigo-600">{l2Real} {l2Obj.unit}</span></span>
+                                            <span>
+                                              Realisasi:{' '}
+                                              <button
+                                                type="button"
+                                                onClick={() => handleOpenNewsModal(l2Obj, l2Ag)}
+                                                className="inline-flex items-center gap-1 font-extrabold text-indigo-600 hover:text-indigo-800 bg-indigo-50/80 hover:bg-indigo-100 px-2 py-0.5 rounded-md transition-all cursor-pointer border border-indigo-200 ml-1"
+                                                title="Klik untuk melihat list berita terfilter"
+                                              >
+                                                <Eye className="w-3 h-3 text-indigo-500" />
+                                                {l2Real} {l2Obj.unit}
+                                              </button>
+                                            </span>
                                             <span>•</span>
                                             <span>Bobot: <span className="font-extrabold text-indigo-500">{l2Obj.weight}%</span></span>
                                           </div>
@@ -2516,7 +2612,18 @@ export default function PerformanceAgreementView({
                                                       <div className="text-[9px] text-slate-400 mt-1 flex items-center gap-1">
                                                         <span>Target: <span className="font-extrabold text-slate-500">{l3Obj._scaledTargetString || l3Obj.target} {l3Obj.unit}</span></span>
                                                         <span>•</span>
-                                                        <span>Realisasi: <span className="font-extrabold text-indigo-600">{l3Real}</span></span>
+                                                        <span>
+                                                          Realisasi:{' '}
+                                                          <button
+                                                            type="button"
+                                                            onClick={() => handleOpenNewsModal(l3Obj, l3Ag)}
+                                                            className="inline-flex items-center gap-1 font-extrabold text-indigo-600 hover:text-indigo-800 bg-indigo-50/80 hover:bg-indigo-100 px-1.5 py-0.5 rounded-md transition-all cursor-pointer border border-indigo-200 ml-1"
+                                                            title="Klik untuk melihat list berita terfilter"
+                                                          >
+                                                            <Eye className="w-3 h-3 text-indigo-500" />
+                                                            {l3Real} {l3Obj.unit}
+                                                          </button>
+                                                        </span>
                                                       </div>
                                                     </div>
 
@@ -3994,6 +4101,19 @@ ${tindakLanjut}
           </div>
         );
       })()}
+
+      {/* News Detail Evidence Modal */}
+      <NewsDetailModal
+        isOpen={newsModalConfig.isOpen}
+        onClose={() => setNewsModalConfig(prev => ({ ...prev, isOpen: false }))}
+        title={newsModalConfig.title}
+        indicatorName={newsModalConfig.indicatorName}
+        periodLabel={newsModalConfig.periodLabel}
+        newsReports={newsModalConfig.newsReports}
+        targetValue={newsModalConfig.targetValue}
+        achievementValue={newsModalConfig.achievementValue}
+        assignedToName={newsModalConfig.assignedToName}
+      />
 
     </div>
   );
