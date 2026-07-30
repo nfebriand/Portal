@@ -572,7 +572,7 @@ const recalculateCascade = (
         const objectives = ag.objectives.map(obj => {
           const nameLower = obj.indicatorName.toLowerCase();
           
-          if (nameLower.includes('ringan')) {
+          if (nameLower.includes('ringan') || nameLower.includes('lpu')) {
             const count = empReports.filter(r => r.type === 'Berita Ringan' || r.type === 'Berita Ringan LPU').length;
             return { ...obj, achievement: count };
           } else if (nameLower.includes('radio')) {
@@ -589,7 +589,12 @@ const recalculateCascade = (
             const empTargets = currentReporterTargets.filter(t => t.employeeId === empId);
             const matchedTarget = empTargets.find(t => t.linkedIndicatorId === obj.id);
             if (matchedTarget) {
-              const count = empReports.length;
+              const count = empReports.filter(r => {
+                if (matchedTarget.mediaType === 'Berita Ringan LPU' || matchedTarget.mediaType === 'Berita Ringan') {
+                  return r.type === 'Berita Ringan' || r.type === 'Berita Ringan LPU';
+                }
+                return !matchedTarget.mediaType || r.type === matchedTarget.mediaType;
+              }).length;
               return { ...obj, achievement: count };
             }
           }

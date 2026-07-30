@@ -363,10 +363,28 @@ export default function PerformanceAgreementView({
 
         if (ag.level === 'Pegawai' && ag.assignedToEmployeeId) {
           const empId = ag.assignedToEmployeeId;
-          const empTargets = reporterTargets.filter(t => t.employeeId === empId);
-          const matchedTarget = empTargets.find(t => t.linkedIndicatorId === obj.id);
-          if (matchedTarget) {
-            achievement = reportCountsByEmployee[empId] || 0;
+          const empReports = filteredReports.filter(r => r.employeeId === empId);
+          const nameLower = obj.indicatorName.toLowerCase();
+          
+          if (nameLower.includes('ringan') || nameLower.includes('lpu')) {
+            achievement = empReports.filter(r => r.type === 'Berita Ringan' || r.type === 'Berita Ringan LPU').length;
+          } else if (nameLower.includes('radio')) {
+            achievement = empReports.filter(r => r.type === 'Berita Radio').length;
+          } else if (nameLower.includes('konten siaran') || (nameLower.includes('siaran') && !nameLower.includes('radio'))) {
+            achievement = empReports.filter(r => r.type === 'Konten Siaran').length;
+          } else if (nameLower.includes('online') || nameLower.includes('media baru') || nameLower.includes('medsos') || nameLower.includes('konten')) {
+            achievement = empReports.filter(r => r.type === 'Berita Online').length;
+          } else {
+            const empTargets = reporterTargets.filter(t => t.employeeId === empId);
+            const matchedTarget = empTargets.find(t => t.linkedIndicatorId === obj.id);
+            if (matchedTarget) {
+              achievement = empReports.filter(r => {
+                if (matchedTarget.mediaType === 'Berita Ringan LPU' || matchedTarget.mediaType === 'Berita Ringan') {
+                  return r.type === 'Berita Ringan' || r.type === 'Berita Ringan LPU';
+                }
+                return !matchedTarget.mediaType || r.type === matchedTarget.mediaType;
+              }).length;
+            }
           }
         }
 
@@ -463,6 +481,21 @@ export default function PerformanceAgreementView({
               const targetVal = l2Obj._scaledTargetVal !== undefined ? l2Obj._scaledTargetVal : (parseFloat(l2Obj.target) || 100);
               const newAchievement = Math.round((avgProgress / 100) * targetVal * 10) / 10;
               return { ...l2Obj, achievement: newAchievement };
+            }
+          } else {
+            const nameLower = l2Obj.indicatorName.toLowerCase();
+            if (nameLower.includes('ringan') || nameLower.includes('lpu')) {
+              const count = filteredReports.filter(r => r.type === 'Berita Ringan' || r.type === 'Berita Ringan LPU').length;
+              return { ...l2Obj, achievement: count };
+            } else if (nameLower.includes('radio')) {
+              const count = filteredReports.filter(r => r.type === 'Berita Radio').length;
+              return { ...l2Obj, achievement: count };
+            } else if (nameLower.includes('konten siaran') || (nameLower.includes('siaran') && !nameLower.includes('radio') && !nameLower.includes('pemilu'))) {
+              const count = filteredReports.filter(r => r.type === 'Konten Siaran').length;
+              return { ...l2Obj, achievement: count };
+            } else if (nameLower.includes('online') || nameLower.includes('kbrn') || nameLower.includes('media baru')) {
+              const count = filteredReports.filter(r => r.type === 'Berita Online').length;
+              return { ...l2Obj, achievement: count };
             }
           }
           return l2Obj;

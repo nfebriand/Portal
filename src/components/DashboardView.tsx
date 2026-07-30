@@ -502,8 +502,29 @@ export default function DashboardView({
         let computedAch = obj.achievement || 0;
         if (obj.id === 'ind-11') {
           computedAch = totalPnbpForPeriod;
-        } else if (ag.level === 'Pegawai' && (obj.id.startsWith('ind-rep-') || obj.indicatorName.toLowerCase().includes('berita'))) {
-          computedAch = empReportCount;
+        } else if (ag.level === 'Pegawai' && ag.assignedToEmployeeId) {
+          const empId = ag.assignedToEmployeeId;
+          const nameLower = obj.indicatorName.toLowerCase();
+          if (nameLower.includes('ringan') || nameLower.includes('lpu')) {
+            computedAch = empReports.filter(r => r.type === 'Berita Ringan' || r.type === 'Berita Ringan LPU').length;
+          } else if (nameLower.includes('radio')) {
+            computedAch = empReports.filter(r => r.type === 'Berita Radio').length;
+          } else if (nameLower.includes('konten siaran') || (nameLower.includes('siaran') && !nameLower.includes('radio'))) {
+            computedAch = empReports.filter(r => r.type === 'Konten Siaran').length;
+          } else if (nameLower.includes('online') || nameLower.includes('media baru') || nameLower.includes('medsos') || nameLower.includes('konten')) {
+            computedAch = empReports.filter(r => r.type === 'Berita Online').length;
+          } else {
+            const empTargets = (reporterTargets || []).filter(t => t.employeeId === empId);
+            const matchedTarget = empTargets.find(t => t.linkedIndicatorId === obj.id);
+            if (matchedTarget) {
+              computedAch = empReports.filter(r => {
+                if (matchedTarget.mediaType === 'Berita Ringan LPU' || matchedTarget.mediaType === 'Berita Ringan') {
+                  return r.type === 'Berita Ringan' || r.type === 'Berita Ringan LPU';
+                }
+                return !matchedTarget.mediaType || r.type === matchedTarget.mediaType;
+              }).length;
+            }
+          }
         } else if (obj.trajectory && obj.trajectory.length === 12) {
           const tType = obj.trajectoryType || (isConstant ? 'constant' : 'cumulative');
           const activeTrajectoryTarget = activeMonthIndices.reduce((sum, idx) => sum + (obj.trajectory?.[idx] ?? 0), 0);
