@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Employee, AppSettings, InstitutionalIdentity, CriticalNotification, PerformanceAgreement, CooperationContract, ReporterTarget, NewsReport } from './types';
+import { syncNewsAchievements } from './utils/syncNewsAchievements';
 import DashboardView from './components/DashboardView';
 import EmployeeAdminView from './components/EmployeeAdminView';
 import AppAdminView from './components/AppAdminView';
@@ -544,7 +545,8 @@ const recalculateCascade = (
   currentAgs: PerformanceAgreement[], 
   currentContracts: CooperationContract[],
   currentNewsReports: NewsReport[] = [],
-  currentReporterTargets: ReporterTarget[] = []
+  currentReporterTargets: ReporterTarget[] = [],
+  currentEmployees: Employee[] = []
 ) => {
   // 1. Calculate total PNBP for linked indicator 'ind-11'
   const totalPnbpForInd11 = currentContracts
@@ -562,151 +564,15 @@ const recalculateCascade = (
     return { ...ag, objectives };
   });
 
-  // 2b. Calculate news report counts and update their linked indicator achievements (Level 3 - Pegawai)
+  // 3. Sync news reports counts & monthlyAchievements (12 months) across Level 1, Level 2, Level 3
   if (currentNewsReports.length > 0) {
-    updated = updated.map(ag => {
-      if (ag.level === 'Pegawai' && ag.assignedToEmployeeId) {
-        const empId = ag.assignedToEmployeeId;
-        const empObj = INITIAL_EMPLOYEES.find(e => e.id === empId);
-        const empNameLower = empObj ? empObj.nama.toLowerCase().trim() : '';
-
-        const empReports = currentNewsReports.filter(r => {
-          if (r.employeeId === empId) return true;
-          if (empNameLower) {
-            const repName = (r.reporterName || r.writerName || '').toLowerCase().trim();
-            if (repName && (repName === empNameLower || repName.includes(empNameLower) || empNameLower.includes(repName))) {
-              return true;
-            }
-          }
-          return false;
-        });
-
-        const objectives = ag.objectives.map(obj => {
-          const nameLower = obj.indicatorName.toLowerCase();
-          
-          if (nameLower.includes('ringan') || nameLower.includes('lpu')) {
-            const count = empReports.filter(r => r.type === 'Berita Ringan' || r.type === 'Berita Ringan LPU').length;
-            return { ...obj, achievement: count };
-          } else if (nameLower.includes('radio')) {
-            const count = empReports.filter(r => r.type === 'Berita Radio').length;
-            return { ...obj, achievement: count };
-          } else if (nameLower.includes('konten siaran') || (nameLower.includes('siaran') && !nameLower.includes('radio'))) {
-            const count = empReports.filter(r => r.type === 'Konten Siaran').length;
-            return { ...obj, achievement: count };
-          } else if (nameLower.includes('online') || nameLower.includes('media baru') || nameLower.includes('medsos') || nameLower.includes('sosial media') || nameLower.includes('harian') || nameLower.includes('publikasi') || nameLower.includes('konten')) {
-            const count = empReports.filter(r => r.type === 'Berita Online').length;
-            return { ...obj, achievement: count };
-          } else {
-            // Fallback to general matched targets if defined
-            const empTargets = currentReporterTargets.filter(t => t.employeeId === empId);
-            const matchedTarget = empTargets.find(t => t.linkedIndicatorId === obj.id);
-            if (matchedTarget) {
-              const count = empReports.filter(r => {
-                if (matchedTarget.mediaType === 'Berita Ringan LPU' || matchedTarget.mediaType === 'Berita Ringan') {
-                  return r.type === 'Berita Ringan' || r.type === 'Berita Ringan LPU';
-                }
-                return !matchedTarget.mediaType || r.type === matchedTarget.mediaType;
-              }).length;
-              return { ...obj, achievement: count };
-            }
-          }
-          return obj;
-        });
-        return { ...ag, objectives };
-      }
-      return ag;
-    });
+    updated = syncNewsAchievements(
+      currentNewsReports, 
+      updated, 
+      currentReporterTargets, 
+      currentEmployees.length > 0 ? currentEmployees : INITIAL_EMPLOYEES
+    );
   }
-
-  // 2c. Roll up Level 3 (Pegawai) to Level 2 (Ketua Tim / Kabid) objectives dynamically
-  updated = updated.map(ag => {
-    if (ag.level !== 'Kepala Stasiun' && ag.level !== 'Pegawai') {
-      const objectives = ag.objectives.map(l2Obj => {
-        const l3Objectives: { achievement: number; target: number; unit: string }[] = [];
-        updated.forEach(otherAg => {
-          if (otherAg.level === 'Pegawai') {
-            otherAg.objectives.forEach(obj => {
-              if (obj.parentIndicatorId === l2Obj.id) {
-                const tgtVal = parseFloat(obj.target) || 100;
-                l3Objectives.push({ achievement: obj.achievement || 0, target: tgtVal, unit: obj.unit });
-              }
-            });
-          }
-        });
-
-        if (l3Objectives.length > 0) {
-          const isAbsolute = ['berita', 'konten', 'laporan', 'dokumen', 'video'].some(u => l2Obj.unit.toLowerCase().includes(u));
-          
-          if (isAbsolute) {
-            const sumAchievement = l3Objectives.reduce((sum, child) => sum + child.achievement, 0);
-            return { ...l2Obj, achievement: sumAchievement };
-          } else {
-            const totalProgress = l3Objectives.reduce((sum, child) => {
-              const progress = child.target > 0 ? (child.achievement / child.target) * 100 : 0;
-              return sum + Math.min(120, progress);
-            }, 0);
-            const avgProgress = totalProgress / l3Objectives.length;
-            const l2TargetVal = parseFloat(l2Obj.target) || 100;
-            const newAchievement = Math.round((avgProgress / 100) * l2TargetVal * 10) / 10;
-            return { ...l2Obj, achievement: newAchievement };
-          }
-        } else {
-          // Direct news count fallback for L2 if no child L3 objectives linked
-          const nameLower = l2Obj.indicatorName.toLowerCase();
-          if (nameLower.includes('ringan') || nameLower.includes('lpu')) {
-            const count = currentNewsReports.filter(r => r.type === 'Berita Ringan' || r.type === 'Berita Ringan LPU').length;
-            return { ...l2Obj, achievement: count };
-          } else if (nameLower.includes('radio')) {
-            const count = currentNewsReports.filter(r => r.type === 'Berita Radio').length;
-            return { ...l2Obj, achievement: count };
-          } else if (nameLower.includes('konten siaran') || (nameLower.includes('siaran') && !nameLower.includes('radio') && !nameLower.includes('pemilu'))) {
-            const count = currentNewsReports.filter(r => r.type === 'Konten Siaran').length;
-            return { ...l2Obj, achievement: count };
-          } else if (nameLower.includes('online') || nameLower.includes('kbrn') || nameLower.includes('media baru')) {
-            const count = currentNewsReports.filter(r => r.type === 'Berita Online').length;
-            return { ...l2Obj, achievement: count };
-          }
-        }
-        return l2Obj;
-      });
-      return { ...ag, objectives };
-    }
-    return ag;
-  });
-
-  // 3. Roll up Level 2 to Level 1 (Kepala Stasiun objectives)
-  updated = updated.map(ag => {
-    if (ag.level === 'Kepala Stasiun') {
-      const objectives = ag.objectives.map(rootObj => {
-        const l2Objectives: { achievement: number; target: number }[] = [];
-        updated.forEach(otherAg => {
-          if (otherAg.level !== 'Kepala Stasiun' && otherAg.level !== 'Pegawai') {
-            otherAg.objectives.forEach(obj => {
-              if (obj.parentIndicatorId === rootObj.id) {
-                const tgtVal = parseFloat(obj.target) || 100;
-                l2Objectives.push({ achievement: obj.achievement || 0, target: tgtVal });
-              }
-            });
-          }
-        });
-
-        if (l2Objectives.length > 0) {
-          const totalProgress = l2Objectives.reduce((sum, child) => {
-            const progress = (child.achievement / child.target) * 100;
-            return sum + Math.min(120, progress);
-          }, 0);
-          const avgProgress = totalProgress / l2Objectives.length;
-          
-          const rootTargetVal = parseFloat(rootObj.target) || 100;
-          const newAchievement = Math.round((avgProgress / 100) * rootTargetVal * 10) / 10;
-          return { ...rootObj, achievement: newAchievement };
-        }
-        return rootObj;
-      });
-      return { ...ag, objectives };
-    }
-    return ag;
-  });
 
   return updated;
 };
@@ -795,9 +661,6 @@ export default function App() {
           fireAgreements = await fetchCollection<PerformanceAgreement>('agreements', []);
         }
 
-        // Perform initial cascade check
-        const initialCascaded = recalculateCascade(fireAgreements, fireContracts, fireReports, fireTargets);
-
         // Migrate employee division field values if needed
         const migratedEmployees = fireEmployees.map((emp) => {
           if ((emp.divisi as any) === 'Program Acara') emp.divisi = 'Konten Media Baru';
@@ -805,6 +668,9 @@ export default function App() {
           if ((emp.divisi as any) === 'Layanan Publik') emp.divisi = 'Layanan Pengembangan Usaha';
           return emp;
         });
+
+        // Perform initial cascade check
+        const initialCascaded = recalculateCascade(fireAgreements, fireContracts, fireReports, fireTargets, migratedEmployees);
 
         setEmployees(migratedEmployees);
         setSettings(fireSettings);
@@ -1034,7 +900,7 @@ export default function App() {
   };
 
   const handleUpdateAgreements = async (newAgs: PerformanceAgreement[]) => {
-    const cascaded = recalculateCascade(newAgs, contracts, newsReports, reporterTargets);
+    const cascaded = recalculateCascade(newAgs, contracts, newsReports, reporterTargets, employees);
     setAgreements(cascaded);
     localStorage.setItem('e_station_agreements', JSON.stringify(cascaded));
     await saveCollectionList('agreements', cascaded);
@@ -1045,7 +911,7 @@ export default function App() {
     localStorage.setItem('e_station_contracts', JSON.stringify(newContracts));
     
     // Auto cascade PNBP totals up to the agreements
-    const cascaded = recalculateCascade(agreements, newContracts, newsReports, reporterTargets);
+    const cascaded = recalculateCascade(agreements, newContracts, newsReports, reporterTargets, employees);
     setAgreements(cascaded);
     localStorage.setItem('e_station_agreements', JSON.stringify(cascaded));
 
@@ -1057,7 +923,7 @@ export default function App() {
     setReporterTargets(newTargets);
     localStorage.setItem('e_station_reporter_targets', JSON.stringify(newTargets));
     
-    const cascaded = recalculateCascade(agreements, contracts, newsReports, newTargets);
+    const cascaded = recalculateCascade(agreements, contracts, newsReports, newTargets, employees);
     setAgreements(cascaded);
     localStorage.setItem('e_station_agreements', JSON.stringify(cascaded));
 
@@ -1069,7 +935,7 @@ export default function App() {
     setNewsReports(newReports);
     localStorage.setItem('e_station_news_reports', JSON.stringify(newReports));
     
-    const cascaded = recalculateCascade(agreements, contracts, newReports, reporterTargets);
+    const cascaded = recalculateCascade(agreements, contracts, newReports, reporterTargets, employees);
     setAgreements(cascaded);
     localStorage.setItem('e_station_agreements', JSON.stringify(cascaded));
 

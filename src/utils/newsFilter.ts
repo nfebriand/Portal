@@ -1,4 +1,17 @@
 import { NewsReport } from '../types';
+import { parseFlexibleDate } from './dateUtils';
+
+function getReportMonth(r: NewsReport): number {
+  if (r.publishDateTime) {
+    const res = parseFlexibleDate(r.publishDateTime);
+    if (res.isValid) return res.monthIndex;
+  }
+  if (r.date) {
+    const res = parseFlexibleDate(r.date);
+    if (res.isValid) return res.monthIndex;
+  }
+  return -1;
+}
 
 export interface FilterNewsOptions {
   indicator: {
@@ -54,9 +67,8 @@ export function filterNewsForIndicator({
     }
     periodLabel = `Bulanan - ${monthNames[mIdx]} ${selectedYear}`;
     matchesPeriod = (r: NewsReport) => {
-      if (!r.date) return false;
-      const d = new Date(r.date);
-      return !isNaN(d.getTime()) && d.getMonth() === mIdx;
+      const m = getReportMonth(r);
+      return m === mIdx;
     };
   } else if (
     pLower === 'q1' || 
@@ -67,9 +79,8 @@ export function filterNewsForIndicator({
   ) {
     periodLabel = `Triwulan I (Jan - Mar ${selectedYear})`;
     matchesPeriod = (r: NewsReport) => {
-      if (!r.date) return false;
-      const d = new Date(r.date);
-      return !isNaN(d.getTime()) && d.getMonth() >= 0 && d.getMonth() <= 2;
+      const m = getReportMonth(r);
+      return m >= 0 && m <= 2;
     };
   } else if (
     pLower === 'q2' || 
@@ -80,9 +91,8 @@ export function filterNewsForIndicator({
   ) {
     periodLabel = `Triwulan II (Apr - Jun ${selectedYear})`;
     matchesPeriod = (r: NewsReport) => {
-      if (!r.date) return false;
-      const d = new Date(r.date);
-      return !isNaN(d.getTime()) && d.getMonth() >= 3 && d.getMonth() <= 5;
+      const m = getReportMonth(r);
+      return m >= 3 && m <= 5;
     };
   } else if (
     pLower === 'q3' || 
@@ -93,9 +103,8 @@ export function filterNewsForIndicator({
   ) {
     periodLabel = `Triwulan III (Jul - Sep ${selectedYear})`;
     matchesPeriod = (r: NewsReport) => {
-      if (!r.date) return false;
-      const d = new Date(r.date);
-      return !isNaN(d.getTime()) && d.getMonth() >= 6 && d.getMonth() <= 8;
+      const m = getReportMonth(r);
+      return m >= 6 && m <= 8;
     };
   } else if (
     pLower === 'q4' || 
@@ -106,9 +115,8 @@ export function filterNewsForIndicator({
   ) {
     periodLabel = `Triwulan IV (Okt - Des ${selectedYear})`;
     matchesPeriod = (r: NewsReport) => {
-      if (!r.date) return false;
-      const d = new Date(r.date);
-      return !isNaN(d.getTime()) && d.getMonth() >= 9 && d.getMonth() <= 11;
+      const m = getReportMonth(r);
+      return m >= 9 && m <= 11;
     };
   } else if (
     pLower === 's1' || 
@@ -119,9 +127,8 @@ export function filterNewsForIndicator({
   ) {
     periodLabel = `Semester I (Jan - Jun ${selectedYear})`;
     matchesPeriod = (r: NewsReport) => {
-      if (!r.date) return false;
-      const d = new Date(r.date);
-      return !isNaN(d.getTime()) && d.getMonth() >= 0 && d.getMonth() <= 5;
+      const m = getReportMonth(r);
+      return m >= 0 && m <= 5;
     };
   } else if (
     pLower === 's2' || 
@@ -132,9 +139,8 @@ export function filterNewsForIndicator({
   ) {
     periodLabel = `Semester II (Jul - Des ${selectedYear})`;
     matchesPeriod = (r: NewsReport) => {
-      if (!r.date) return false;
-      const d = new Date(r.date);
-      return !isNaN(d.getTime()) && d.getMonth() >= 6 && d.getMonth() <= 11;
+      const m = getReportMonth(r);
+      return m >= 6 && m <= 11;
     };
   } else {
     // Check if month name was directly passed

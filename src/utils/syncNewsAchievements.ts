@@ -1,102 +1,157 @@
 import { NewsReport, PerformanceAgreement, ReporterTarget, Employee } from '../types';
+import { parseFlexibleDate } from './dateUtils';
 
 /**
- * Syncs news reports counts into monthly PK achievements for Level 3 (Pegawai) indicators,
- * and automatically rolls them up to Level 2 (Ketua Tim / Kabid) and Level 1 (Kepala Stasiun).
+ * Parses the month index (0 = Jan, 11 = Dec) from a news report date or publishDateTime.
+ */
+export function getReportMonthIndex(rep: NewsReport): number {
+  // Try publishDateTime first as it often contains the raw import date string or serial
+  if (rep.publishDateTime) {
+    const parsedPub = parseFlexibleDate(rep.publishDateTime);
+    if (parsedPub.isValid) {
+      return parsedPub.monthIndex;
+    }
+  }
+
+  if (rep.date) {
+    const parsedDate = parseFlexibleDate(rep.date);
+    if (parsedDate.isValid) {
+      return parsedDate.monthIndex;
+    }
+  }
+
+  return new Date().getMonth();
+}
+
+/**
+ * Normalizes report type string into standardized category.
+ */
+export function getReportTypeCategory(typeStr?: string): 'online' | 'lpu' | 'radio' | 'siaran' | 'total' {
+  if (!typeStr) return 'online';
+  const t = typeStr.toLowerCase();
+  if (t.includes('lpu') || t.includes('ringan')) return 'lpu';
+  if (t.includes('radio')) return 'radio';
+  if (t.includes('siaran') || t.includes('konten siaran')) return 'siaran';
+  if (t.includes('online') || t.includes('kbrn') || t.includes('media baru') || t.includes('medsos')) return 'online';
+  return 'online';
+}
+
+/**
+ * Syncs news reports counts into monthly PK achievements for Level 3 (Pegawai),
+ * Level 2 (Ketua Tim / Kabid), and Level 1 (Kepala Stasiun).
  */
 export function syncNewsAchievements(
   allNewsReports: NewsReport[],
   agreements: PerformanceAgreement[],
-  reporterTargets: ReporterTarget[],
-  employees: Employee[]
+  reporterTargets: ReporterTarget[] = [],
+  employees: Employee[] = []
 ): PerformanceAgreement[] {
-  // 1. Accumulate counts per employee and month (0..11)
-  const empMonthlyCounts: Record<string, number[]> = {};
-  const empTypeMonthlyCounts: Record<string, Record<string, number[]>> = {};
+  // 1. Station-wide monthly totals per type (12 months)
+  const stationTypeMonthlyCounts = {
+    online: new Array(12).fill(0),
+    lpu: new Array(12).fill(0),
+    radio: new Array(12).fill(0),
+    siaran: new Array(12).fill(0),
+    total: new Array(12).fill(0),
+  };
+
+  // 2. Per-employee monthly totals per type (12 months)
+  const empTypeMonthlyCounts: Record<string, {
+    online: number[];
+    lpu: number[];
+    radio: number[];
+    siaran: number[];
+    total: number[];
+  }> = {};
 
   employees.forEach(emp => {
-    empMonthlyCounts[emp.id] = new Array(12).fill(0);
     empTypeMonthlyCounts[emp.id] = {
-      'Berita Online': new Array(12).fill(0),
-      'Berita Ringan LPU': new Array(12).fill(0),
-      'Berita Ringan': new Array(12).fill(0),
-      'Berita Radio': new Array(12).fill(0),
-      'Konten Siaran': new Array(12).fill(0)
+      online: new Array(12).fill(0),
+      lpu: new Array(12).fill(0),
+      radio: new Array(12).fill(0),
+      siaran: new Array(12).fill(0),
+      total: new Array(12).fill(0),
     };
   });
 
+  // Populate counts from allNewsReports
   allNewsReports.forEach(rep => {
-    if (!rep.employeeId) return;
-    let mIndex = -1;
-    if (rep.date) {
-      const d = new Date(rep.date);
-      if (!isNaN(d.getTime())) mIndex = d.getMonth();
-    } else if (rep.publishDateTime) {
-      const d = new Date(rep.publishDateTime);
-      if (!isNaN(d.getTime())) mIndex = d.getMonth();
+    const mIndex = getReportMonthIndex(rep);
+    if (mIndex < 0 || mIndex > 11) return;
+
+    const cat = getReportTypeCategory(rep.type);
+
+    // Update station-wide
+    stationTypeMonthlyCounts[cat][mIndex] += 1;
+    stationTypeMonthlyCounts.total[mIndex] += 1;
+
+    // Update per-employee
+    let empId = rep.employeeId;
+
+    // Fuzzy fallback matching by reporter/writer name if employeeId missing
+    if (!empId && (rep.reporterName || rep.writerName)) {
+      const repName = (rep.reporterName || rep.writerName || '').toLowerCase().trim();
+      const matchedEmp = employees.find(e => {
+        const eName = e.nama.toLowerCase().trim();
+        return eName === repName || eName.includes(repName) || repName.includes(eName);
+      });
+      if (matchedEmp) empId = matchedEmp.id;
     }
 
-    if (mIndex < 0 || mIndex > 11) {
-      mIndex = new Date().getMonth();
+    if (empId) {
+      if (!empTypeMonthlyCounts[empId]) {
+        empTypeMonthlyCounts[empId] = {
+          online: new Array(12).fill(0),
+          lpu: new Array(12).fill(0),
+          radio: new Array(12).fill(0),
+          siaran: new Array(12).fill(0),
+          total: new Array(12).fill(0),
+        };
+      }
+      empTypeMonthlyCounts[empId][cat][mIndex] += 1;
+      empTypeMonthlyCounts[empId].total[mIndex] += 1;
     }
-
-    const empId = rep.employeeId;
-    if (!empMonthlyCounts[empId]) {
-      empMonthlyCounts[empId] = new Array(12).fill(0);
-    }
-    empMonthlyCounts[empId][mIndex] += 1;
-
-    if (!empTypeMonthlyCounts[empId]) {
-      empTypeMonthlyCounts[empId] = {
-        'Berita Online': new Array(12).fill(0),
-        'Berita Ringan LPU': new Array(12).fill(0),
-        'Berita Ringan': new Array(12).fill(0),
-        'Berita Radio': new Array(12).fill(0),
-        'Konten Siaran': new Array(12).fill(0)
-      };
-    }
-
-    const typeKey = rep.type || 'Berita Online';
-    if (!empTypeMonthlyCounts[empId][typeKey]) {
-      empTypeMonthlyCounts[empId][typeKey] = new Array(12).fill(0);
-    }
-    empTypeMonthlyCounts[empId][typeKey][mIndex] += 1;
   });
 
-  // 2. Clone agreements to make updates
+  // Deep clone agreements
   const updatedAgreements: PerformanceAgreement[] = JSON.parse(JSON.stringify(agreements));
 
-  // Map of objective ID to objective object for fast lookup during cascading rollup
+  // Map objective ID to object for lookup
   const objMap: Record<string, any> = {};
 
-  // First pass: Update Level 3 (Pegawai) objectives
+  // Pass 1: Update Level 3 (Pegawai) objectives
   updatedAgreements.forEach(ag => {
     if (ag.level === 'Pegawai' && ag.assignedToEmployeeId) {
       const empId = ag.assignedToEmployeeId;
-      const target = reporterTargets.find(t => t.employeeId === empId);
-      const linkedId = target?.linkedIndicatorId;
+      const empCounts = empTypeMonthlyCounts[empId];
 
       ag.objectives.forEach(obj => {
         objMap[obj.id] = obj;
 
-        const isLinked = linkedId && obj.id === linkedId;
         const nameLower = (obj.indicatorName || '').toLowerCase();
         const unitLower = (obj.unit || '').toLowerCase();
-        const isNewsIndicator = isLinked || 
-          nameLower.includes('berita') || 
-          nameLower.includes('konten') || 
-          nameLower.includes('rilis') || 
-          nameLower.includes('siaran') ||
-          unitLower.includes('berita') ||
-          unitLower.includes('konten') ||
-          unitLower.includes('rilis');
 
-        if (isNewsIndicator) {
-          let counts = empMonthlyCounts[empId] || new Array(12).fill(0);
-          if (target?.mediaType && empTypeMonthlyCounts[empId]?.[target.mediaType]) {
-            counts = empTypeMonthlyCounts[empId][target.mediaType];
-          }
+        // Match reporter target if explicitly linked
+        const target = reporterTargets.find(t => t.employeeId === empId && t.linkedIndicatorId === obj.id);
 
+        let cat: 'online' | 'lpu' | 'radio' | 'siaran' | 'total' | null = null;
+
+        if (target?.mediaType) {
+          cat = getReportTypeCategory(target.mediaType);
+        } else if (nameLower.includes('ringan') || nameLower.includes('lpu')) {
+          cat = 'lpu';
+        } else if (nameLower.includes('radio')) {
+          cat = 'radio';
+        } else if (nameLower.includes('konten siaran') || (nameLower.includes('siaran') && !nameLower.includes('radio'))) {
+          cat = 'siaran';
+        } else if (nameLower.includes('online') || nameLower.includes('kbrn') || nameLower.includes('media baru') || nameLower.includes('medsos') || nameLower.includes('harian') || nameLower.includes('publikasi')) {
+          cat = 'online';
+        } else if (nameLower.includes('berita') || nameLower.includes('konten') || nameLower.includes('rilis') || unitLower.includes('berita')) {
+          cat = 'total';
+        }
+
+        if (cat && empCounts) {
+          const counts = empCounts[cat] || new Array(12).fill(0);
           obj.monthlyAchievements = [...counts];
           obj.achievement = counts.reduce((sum, val) => sum + val, 0);
         }
@@ -108,54 +163,88 @@ export function syncNewsAchievements(
     }
   });
 
-  // Second pass: Rollup Level 2 (Ketua Tim / Kabid) from Level 3
+  // Helper to determine news category for Level 1 or Level 2 objectives
+  const getObjectiveCategory = (name: string, unit: string): 'online' | 'lpu' | 'radio' | 'siaran' | 'total' | null => {
+    const nameLower = name.toLowerCase();
+    const unitLower = unit.toLowerCase();
+    if (nameLower.includes('ringan') || nameLower.includes('lpu')) return 'lpu';
+    if (nameLower.includes('radio')) return 'radio';
+    if (nameLower.includes('konten siaran') || (nameLower.includes('siaran') && !nameLower.includes('radio') && !nameLower.includes('pemilu'))) return 'siaran';
+    if (nameLower.includes('online') || nameLower.includes('kbrn') || nameLower.includes('media baru') || nameLower.includes('medsos')) return 'online';
+    if (nameLower.includes('berita') || nameLower.includes('konten') || nameLower.includes('rilis') || unitLower.includes('berita')) return 'total';
+    return null;
+  };
+
+  // Pass 2: Rollup Level 2 (Ketua Tim / Kabid) from Level 3 or Station Totals
   updatedAgreements.forEach(ag => {
     if (ag.level !== 'Kepala Stasiun' && ag.level !== 'Pegawai') {
       ag.objectives.forEach(l2Obj => {
         const l3Children = Object.values(objMap).filter(o => o.parentIndicatorId === l2Obj.id);
+
+        let rolledUpMonthly = new Array(12).fill(0);
+        let hasChildData = false;
+
         if (l3Children.length > 0) {
-          const rolledUpMonthly = new Array(12).fill(0);
-          let totalSum = 0;
           l3Children.forEach(child => {
             if (Array.isArray(child.monthlyAchievements) && child.monthlyAchievements.length === 12) {
               child.monthlyAchievements.forEach((val: number, idx: number) => {
                 rolledUpMonthly[idx] += (val || 0);
               });
-            } else if (child.achievement) {
-              totalSum += child.achievement;
+              hasChildData = true;
             }
           });
-          const monthlySum = rolledUpMonthly.reduce((s, v) => s + v, 0);
-          if (monthlySum > 0 || l3Children.some(c => Array.isArray(c.monthlyAchievements))) {
-            l2Obj.monthlyAchievements = rolledUpMonthly;
-            l2Obj.achievement = monthlySum > 0 ? monthlySum : totalSum;
+        }
+
+        const childSum = rolledUpMonthly.reduce((s, v) => s + v, 0);
+
+        if (hasChildData && childSum > 0) {
+          l2Obj.monthlyAchievements = rolledUpMonthly;
+          l2Obj.achievement = childSum;
+        } else {
+          // Direct calculation from station news reports if no child achievements exist
+          const cat = getObjectiveCategory(l2Obj.indicatorName || '', l2Obj.unit || '');
+          if (cat) {
+            const counts = stationTypeMonthlyCounts[cat] || new Array(12).fill(0);
+            l2Obj.monthlyAchievements = [...counts];
+            l2Obj.achievement = counts.reduce((s, v) => s + v, 0);
           }
         }
       });
     }
   });
 
-  // Third pass: Rollup Level 1 (Kepala Stasiun) from Level 2
+  // Pass 3: Rollup Level 1 (Kepala Stasiun) from Level 2 or Station Totals
   updatedAgreements.forEach(ag => {
     if (ag.level === 'Kepala Stasiun') {
       ag.objectives.forEach(l1Obj => {
         const l2Children = Object.values(objMap).filter(o => o.parentIndicatorId === l1Obj.id);
+
+        let rolledUpMonthly = new Array(12).fill(0);
+        let hasChildData = false;
+
         if (l2Children.length > 0) {
-          const rolledUpMonthly = new Array(12).fill(0);
-          let totalSum = 0;
           l2Children.forEach(child => {
             if (Array.isArray(child.monthlyAchievements) && child.monthlyAchievements.length === 12) {
               child.monthlyAchievements.forEach((val: number, idx: number) => {
                 rolledUpMonthly[idx] += (val || 0);
               });
-            } else if (child.achievement) {
-              totalSum += child.achievement;
+              hasChildData = true;
             }
           });
-          const monthlySum = rolledUpMonthly.reduce((s, v) => s + v, 0);
-          if (monthlySum > 0 || l2Children.some(c => Array.isArray(c.monthlyAchievements))) {
-            l1Obj.monthlyAchievements = rolledUpMonthly;
-            l1Obj.achievement = monthlySum > 0 ? monthlySum : totalSum;
+        }
+
+        const childSum = rolledUpMonthly.reduce((s, v) => s + v, 0);
+
+        if (hasChildData && childSum > 0) {
+          l1Obj.monthlyAchievements = rolledUpMonthly;
+          l1Obj.achievement = childSum;
+        } else {
+          // Direct calculation from station news reports if no child achievements exist
+          const cat = getObjectiveCategory(l1Obj.indicatorName || '', l1Obj.unit || '');
+          if (cat) {
+            const counts = stationTypeMonthlyCounts[cat] || new Array(12).fill(0);
+            l1Obj.monthlyAchievements = [...counts];
+            l1Obj.achievement = counts.reduce((s, v) => s + v, 0);
           }
         }
       });

@@ -40,6 +40,7 @@ import * as XLSX from 'xlsx';
 import NewsDetailModal from './NewsDetailModal';
 import { filterNewsForIndicator } from '../utils/newsFilter';
 import { syncNewsAchievements } from '../utils/syncNewsAchievements';
+import { parseFlexibleDate } from '../utils/dateUtils';
 
 interface PemberitaanMediaBaruViewProps {
   employees: Employee[];
@@ -255,10 +256,10 @@ export default function PemberitaanMediaBaruView({
         try {
           const arrayBuffer = event.target?.result as ArrayBuffer;
           const data = new Uint8Array(arrayBuffer);
-          const workbook = XLSX.read(data, { type: 'array' });
+          const workbook = XLSX.read(data, { type: 'array', cellDates: true, dateNF: 'yyyy-mm-dd' });
           const firstSheetName = workbook.SheetNames[0];
           const worksheet = workbook.Sheets[firstSheetName];
-          const jsonData = XLSX.utils.sheet_to_json(worksheet);
+          const jsonData = XLSX.utils.sheet_to_json(worksheet, { raw: false, dateNF: 'yyyy-mm-dd' });
           
           parseNewsData(jsonData, 'array');
         } catch (err: any) {
@@ -354,7 +355,10 @@ export default function PemberitaanMediaBaruView({
         const pembuat = getVal(['penulis', 'pembuat', 'reporter', 'creator', 'writer', 'penyiar', 'author', 'penulis (reporter)', 'penulis/reporter']) || '';
         const kategoriRaw = getVal(['jenis berita', 'jenis_berita', 'tipe berita', 'tipe_berita', 'kategori', 'category', 'type', 'jenis', 'jenis/tipe berita']) || 'Berita Online';
         const kategoriStr = String(kategoriRaw).toLowerCase().trim();
-        const publishStr = getVal(['waktu publish', 'waktu_publish', 'waktupublish', 'tgl_jam_publish', 'tgl jampublish', 'publishdatetime', 'publish_date', 'date', 'tanggal', 'publish', 'tgl', 'tanggal publish', 'waktu terbit']) || new Date().toISOString();
+        const publishRaw = getVal(['waktu publish', 'waktu_publish', 'waktupublish', 'tgl_jam_publish', 'tgl jampublish', 'publishdatetime', 'publish_date', 'date', 'tanggal', 'publish', 'tgl', 'tanggal publish', 'waktu terbit']);
+        const parsedDate = parseFlexibleDate(publishRaw);
+        const datePart = parsedDate.dateISO;
+        const publishStr = parsedDate.publishDateTimeISO;
         const editor = getVal(['editor', 'reviewer', 'pemeriksa']) || '';
         const daerah = getVal(['daerah', 'region', 'lokasi', 'location', 'kota', 'city', 'wilayah']) || '';
         const programa = getVal(['programa', 'pro', 'channel', 'saluran']) || 'Programa 1';
@@ -390,16 +394,6 @@ export default function PemberitaanMediaBaruView({
         );
         if (matchedEditor) {
           matchedEditorId = matchedEditor.id;
-        }
-
-        let datePart = new Date().toISOString().split('T')[0];
-        try {
-          const d = new Date(publishStr);
-          if (!isNaN(d.getTime())) {
-            datePart = d.toISOString().split('T')[0];
-          }
-        } catch (e) {
-          // ignore
         }
 
         let reportType: 'Berita Ringan LPU' | 'Berita Radio' | 'Berita Online' | 'Konten Siaran' = 'Berita Online';
