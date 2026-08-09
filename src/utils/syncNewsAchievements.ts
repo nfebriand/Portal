@@ -121,9 +121,18 @@ export function syncNewsAchievements(
 
   // Pass 1: Update Level 3 (Pegawai) objectives
   updatedAgreements.forEach(ag => {
-    if (ag.level === 'Pegawai' && ag.assignedToEmployeeId) {
-      const empId = ag.assignedToEmployeeId;
-      const empCounts = empTypeMonthlyCounts[empId];
+    if (ag.level === 'Pegawai') {
+      let empId = ag.assignedToEmployeeId;
+      if (!empId && ag.assignedToName) {
+        const nameLower = ag.assignedToName.toLowerCase().trim();
+        const found = employees.find(e => {
+          const eName = e.nama.toLowerCase().trim();
+          return eName === nameLower || eName.includes(nameLower) || nameLower.includes(eName);
+        });
+        if (found) empId = found.id;
+      }
+
+      const empCounts = empId ? empTypeMonthlyCounts[empId] : null;
 
       ag.objectives.forEach(obj => {
         objMap[obj.id] = obj;
@@ -132,7 +141,7 @@ export function syncNewsAchievements(
         const unitLower = (obj.unit || '').toLowerCase();
 
         // Match reporter target if explicitly linked
-        const target = reporterTargets.find(t => t.employeeId === empId && t.linkedIndicatorId === obj.id);
+        const target = reporterTargets.find(t => (t.employeeId === empId || !t.employeeId) && t.linkedIndicatorId === obj.id);
 
         let cat: 'online' | 'lpu' | 'radio' | 'siaran' | 'total' | null = null;
 
@@ -150,10 +159,15 @@ export function syncNewsAchievements(
           cat = 'total';
         }
 
-        if (cat && empCounts) {
-          const counts = empCounts[cat] || new Array(12).fill(0);
+        if (cat) {
+          // If employee specific counts exist, use them. Otherwise fallback to station totals
+          const counts = (empCounts && empCounts[cat] && empCounts[cat].reduce((a, b) => a + b, 0) > 0)
+            ? empCounts[cat]
+            : (stationTypeMonthlyCounts[cat] || new Array(12).fill(0));
+          
           obj.monthlyAchievements = [...counts];
           obj.achievement = counts.reduce((sum, val) => sum + val, 0);
+          objMap[obj.id] = obj;
         }
       });
     } else {
@@ -209,6 +223,9 @@ export function syncNewsAchievements(
             l2Obj.achievement = counts.reduce((s, v) => s + v, 0);
           }
         }
+
+        // Keep objMap updated so Pass 3 (Level 1) can read updated Level 2 children!
+        objMap[l2Obj.id] = l2Obj;
       });
     }
   });
@@ -247,6 +264,9 @@ export function syncNewsAchievements(
             l1Obj.achievement = counts.reduce((s, v) => s + v, 0);
           }
         }
+
+        // Keep objMap updated
+        objMap[l1Obj.id] = l1Obj;
       });
     }
   });
