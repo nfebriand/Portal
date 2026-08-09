@@ -38,7 +38,7 @@ import { Employee, PerformanceAgreement, ReporterTarget, NewsReport } from '../t
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Cell, Legend } from 'recharts';
 import * as XLSX from 'xlsx';
 import NewsDetailModal from './NewsDetailModal';
-import { filterNewsForIndicator } from '../utils/newsFilter';
+import { filterNewsForIndicator, isEligibleNewsIndicator } from '../utils/newsFilter';
 import { syncNewsAchievements } from '../utils/syncNewsAchievements';
 import { parseFlexibleDate } from '../utils/dateUtils';
 
@@ -115,13 +115,17 @@ export default function PemberitaanMediaBaruView({
   });
 
   const handleOpenNewsModal = (obj: any, agreement?: any) => {
-    const { filteredReports, periodLabel, typeLabel } = filterNewsForIndicator({
+    const { filteredReports, periodLabel, typeLabel, isEligible } = filterNewsForIndicator({
       indicator: obj,
       agreement: agreement,
       newsReports: newsReports || [],
       period: 'tahunan',
       selectedYear: new Date().getFullYear()
     });
+
+    if (!isEligible) {
+      return;
+    }
 
     setNewsModalConfig({
       isOpen: true,
@@ -1124,15 +1128,21 @@ export default function PemberitaanMediaBaruView({
                     <div className="flex justify-between items-center pt-1.5 border-t border-slate-50">
                       <div>
                         <span className="text-[10px] text-slate-400 block font-medium">Realisasi</span>
-                        <button
-                          type="button"
-                          onClick={() => handleOpenNewsModal(cascadingPath.l3.objective, cascadingPath.l3.agreement)}
-                          className="inline-flex items-center gap-1 text-sm font-black text-indigo-600 hover:text-indigo-800 cursor-pointer hover:underline"
-                          title="Klik untuk lihat eviden berita"
-                        >
-                          <Eye className="w-3.5 h-3.5" />
-                          {cascadingPath.l3.objective.achievement} {cascadingPath.l3.objective.unit}
-                        </button>
+                        {isEligibleNewsIndicator(cascadingPath.l3.objective) ? (
+                          <button
+                            type="button"
+                            onClick={() => handleOpenNewsModal(cascadingPath.l3.objective, cascadingPath.l3.agreement)}
+                            className="inline-flex items-center gap-1 text-sm font-black text-indigo-600 hover:text-indigo-800 cursor-pointer hover:underline"
+                            title="Klik untuk lihat eviden berita"
+                          >
+                            <Eye className="w-3.5 h-3.5" />
+                            {cascadingPath.l3.objective.achievement} {cascadingPath.l3.objective.unit}
+                          </button>
+                        ) : (
+                          <span className="text-sm font-black text-slate-700">
+                            {cascadingPath.l3.objective.achievement} {cascadingPath.l3.objective.unit}
+                          </span>
+                        )}
                       </div>
                       <div className="text-right">
                         <span className="text-[10px] text-slate-400 block font-medium">Target PK</span>
@@ -1168,6 +1178,7 @@ export default function PemberitaanMediaBaruView({
                       <div className="flex justify-between items-center pt-1.5 border-t border-slate-50">
                         <div>
                           <span className="text-[10px] text-slate-400 block font-medium">Realisasi</span>
+                        {isEligibleNewsIndicator(cascadingPath.l2.objective) ? (
                           <button
                             type="button"
                             onClick={() => handleOpenNewsModal(cascadingPath.l2.objective, cascadingPath.l2.agreement)}
@@ -1177,6 +1188,11 @@ export default function PemberitaanMediaBaruView({
                             <Eye className="w-3.5 h-3.5" />
                             {cascadingPath.l2.objective.achievement} {cascadingPath.l2.objective.unit}
                           </button>
+                        ) : (
+                          <span className="text-sm font-black text-slate-700">
+                            {cascadingPath.l2.objective.achievement} {cascadingPath.l2.objective.unit}
+                          </span>
+                        )}
                         </div>
                         <div className="text-right">
                           <span className="text-[10px] text-slate-400 block font-medium">Target PK</span>
@@ -1213,6 +1229,7 @@ export default function PemberitaanMediaBaruView({
                       <div className="flex justify-between items-center pt-1.5 border-t border-slate-50">
                         <div>
                           <span className="text-[10px] text-slate-400 block font-medium">Realisasi</span>
+                        {isEligibleNewsIndicator(cascadingPath.l1.objective) ? (
                           <button
                             type="button"
                             onClick={() => handleOpenNewsModal(cascadingPath.l1.objective, cascadingPath.l1.agreement)}
@@ -1222,6 +1239,11 @@ export default function PemberitaanMediaBaruView({
                             <Eye className="w-3.5 h-3.5" />
                             {cascadingPath.l1.objective.achievement} {cascadingPath.l1.objective.unit}
                           </button>
+                        ) : (
+                          <span className="text-sm font-black text-slate-700">
+                            {cascadingPath.l1.objective.achievement} {cascadingPath.l1.objective.unit}
+                          </span>
+                        )}
                         </div>
                         <div className="text-right">
                           <span className="text-[10px] text-slate-400 block font-medium">Target PK</span>

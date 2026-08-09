@@ -32,7 +32,7 @@ import {
   CheckCircle
 } from 'lucide-react';
 import NewsDetailModal from './NewsDetailModal';
-import { filterNewsForIndicator } from '../utils/newsFilter';
+import { filterNewsForIndicator, isEligibleNewsIndicator } from '../utils/newsFilter';
 
 interface DashboardViewProps {
   employees: Employee[];
@@ -228,13 +228,17 @@ export default function DashboardView({
   });
 
   const handleOpenNewsModal = (obj: any, agreement?: any) => {
-    const { filteredReports, periodLabel, typeLabel } = filterNewsForIndicator({
+    const { filteredReports, periodLabel, typeLabel, isEligible } = filterNewsForIndicator({
       indicator: obj,
       agreement: agreement,
       newsReports: newsReports || [],
       period: 'tahunan',
       selectedYear: new Date().getFullYear()
     });
+
+    if (!isEligible) {
+      return;
+    }
 
     setNewsModalConfig({
       isOpen: true,
@@ -1416,15 +1420,24 @@ export default function DashboardView({
                           <div className="min-w-0">
                             <span className="text-[8px] text-slate-400 block font-mono">TARGET: <strong className="text-slate-700">{obj.target}</strong></span>
                           </div>
-                          <button
-                            type="button"
-                            onClick={() => handleOpenNewsModal(obj, selectedDivData?.agreement)}
-                            className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-extrabold rounded-lg border border-indigo-200 transition-all cursor-pointer font-mono"
-                            title="Klik untuk melihat bukti rilis / eviden berita"
-                          >
-                            <Eye className="w-3 h-3 text-indigo-600" />
-                            <span>Realisasi: {obj.achievement} {obj.unit}</span>
-                          </button>
+                          {isEligibleNewsIndicator(obj) ? (
+                            <button
+                              type="button"
+                              onClick={() => handleOpenNewsModal(obj, selectedDivData?.agreement)}
+                              className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-extrabold rounded-lg border border-indigo-200 transition-all cursor-pointer font-mono"
+                              title="Klik untuk melihat bukti rilis / eviden berita"
+                            >
+                              <Eye className="w-3 h-3 text-indigo-600" />
+                              <span>Realisasi: {obj.achievement} {obj.unit}</span>
+                            </button>
+                          ) : (
+                            <span 
+                              className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-slate-50 text-slate-600 font-extrabold rounded-lg border border-slate-200 font-mono" 
+                              title="Eviden List hanya aktif untuk Berita Ringan LPU, Berita Radio, dan Berita KBRN"
+                            >
+                              <span>Realisasi: {obj.achievement} {obj.unit}</span>
+                            </span>
+                          )}
                         </div>
                       </div>
                     );

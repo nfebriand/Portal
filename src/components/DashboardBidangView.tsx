@@ -29,7 +29,7 @@ import {
   BarChart3
 } from 'lucide-react';
 import NewsDetailModal from './NewsDetailModal';
-import { filterNewsForIndicator } from '../utils/newsFilter';
+import { filterNewsForIndicator, isEligibleNewsIndicator } from '../utils/newsFilter';
 
 interface DashboardBidangViewProps {
   currentUser: { id: string; name: string; role: 'Kepala' | 'Staff' | 'Ketua Bidang' | 'Superadmin'; division?: string; photo?: string };
@@ -93,13 +93,17 @@ export default function DashboardBidangView({
   });
 
   const handleOpenNewsModal = (obj: any, agreement?: any) => {
-    const { filteredReports, periodLabel, typeLabel } = filterNewsForIndicator({
+    const { filteredReports, periodLabel, typeLabel, isEligible } = filterNewsForIndicator({
       indicator: obj,
       agreement: agreement,
       newsReports: newsReports || [],
       period: 'tahunan',
       selectedYear: new Date().getFullYear()
     });
+
+    if (!isEligible) {
+      return;
+    }
 
     setNewsModalConfig({
       isOpen: true,
@@ -797,18 +801,28 @@ export default function DashboardBidangView({
                           <span className="text-[8px] text-slate-500 font-bold block uppercase font-mono">Target</span>
                           <span className="font-extrabold text-slate-800 font-mono truncate block" title={`${obj.target} ${obj.unit}`}>{obj.target} {obj.unit}</span>
                         </div>
-                        <button
-                          type="button"
-                          className="p-2 rounded-lg bg-indigo-50/80 hover:bg-indigo-100 border border-indigo-200/80 min-w-0 cursor-pointer transition-colors text-left group"
-                          onClick={() => handleOpenNewsModal(obj)}
-                          title="Klik untuk melihat eviden berita terfilter"
-                        >
-                          <span className="text-[8px] text-indigo-600 font-bold uppercase font-mono flex items-center justify-between">
-                            <span>Realisasi</span>
-                            <Eye className="w-2.5 h-2.5 text-indigo-600 group-hover:scale-110 transition-transform" />
-                          </span>
-                          <span className={`font-extrabold ${style.textColor} font-mono truncate block`} title={`${obj.achievement} ${obj.unit}`}>{obj.achievement} {obj.unit}</span>
-                        </button>
+                        {isEligibleNewsIndicator(obj) ? (
+                          <button
+                            type="button"
+                            className="p-2 rounded-lg bg-indigo-50/80 hover:bg-indigo-100 border border-indigo-200/80 min-w-0 cursor-pointer transition-colors text-left group"
+                            onClick={() => handleOpenNewsModal(obj)}
+                            title="Klik untuk melihat eviden berita terfilter"
+                          >
+                            <span className="text-[8px] text-indigo-600 font-bold uppercase font-mono flex items-center justify-between">
+                              <span>Realisasi</span>
+                              <Eye className="w-2.5 h-2.5 text-indigo-600 group-hover:scale-110 transition-transform" />
+                            </span>
+                            <span className={`font-extrabold ${style.textColor} font-mono truncate block`} title={`${obj.achievement} ${obj.unit}`}>{obj.achievement} {obj.unit}</span>
+                          </button>
+                        ) : (
+                          <div 
+                            className="p-2 rounded-lg bg-slate-50 border border-slate-200/80 min-w-0 text-left"
+                            title="Eviden List hanya aktif untuk Berita Ringan LPU, Berita Radio, dan Berita KBRN"
+                          >
+                            <span className="text-[8px] text-slate-400 font-bold uppercase font-mono block">Realisasi</span>
+                            <span className={`font-extrabold ${style.textColor} font-mono truncate block`} title={`${obj.achievement} ${obj.unit}`}>{obj.achievement} {obj.unit}</span>
+                          </div>
+                        )}
                       </div>
                     </div>
                   );

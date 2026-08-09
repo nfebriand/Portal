@@ -39,7 +39,7 @@ import { Employee, InstitutionalIdentity, PerformanceAgreement, PerformanceIndic
 import SignaturePad from './SignaturePad';
 import IndicatorCommentsSection from './IndicatorCommentsSection';
 import NewsDetailModal from './NewsDetailModal';
-import { filterNewsForIndicator } from '../utils/newsFilter';
+import { filterNewsForIndicator, isEligibleNewsIndicator } from '../utils/newsFilter';
 
 // Helper to calculate indicator achievement percentage score based on periodType
 const getIndicatorScore = (obj: PerformanceIndicator) => {
@@ -298,13 +298,17 @@ export default function PerformanceAgreementView({
   });
 
   const handleOpenNewsModal = (obj: any, agreement?: any) => {
-    const { filteredReports, periodLabel, typeLabel } = filterNewsForIndicator({
+    const { filteredReports, periodLabel, typeLabel, isEligible } = filterNewsForIndicator({
       indicator: obj,
       agreement: agreement,
       newsReports: newsReports,
       period: evalPeriod,
       selectedYear: selectedYear
     });
+
+    if (!isEligible) {
+      return;
+    }
 
     setNewsModalConfig({
       isOpen: true,
@@ -2474,15 +2478,21 @@ export default function PerformanceAgreementView({
                                 <span>•</span>
                                 <span>
                                   Realisasi:{' '}
-                                  <button
-                                    type="button"
-                                    onClick={() => handleOpenNewsModal(rootObj, kepalaAg)}
-                                    className="inline-flex items-center gap-1 font-extrabold text-indigo-600 hover:text-indigo-800 bg-indigo-50/80 hover:bg-indigo-100 px-2 py-0.5 rounded-md transition-all cursor-pointer border border-indigo-200 ml-1"
-                                    title="Klik untuk melihat list berita terfilter"
-                                  >
-                                    <Eye className="w-3 h-3 text-indigo-500" />
-                                    {rootReal} {rootObj.unit}
-                                  </button>
+                                  {isEligibleNewsIndicator(rootObj) ? (
+                                    <button
+                                      type="button"
+                                      onClick={() => handleOpenNewsModal(rootObj, kepalaAg)}
+                                      className="inline-flex items-center gap-1 font-extrabold text-indigo-600 hover:text-indigo-800 bg-indigo-50/80 hover:bg-indigo-100 px-2 py-0.5 rounded-md transition-all cursor-pointer border border-indigo-200 ml-1"
+                                      title="Klik untuk melihat list berita terfilter"
+                                    >
+                                      <Eye className="w-3 h-3 text-indigo-500" />
+                                      {rootReal} {rootObj.unit}
+                                    </button>
+                                  ) : (
+                                    <span className="font-extrabold text-slate-700 ml-1 font-mono">
+                                      {rootReal} {rootObj.unit}
+                                    </span>
+                                  )}
                                 </span>
                                 <span>•</span>
                                 <span>Bobot: <span className="font-extrabold text-purple-600">{rootObj.weight}%</span></span>
@@ -2565,15 +2575,21 @@ export default function PerformanceAgreementView({
                                             <span>•</span>
                                             <span>
                                               Realisasi:{' '}
-                                              <button
-                                                type="button"
-                                                onClick={() => handleOpenNewsModal(l2Obj, l2Ag)}
-                                                className="inline-flex items-center gap-1 font-extrabold text-indigo-600 hover:text-indigo-800 bg-indigo-50/80 hover:bg-indigo-100 px-2 py-0.5 rounded-md transition-all cursor-pointer border border-indigo-200 ml-1"
-                                                title="Klik untuk melihat list berita terfilter"
-                                              >
-                                                <Eye className="w-3 h-3 text-indigo-500" />
-                                                {l2Real} {l2Obj.unit}
-                                              </button>
+                                              {isEligibleNewsIndicator(l2Obj) ? (
+                                                <button
+                                                  type="button"
+                                                  onClick={() => handleOpenNewsModal(l2Obj, l2Ag)}
+                                                  className="inline-flex items-center gap-1 font-extrabold text-indigo-600 hover:text-indigo-800 bg-indigo-50/80 hover:bg-indigo-100 px-2 py-0.5 rounded-md transition-all cursor-pointer border border-indigo-200 ml-1"
+                                                  title="Klik untuk melihat list berita terfilter"
+                                                >
+                                                  <Eye className="w-3 h-3 text-indigo-500" />
+                                                  {l2Real} {l2Obj.unit}
+                                                </button>
+                                              ) : (
+                                                <span className="font-extrabold text-slate-700 ml-1 font-mono">
+                                                  {l2Real} {l2Obj.unit}
+                                                </span>
+                                              )}
                                             </span>
                                             <span>•</span>
                                             <span>Bobot: <span className="font-extrabold text-indigo-500">{l2Obj.weight}%</span></span>
@@ -2614,15 +2630,21 @@ export default function PerformanceAgreementView({
                                                         <span>•</span>
                                                         <span>
                                                           Realisasi:{' '}
-                                                          <button
-                                                            type="button"
-                                                            onClick={() => handleOpenNewsModal(l3Obj, l3Ag)}
-                                                            className="inline-flex items-center gap-1 font-extrabold text-indigo-600 hover:text-indigo-800 bg-indigo-50/80 hover:bg-indigo-100 px-1.5 py-0.5 rounded-md transition-all cursor-pointer border border-indigo-200 ml-1"
-                                                            title="Klik untuk melihat list berita terfilter"
-                                                          >
-                                                            <Eye className="w-3 h-3 text-indigo-500" />
-                                                            {l3Real} {l3Obj.unit}
-                                                          </button>
+                                                          {isEligibleNewsIndicator(l3Obj) ? (
+                                                            <button
+                                                              type="button"
+                                                              onClick={() => handleOpenNewsModal(l3Obj, l3Ag)}
+                                                              className="inline-flex items-center gap-1 font-extrabold text-indigo-600 hover:text-indigo-800 bg-indigo-50/80 hover:bg-indigo-100 px-1.5 py-0.5 rounded-md transition-all cursor-pointer border border-indigo-200 ml-1"
+                                                              title="Klik untuk melihat list berita terfilter"
+                                                            >
+                                                              <Eye className="w-3 h-3 text-indigo-500" />
+                                                              {l3Real} {l3Obj.unit}
+                                                            </button>
+                                                          ) : (
+                                                            <span className="font-extrabold text-slate-700 ml-1 font-mono">
+                                                              {l3Real} {l3Obj.unit}
+                                                            </span>
+                                                          )}
                                                         </span>
                                                       </div>
                                                     </div>

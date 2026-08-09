@@ -31,6 +31,55 @@ export interface FilterNewsOptions {
   selectedMonthIndex?: number; // 0-11 if period === 'Bulanan'
 }
 
+/**
+ * Checks if an indicator qualifies for opening the Eviden List modal.
+ * Strictly allowed only for:
+ * 1. Berita Ringan LPU
+ * 2. Berita Radio
+ * 3. Berita KBRN (Berita Online)
+ */
+export function isEligibleNewsIndicator(indicator?: { indicatorName?: string; mediaType?: string }): boolean {
+  if (!indicator) return false;
+  const nameLower = (indicator.indicatorName || '').toLowerCase();
+  const mediaType = indicator.mediaType || '';
+
+  // 1. Berita Ringan LPU
+  if (
+    mediaType === 'Berita Ringan LPU' || 
+    mediaType === 'Berita Ringan' || 
+    nameLower.includes('berita ringan') || 
+    (nameLower.includes('ringan') && nameLower.includes('lpu')) ||
+    nameLower.includes('produksi berita ringan')
+  ) {
+    return true;
+  }
+
+  // 2. Berita Radio
+  if (
+    mediaType === 'Berita Radio' || 
+    nameLower.includes('berita radio') || 
+    nameLower.includes('produksi berita radio') ||
+    (nameLower.includes('radio') && nameLower.includes('berita') && !nameLower.includes('kepuasan') && !nameLower.includes('pemilu') && !nameLower.includes('layanan'))
+  ) {
+    return true;
+  }
+
+  // 3. Berita KBRN / Berita Online
+  if (
+    mediaType === 'Berita Online' || 
+    mediaType === 'Berita KBRN' || 
+    nameLower.includes('berita online') || 
+    nameLower.includes('berita kbrn') || 
+    nameLower.includes('produksi berita online') ||
+    nameLower.includes('kbrn') ||
+    nameLower.includes('media baru')
+  ) {
+    return true;
+  }
+
+  return false;
+}
+
 export function filterNewsForIndicator({
   indicator,
   agreement,
@@ -42,9 +91,56 @@ export function filterNewsForIndicator({
   filteredReports: NewsReport[];
   periodLabel: string;
   typeLabel: string;
+  isEligible: boolean;
 } {
-  const nameLower = (indicator.indicatorName || '').toLowerCase();
-  const mediaType = indicator.mediaType;
+  const nameLower = (indicator?.indicatorName || '').toLowerCase();
+  const mediaType = indicator?.mediaType || '';
+
+  let isEligible = false;
+  let typeLabel = '';
+  let matchesType = (_r: NewsReport) => false;
+
+  if (
+    mediaType === 'Berita Ringan LPU' || 
+    mediaType === 'Berita Ringan' || 
+    nameLower.includes('berita ringan') || 
+    (nameLower.includes('ringan') && nameLower.includes('lpu')) ||
+    nameLower.includes('produksi berita ringan')
+  ) {
+    isEligible = true;
+    typeLabel = 'Berita Ringan LPU';
+    matchesType = (r: NewsReport) => r.type === 'Berita Ringan LPU' || r.type === 'Berita Ringan';
+  } else if (
+    mediaType === 'Berita Radio' || 
+    nameLower.includes('berita radio') || 
+    nameLower.includes('produksi berita radio') ||
+    (nameLower.includes('radio') && nameLower.includes('berita') && !nameLower.includes('kepuasan') && !nameLower.includes('pemilu') && !nameLower.includes('layanan'))
+  ) {
+    isEligible = true;
+    typeLabel = 'Berita Radio';
+    matchesType = (r: NewsReport) => r.type === 'Berita Radio';
+  } else if (
+    mediaType === 'Berita Online' || 
+    mediaType === 'Berita KBRN' || 
+    nameLower.includes('berita online') || 
+    nameLower.includes('berita kbrn') || 
+    nameLower.includes('produksi berita online') ||
+    nameLower.includes('kbrn') ||
+    nameLower.includes('media baru')
+  ) {
+    isEligible = true;
+    typeLabel = 'Berita KBRN';
+    matchesType = (r: NewsReport) => r.type === 'Berita Online' || (r.type as string) === 'Berita KBRN';
+  }
+
+  if (!isEligible) {
+    return {
+      filteredReports: [],
+      periodLabel: '',
+      typeLabel: '',
+      isEligible: false
+    };
+  }
 
   // Determine normalized period & human label
   let periodLabel = `Tahunan (${selectedYear})`;
@@ -57,7 +153,7 @@ export function filterNewsForIndicator({
     'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
   ];
 
-  if (pLower === 'bulanan' || pLower.startsWith('m') && pLower.length <= 3) {
+  if (pLower === 'bulanan' || (pLower.startsWith('m') && pLower.length <= 3)) {
     let mIdx = selectedMonthIndex;
     if (pLower.startsWith('m') && pLower.length > 1) {
       const parsed = parseInt(pLower.substring(1), 10);
@@ -158,24 +254,6 @@ export function filterNewsForIndicator({
     }
   }
 
-  // Type label & matcher
-  let typeLabel = 'Semua Berita';
-  let matchesType = (_r: NewsReport) => true;
-
-  if (mediaType === 'Berita Ringan LPU' || mediaType === 'Berita Ringan' || nameLower.includes('ringan') || nameLower.includes('lpu')) {
-    typeLabel = 'Berita Ringan LPU';
-    matchesType = (r: NewsReport) => r.type === 'Berita Ringan LPU' || r.type === 'Berita Ringan';
-  } else if (mediaType === 'Berita Radio' || nameLower.includes('radio')) {
-    typeLabel = 'Berita Radio';
-    matchesType = (r: NewsReport) => r.type === 'Berita Radio';
-  } else if (mediaType === 'Konten Siaran' || nameLower.includes('konten siaran') || (nameLower.includes('siaran') && !nameLower.includes('radio'))) {
-    typeLabel = 'Konten Siaran';
-    matchesType = (r: NewsReport) => r.type === 'Konten Siaran';
-  } else if (mediaType === 'Berita Online' || nameLower.includes('online') || nameLower.includes('media baru') || nameLower.includes('medsos') || nameLower.includes('kbrn')) {
-    typeLabel = 'Berita Online';
-    matchesType = (r: NewsReport) => r.type === 'Berita Online';
-  }
-
   // Match employee if agreement belongs to Level 3 / Pegawai
   let matchesEmployee = (_r: NewsReport) => true;
   if (agreement?.level === 'Pegawai' && (agreement.assignedToEmployeeId || agreement.assignedToName)) {
@@ -196,5 +274,6 @@ export function filterNewsForIndicator({
 
   const filteredReports = newsReports.filter(r => matchesPeriod(r) && matchesType(r) && matchesEmployee(r));
 
-  return { filteredReports, periodLabel, typeLabel };
+  return { filteredReports, periodLabel, typeLabel, isEligible: true };
 }
+
