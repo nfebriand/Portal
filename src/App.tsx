@@ -1529,7 +1529,11 @@ export default function App() {
               agreements={agreements}
               identity={identity}
               settings={settings}
+              newsReports={newsReports}
+              contracts={contracts}
+              reporterTargets={reporterTargets}
               onUpdateAgreements={handleUpdateAgreements}
+              onUpdateNewsReports={handleUpdateNewsReports}
               onAddNotification={addNotification}
             />
           )}

@@ -4,7 +4,10 @@ import {
   PerformanceAgreement, 
   PerformanceIndicator, 
   InstitutionalIdentity, 
-  AppSettings 
+  AppSettings,
+  NewsReport,
+  CooperationContract,
+  ReporterTarget
 } from '../types';
 import { 
   Check, 
@@ -18,8 +21,18 @@ import {
   Sparkles,
   Award,
   ChevronRight,
-  UserCheck
+  UserCheck,
+  RefreshCw,
+  AlertTriangle,
+  FileSpreadsheet,
+  Layers,
+  Users,
+  CheckCircle2,
+  X,
+  HelpCircle
 } from 'lucide-react';
+import { syncNewsAchievements, getReportTypeCategory } from '../utils/syncNewsAchievements';
+import { parseFlexibleDate } from '../utils/dateUtils';
 
 interface InputCapaianPKViewProps {
   currentUser: { 
@@ -33,7 +46,11 @@ interface InputCapaianPKViewProps {
   agreements: PerformanceAgreement[];
   identity: InstitutionalIdentity;
   settings: AppSettings;
+  newsReports?: NewsReport[];
+  contracts?: CooperationContract[];
+  reporterTargets?: ReporterTarget[];
   onUpdateAgreements: (updated: PerformanceAgreement[]) => void;
+  onUpdateNewsReports?: (reports: NewsReport[]) => void;
   onAddNotification?: (notif: any) => void;
 }
 
@@ -48,9 +65,138 @@ export default function InputCapaianPKView({
   agreements,
   identity,
   settings,
+  newsReports = [],
+  contracts = [],
+  reporterTargets = [],
   onUpdateAgreements,
+  onUpdateNewsReports,
   onAddNotification
 }: InputCapaianPKViewProps) {
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [showExplanationModal, setShowExplanationModal] = useState(false);
+  const [syncReportData, setSyncReportData] = useState<{
+    totalReports: number;
+    validDatesCount: number;
+    invalidDatesCount: number;
+    categoryBreakdown: {
+      online: number;
+      lpu: number;
+      radio: number;
+      siaran: number;
+      total: number;
+    };
+    matchedEmployeesCount: number;
+    unmatchedEmployeesCount: number;
+    messages: { type: 'success' | 'warning' | 'error' | 'info'; title: string; text: string }[];
+  } | null>(null);
+
+  const handleRefreshNewsCalculation = () => {
+    setIsRefreshing(true);
+    const reports = newsReports || [];
+    const totalReports = reports.length;
+
+    let validDatesCount = 0;
+    let invalidDatesCount = 0;
+    const catCounts = { online: 0, lpu: 0, radio: 0, siaran: 0, total: 0 };
+    let matchedEmployeesCount = 0;
+    let unmatchedEmployeesCount = 0;
+
+    const messages: { type: 'success' | 'warning' | 'error' | 'info'; title: string; text: string }[] = [];
+
+    if (totalReports === 0) {
+      messages.push({
+        type: 'error',
+        title: 'Data Berita Kosong (0 Berita)',
+        text: 'Tidak ada data berita terimpor yang ditemukan dalam sistem. Jika Anda telah mengunggah berkas Excel/JSON berita, pastikan proses impor telah dilakukan di menu "Pemberitaan & Media Baru" atau "Admin App".'
+      });
+    } else {
+      reports.forEach(rep => {
+        // Date parsing check
+        const dateRaw = rep.publishDateTime || rep.date;
+        if (dateRaw) {
+          const parsed = parseFlexibleDate(dateRaw);
+          if (parsed.isValid) {
+            validDatesCount++;
+          } else {
+            invalidDatesCount++;
+          }
+        } else {
+          invalidDatesCount++;
+        }
+
+        // Category breakdown
+        const cat = getReportTypeCategory(rep.type);
+        if (catCounts[cat] !== undefined) {
+          catCounts[cat]++;
+        }
+        catCounts.total++;
+
+        // Employee matching check
+        let empId = rep.employeeId;
+        if (!empId && (rep.reporterName || rep.writerName)) {
+          const repName = (rep.reporterName || rep.writerName || '').toLowerCase().trim();
+          const matched = employees.find(e => {
+            const eName = e.nama.toLowerCase().trim();
+            return eName === repName || eName.includes(repName) || repName.includes(eName);
+          });
+          if (matched) empId = matched.id;
+        }
+
+        if (empId) {
+          matchedEmployeesCount++;
+        } else {
+          unmatchedEmployeesCount++;
+        }
+      });
+
+      if (invalidDatesCount > 0) {
+        messages.push({
+          type: 'warning',
+          title: `Penyesuaian Tanggal Berita (${invalidDatesCount} Berita)`,
+          text: `Terdapat ${invalidDatesCount} berita dengan format tanggal tidak valid / tidak lengkap. Berita ini secara otomatis dimasukkan ke dalam perhitungan bulan berjalan saat ini.`
+        });
+      }
+
+      if (unmatchedEmployeesCount > 0) {
+        messages.push({
+          type: 'info',
+          title: `Reporter Belum Terhubung Pegawai (${unmatchedEmployeesCount} Berita)`,
+          text: `Terdapat ${unmatchedEmployeesCount} berita yang nama penuliskannya tidak persis cocok dengan ID/nama pegawai. Berita ini tetap dihitung dan dimasukkan ke dalam total capaian stasiun/tim.`
+        });
+      }
+
+      messages.push({
+        type: 'success',
+        title: 'Hitung Ulang Berhasil Diselesaikan',
+        text: `Sebanyak ${totalReports} data berita terimpor berhasil dihitung ulang dan disinkronkan ke seluruh level Perjanjian Kinerja (Kepala Stasiun, Ketua Tim/Kabid, dan Pegawai).`
+      });
+
+      // Synchronize news achievements into agreements
+      const updatedAgs = syncNewsAchievements(reports, agreements, reporterTargets || [], employees);
+      onUpdateAgreements(updatedAgs);
+
+      if (onAddNotification) {
+        onAddNotification({
+          title: 'Perhitungan Ulang Berita Selesai',
+          message: `Berhasil menghitung ulang ${totalReports} berita ke indikator Capaian PK.`,
+          type: 'info'
+        });
+      }
+    }
+
+    setSyncReportData({
+      totalReports,
+      validDatesCount,
+      invalidDatesCount,
+      categoryBreakdown: catCounts,
+      matchedEmployeesCount,
+      unmatchedEmployeesCount,
+      messages
+    });
+
+    setIsRefreshing(false);
+    setShowExplanationModal(true);
+  };
   // Determine division-level options
   const level2Options = useMemo(() => [
     { value: 'Kabid Tata Usaha', label: `Kepala Bagian Tata Usaha (${identity.kepalaBidangNama || 'Belum Diatur'})`, division: 'Tata Usaha / Umum' },
@@ -330,17 +476,29 @@ export default function InputCapaianPKView({
             </p>
           </div>
 
-          <div className="shrink-0 bg-white/10 backdrop-blur-md border border-white/15 rounded-2xl p-4 space-y-1.5">
-            <p className="text-[10px] font-extrabold text-indigo-200 uppercase tracking-wider">Petugas Pengisi</p>
-            <div className="flex items-center gap-2.5">
-              <div className="w-9 h-9 bg-indigo-600 rounded-full flex items-center justify-center font-bold text-xs shadow-inner">
-                {currentUser.name.substring(0, 2).toUpperCase()}
-              </div>
-              <div>
-                <p className="text-xs font-bold leading-tight">{currentUser.name}</p>
-                <p className="text-[9px] font-semibold text-indigo-300 font-mono mt-0.5">
-                  {currentUser.role === 'Superadmin' ? 'SUPERADMIN ACCESS' : `DIVISI ${currentUser.division || 'OPERASIONAL'}`}
-                </p>
+          <div className="shrink-0 flex flex-col sm:flex-row md:flex-col items-end gap-3">
+            <button
+              type="button"
+              onClick={handleRefreshNewsCalculation}
+              disabled={isRefreshing}
+              className="inline-flex items-center gap-2 px-4 py-2.5 bg-amber-400 hover:bg-amber-300 active:scale-95 text-slate-950 font-black text-xs rounded-xl shadow-lg shadow-amber-400/20 transition-all cursor-pointer disabled:opacity-50"
+            >
+              <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+              <span>Refresh & Hitung Ulang Berita</span>
+            </button>
+
+            <div className="bg-white/10 backdrop-blur-md border border-white/15 rounded-2xl p-3.5 space-y-1 w-full">
+              <p className="text-[10px] font-extrabold text-indigo-200 uppercase tracking-wider">Petugas Pengisi</p>
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 bg-indigo-600 rounded-full flex items-center justify-center font-bold text-xs shadow-inner">
+                  {currentUser.name.substring(0, 2).toUpperCase()}
+                </div>
+                <div>
+                  <p className="text-xs font-bold leading-tight">{currentUser.name}</p>
+                  <p className="text-[9px] font-semibold text-indigo-300 font-mono mt-0.5">
+                    {currentUser.role === 'Superadmin' ? 'SUPERADMIN ACCESS' : `DIVISI ${currentUser.division || 'OPERASIONAL'}`}
+                  </p>
+                </div>
               </div>
             </div>
           </div>
@@ -563,12 +721,24 @@ export default function InputCapaianPKView({
 
                 {/* Main 12-Month Grid Form */}
                 <div className="space-y-3">
-                  <div className="flex items-center justify-between">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                     <h4 className="text-[10px] font-extrabold uppercase tracking-widest text-slate-400 flex items-center gap-1.5">
                       <Calendar className="w-4 h-4 text-indigo-500" />
                       Rincian Realisasi Capaian Bulanan
                     </h4>
-                    <span className="text-[10px] text-slate-400 italic font-medium">Input dalam satuan: {activeObjective.unit}</span>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={handleRefreshNewsCalculation}
+                        disabled={isRefreshing}
+                        className="inline-flex items-center gap-1.5 px-3 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-extrabold text-[11px] rounded-lg transition-all cursor-pointer border border-indigo-100/60"
+                        title="Hitung ulang berita terimpor jika angka belum terupdate"
+                      >
+                        <RefreshCw className={`w-3.5 h-3.5 ${isRefreshing ? 'animate-spin' : ''}`} />
+                        <span>Hitung Ulang Berita Terimpor</span>
+                      </button>
+                      <span className="text-[10px] text-slate-400 italic font-medium">Satuan: {activeObjective.unit}</span>
+                    </div>
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3.5">
@@ -658,6 +828,129 @@ export default function InputCapaianPKView({
             )}
           </div>
 
+        </div>
+      )}
+
+      {/* Modal Penjelasan & Analisis Hitung Ulang Berita */}
+      {showExplanationModal && syncReportData && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto animate-in fade-in duration-200">
+          <div className="bg-white rounded-3xl max-w-2xl w-full p-6 md:p-8 shadow-2xl space-y-6 relative border border-slate-100 max-h-[90vh] overflow-y-auto">
+            
+            {/* Modal Header */}
+            <div className="flex items-start justify-between gap-4 pb-4 border-b border-slate-100">
+              <div className="flex items-center gap-3">
+                <div className="p-3 bg-indigo-50 text-indigo-600 rounded-2xl border border-indigo-100 shrink-0">
+                  <RefreshCw className="w-6 h-6" />
+                </div>
+                <div>
+                  <h3 className="text-base font-black text-slate-800 leading-tight">
+                    Hasil Sinkronisasi & Analisis Berita Terimpor
+                  </h3>
+                  <p className="text-xs text-slate-400 mt-0.5">
+                    Ringkasan proses penghitungan ulang data berita ke indikator Capaian PK
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowExplanationModal(false)}
+                className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-xl transition-all cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Quick Metrics Cards */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <div className="bg-slate-50 border border-slate-100 rounded-2xl p-3.5 space-y-1">
+                <p className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">Total Berita</p>
+                <p className="text-lg font-black text-slate-800">{syncReportData.totalReports} <span className="text-xs font-semibold text-slate-500">Item</span></p>
+              </div>
+              <div className="bg-emerald-50/60 border border-emerald-100 rounded-2xl p-3.5 space-y-1">
+                <p className="text-[10px] font-extrabold text-emerald-600 uppercase tracking-wider">Tanggal Valid</p>
+                <p className="text-lg font-black text-emerald-800">{syncReportData.validDatesCount} <span className="text-xs font-semibold text-emerald-600">Berita</span></p>
+              </div>
+              <div className="bg-amber-50/60 border border-amber-100 rounded-2xl p-3.5 space-y-1">
+                <p className="text-[10px] font-extrabold text-amber-600 uppercase tracking-wider">Penyesuaian Tgl</p>
+                <p className="text-lg font-black text-amber-800">{syncReportData.invalidDatesCount} <span className="text-xs font-semibold text-amber-600">Berita</span></p>
+              </div>
+              <div className="bg-indigo-50/60 border border-indigo-100 rounded-2xl p-3.5 space-y-1">
+                <p className="text-[10px] font-extrabold text-indigo-600 uppercase tracking-wider">Match Pegawai</p>
+                <p className="text-lg font-black text-indigo-800">{syncReportData.matchedEmployeesCount} <span className="text-xs font-semibold text-indigo-600">Reporter</span></p>
+              </div>
+            </div>
+
+            {/* Rincian Kategori Berita */}
+            <div className="bg-slate-50/80 border border-slate-100 rounded-2xl p-4 space-y-2">
+              <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wide flex items-center gap-1.5">
+                <Layers className="w-4 h-4 text-indigo-500" />
+                Rincian Menurut Jenis Berita Terimpor
+              </h4>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1">
+                <div className="bg-white border border-slate-100 p-2.5 rounded-xl">
+                  <p className="text-[10px] font-bold text-slate-400">Berita Online / KBRN</p>
+                  <p className="text-sm font-black text-slate-800 mt-0.5">{syncReportData.categoryBreakdown.online}</p>
+                </div>
+                <div className="bg-white border border-slate-100 p-2.5 rounded-xl">
+                  <p className="text-[10px] font-bold text-slate-400">Berita Ringan LPU</p>
+                  <p className="text-sm font-black text-slate-800 mt-0.5">{syncReportData.categoryBreakdown.lpu}</p>
+                </div>
+                <div className="bg-white border border-slate-100 p-2.5 rounded-xl">
+                  <p className="text-[10px] font-bold text-slate-400">Berita Radio</p>
+                  <p className="text-sm font-black text-slate-800 mt-0.5">{syncReportData.categoryBreakdown.radio}</p>
+                </div>
+                <div className="bg-white border border-slate-100 p-2.5 rounded-xl">
+                  <p className="text-[10px] font-bold text-slate-400">Konten Siaran / Medsos</p>
+                  <p className="text-sm font-black text-slate-800 mt-0.5">{syncReportData.categoryBreakdown.siaran}</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Explanations & Alerts */}
+            <div className="space-y-3">
+              <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wide flex items-center gap-1.5">
+                <HelpCircle className="w-4 h-4 text-indigo-500" />
+                Status Perhitungan & Penjelasan Sistem
+              </h4>
+
+              <div className="space-y-2.5">
+                {syncReportData.messages.map((msg, idx) => {
+                  let badgeBg = 'bg-emerald-50 border-emerald-200 text-emerald-900';
+                  let icon = <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />;
+                  if (msg.type === 'warning') {
+                    badgeBg = 'bg-amber-50 border-amber-200 text-amber-900';
+                    icon = <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />;
+                  } else if (msg.type === 'error') {
+                    badgeBg = 'bg-rose-50 border-rose-200 text-rose-900';
+                    icon = <AlertCircle className="w-5 h-5 text-rose-600 shrink-0 mt-0.5" />;
+                  } else if (msg.type === 'info') {
+                    badgeBg = 'bg-sky-50 border-sky-200 text-sky-900';
+                    icon = <Info className="w-5 h-5 text-sky-600 shrink-0 mt-0.5" />;
+                  }
+
+                  return (
+                    <div key={idx} className={`p-4 rounded-2xl border text-xs flex items-start gap-3 ${badgeBg}`}>
+                      {icon}
+                      <div className="space-y-1">
+                        <p className="font-extrabold">{msg.title}</p>
+                        <p className="leading-relaxed opacity-90">{msg.text}</p>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Footer Action */}
+            <div className="pt-3 border-t border-slate-100 flex justify-end">
+              <button
+                onClick={() => setShowExplanationModal(false)}
+                className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl shadow-md transition-all cursor-pointer"
+              >
+                Tutup & Lihat Hasil Capaian
+              </button>
+            </div>
+
+          </div>
         </div>
       )}
     </div>
