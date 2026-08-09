@@ -44,7 +44,8 @@ export function syncNewsAchievements(
   allNewsReports: NewsReport[],
   agreements: PerformanceAgreement[],
   reporterTargets: ReporterTarget[] = [],
-  employees: Employee[] = []
+  employees: Employee[] = [],
+  targetLevel?: string
 ): PerformanceAgreement[] {
   // 1. Station-wide monthly totals per type (12 months)
   const stationTypeMonthlyCounts = {
@@ -192,6 +193,14 @@ export function syncNewsAchievements(
   // Pass 2: Rollup Level 2 (Ketua Tim / Kabid) from Level 3 or Station Totals
   updatedAgreements.forEach(ag => {
     if (ag.level !== 'Kepala Stasiun' && ag.level !== 'Pegawai') {
+      // If a specific targetLevel is requested, skip updating other level 2 agreements
+      if (targetLevel && targetLevel !== 'Semua' && ag.level !== targetLevel) {
+        ag.objectives.forEach(l2Obj => {
+          objMap[l2Obj.id] = l2Obj;
+        });
+        return;
+      }
+
       ag.objectives.forEach(l2Obj => {
         const l3Children = Object.values(objMap).filter(o => o.parentIndicatorId === l2Obj.id);
 

@@ -33,6 +33,7 @@ import {
 } from 'lucide-react';
 import { syncNewsAchievements, getReportTypeCategory } from '../utils/syncNewsAchievements';
 import { parseFlexibleDate } from '../utils/dateUtils';
+import { isEligibleNewsIndicator } from '../utils/newsFilter';
 
 interface InputCapaianPKViewProps {
   currentUser: { 
@@ -94,6 +95,10 @@ export default function InputCapaianPKView({
     setIsRefreshing(true);
     const reports = newsReports || [];
     const totalReports = reports.length;
+
+    const isAdminUtama = currentUser.role === 'Superadmin' || currentUser.role === 'Kepala';
+    const targetLevelToSync = isAdminUtama ? undefined : selectedLevel;
+    const selectedLevelLabel = selectedLevel.replace('Ketua Tim ', '').replace('Kabid ', '');
 
     let validDatesCount = 0;
     let invalidDatesCount = 0;
@@ -165,20 +170,30 @@ export default function InputCapaianPKView({
         });
       }
 
-      messages.push({
-        type: 'success',
-        title: 'Hitung Ulang Berhasil Diselesaikan',
-        text: `Sebanyak ${totalReports} data berita terimpor berhasil dihitung ulang dan disinkronkan ke seluruh level Perjanjian Kinerja (Kepala Stasiun, Ketua Tim/Kabid, dan Pegawai).`
-      });
+      if (isAdminUtama) {
+        messages.push({
+          type: 'success',
+          title: 'Hitung Ulang Berita Semua Bidang Selesai (Admin Utama)',
+          text: `Sebanyak ${totalReports} data berita terimpor berhasil dihitung ulang dan disinkronkan ke seluruh level Perjanjian Kinerja untuk SEMUA bidang/divisi stasiun.`
+        });
+      } else {
+        messages.push({
+          type: 'success',
+          title: `Hitung Ulang Berita Bidang ${selectedLevelLabel} Selesai`,
+          text: `Sebanyak ${totalReports} data berita terimpor berhasil dihitung ulang dan disinkronkan khusus untuk Perjanjian Kinerja Bidang ${selectedLevelLabel} (${selectedLevel}).`
+        });
+      }
 
-      // Synchronize news achievements into agreements
-      const updatedAgs = syncNewsAchievements(reports, agreements, reporterTargets || [], employees);
+      // Synchronize news achievements into agreements (targetLevelToSync limits update to selected division for non-Admin)
+      const updatedAgs = syncNewsAchievements(reports, agreements, reporterTargets || [], employees, targetLevelToSync);
       onUpdateAgreements(updatedAgs);
 
       if (onAddNotification) {
         onAddNotification({
-          title: 'Perhitungan Ulang Berita Selesai',
-          message: `Berhasil menghitung ulang ${totalReports} berita ke indikator Capaian PK.`,
+          title: isAdminUtama ? 'Perhitungan Ulang Berita Semua Bidang Selesai' : `Perhitungan Ulang Berita Bidang ${selectedLevelLabel} Selesai`,
+          message: isAdminUtama
+            ? `Berhasil menghitung ulang ${totalReports} berita untuk seluruh bidang/divisi stasiun.`
+            : `Berhasil menghitung ulang berita khusus untuk Perjanjian Kinerja Bidang ${selectedLevelLabel}.`,
           type: 'info'
         });
       }
@@ -196,6 +211,56 @@ export default function InputCapaianPKView({
 
     setIsRefreshing(false);
     setShowExplanationModal(true);
+  };
+
+  const handleRefreshSingleIndicator = (obj: PerformanceIndicator) => {
+    if (!obj) return;
+    setIsRefreshing(true);
+
+    const isAdminUtama = currentUser.role === 'Superadmin' || currentUser.role === 'Kepala';
+    const targetLevelToSync = isAdminUtama ? undefined : selectedLevel;
+
+    // Run syncNewsAchievements to calculate latest news reports & rollup child achievements
+    const updatedAgs = syncNewsAchievements(
+      newsReports || [],
+      agreements,
+      reporterTargets || [],
+      employees,
+      targetLevelToSync
+    );
+
+    // Find updated objective in target agreement
+    const targetAg = updatedAgs.find(ag => ag.level === selectedLevel);
+    const updatedObj = targetAg?.objectives.find(o => o.id === obj.id);
+
+    if (updatedObj && Array.isArray(updatedObj.monthlyAchievements)) {
+      setLocalAchievements(prev => ({
+        ...prev,
+        [obj.id]: [...updatedObj.monthlyAchievements]
+      }));
+    }
+
+    onUpdateAgreements(updatedAgs);
+
+    const isNews = isEligibleNewsIndicator(obj);
+    if (onAddNotification) {
+      onAddNotification({
+        title: isNews ? 'Hitung Ulang Capaian Berita PK Selesai' : 'Hitung Ulang Capaian PK Selesai',
+        message: isNews
+          ? `Berhasil menghitung ulang realisasi berita terimpor untuk PK "${obj.indicatorName}". Capaian bulanan telah diperbarui.`
+          : `Berhasil menghitung ulang capaian realisasi bulanan untuk PK "${obj.indicatorName}".`,
+        type: 'success'
+      });
+    }
+
+    setSuccessMessage(
+      isNews
+        ? `Capaian realisasi berita terimpor untuk PK "${obj.indicatorName}" telah berhasil dihitung ulang dan diperbarui.`
+        : `Capaian realisasi bulanan untuk PK "${obj.indicatorName}" telah berhasil dihitung ulang.`
+    );
+    setTimeout(() => setSuccessMessage(null), 4000);
+
+    setIsRefreshing(false);
   };
   // Determine division-level options
   const level2Options = useMemo(() => [
@@ -482,9 +547,14 @@ export default function InputCapaianPKView({
               onClick={handleRefreshNewsCalculation}
               disabled={isRefreshing}
               className="inline-flex items-center gap-2 px-4 py-2.5 bg-amber-400 hover:bg-amber-300 active:scale-95 text-slate-950 font-black text-xs rounded-xl shadow-lg shadow-amber-400/20 transition-all cursor-pointer disabled:opacity-50"
+              title={(currentUser.role === 'Superadmin' || currentUser.role === 'Kepala') ? "Hitung ulang berita terimpor untuk seluruh bidang (Admin Utama)" : `Hitung ulang berita terimpor khusus bidang ${selectedLevel.replace('Ketua Tim ', '').replace('Kabid ', '')}`}
             >
               <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
-              <span>Refresh & Hitung Ulang Berita</span>
+              <span>
+                {(currentUser.role === 'Superadmin' || currentUser.role === 'Kepala')
+                  ? 'Refresh & Hitung Ulang (Semua Bidang)'
+                  : `Refresh & Hitung Ulang (${selectedLevel.replace('Ketua Tim ', '').replace('Kabid ', '')})`}
+              </span>
             </button>
 
             <div className="bg-white/10 backdrop-blur-md border border-white/15 rounded-2xl p-3.5 space-y-1 w-full">
@@ -729,13 +799,17 @@ export default function InputCapaianPKView({
                     <div className="flex items-center gap-2">
                       <button
                         type="button"
-                        onClick={handleRefreshNewsCalculation}
+                        onClick={() => handleRefreshSingleIndicator(activeObjective)}
                         disabled={isRefreshing}
-                        className="inline-flex items-center gap-1.5 px-3 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-extrabold text-[11px] rounded-lg transition-all cursor-pointer border border-indigo-100/60"
-                        title="Hitung ulang berita terimpor jika angka belum terupdate"
+                        className="inline-flex items-center gap-1.5 px-3 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-extrabold text-[11px] rounded-lg transition-all cursor-pointer border border-indigo-100/60 disabled:opacity-50"
+                        title={`Hitung ulang capaian bulanan khusus untuk indikator: ${activeObjective.indicatorName}`}
                       >
                         <RefreshCw className={`w-3.5 h-3.5 ${isRefreshing ? 'animate-spin' : ''}`} />
-                        <span>Hitung Ulang Berita Terimpor</span>
+                        <span>
+                          {isEligibleNewsIndicator(activeObjective)
+                            ? 'Hitung Ulang Capaian Berita PK Ini'
+                            : 'Hitung Ulang Capaian PK Ini'}
+                        </span>
                       </button>
                       <span className="text-[10px] text-slate-400 italic font-medium">Satuan: {activeObjective.unit}</span>
                     </div>
