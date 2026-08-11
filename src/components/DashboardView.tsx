@@ -200,14 +200,14 @@ export default function DashboardView({
   const [selectedGenderFilter, setSelectedGenderFilter] = useState<string>('Semua');
   const [selectedDivisionFilter, setSelectedDivisionFilter] = useState<string>('Semua');
   const [selectedKpiDivision, setSelectedKpiDivision] = useState<string>('Pemberitaan');
-  const [selectedKpiPeriod, setSelectedKpiPeriod] = useState<string>('Triwulan 4');
+  const [selectedKpiPeriod, setSelectedKpiPeriod] = useState<string>('Tahunan');
   const [selectedKpiMonth, setSelectedKpiMonth] = useState<number>(new Date().getMonth());
   const [drillDownActive, setDrillDownActive] = useState<boolean>(false);
   const [hoveredDataPoint, setHoveredDataPoint] = useState<{ month: string; value: number } | null>(null);
   const [hoveredDonutSegment, setHoveredDonutSegment] = useState<string | null>(null);
 
   // Dynamic visualizer display mode toggle for target PKs
-  const [globalVisualizerMode, setGlobalVisualizerMode] = useState<'auto' | 'akumulatif' | 'triwulanan' | 'bulanan_tahunan' | 'gauge'>('auto');
+  const [globalVisualizerMode, setGlobalVisualizerMode] = useState<'auto' | 'akumulatif' | 'triwulanan' | 'bulanan_tahunan' | 'gauge'>('gauge');
 
   // News detail modal state for evidence review
   const [newsModalConfig, setNewsModalConfig] = useState<{

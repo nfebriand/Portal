@@ -72,7 +72,7 @@ export default function DashboardBidangView({
   const [newAchievementVal, setNewAchievementVal] = useState('');
 
   // Mode visualisasi target PK per divisi
-  const [visualizerMode, setVisualizerMode] = useState<'auto' | 'akumulatif' | 'triwulanan' | 'bulanan_tahunan' | 'gauge'>('auto');
+  const [visualizerMode, setVisualizerMode] = useState<'auto' | 'akumulatif' | 'triwulanan' | 'bulanan_tahunan' | 'gauge'>('gauge');
 
   // News detail modal state
   const [newsModalConfig, setNewsModalConfig] = useState<{
