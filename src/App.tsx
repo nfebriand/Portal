@@ -564,15 +564,13 @@ const recalculateCascade = (
     return { ...ag, objectives };
   });
 
-  // 3. Sync news reports counts & monthlyAchievements (12 months) across Level 1, Level 2, Level 3
-  if (currentNewsReports.length > 0) {
-    updated = syncNewsAchievements(
-      currentNewsReports, 
-      updated, 
-      currentReporterTargets, 
-      currentEmployees.length > 0 ? currentEmployees : INITIAL_EMPLOYEES
-    );
-  }
+  // 3. Sync news reports counts & monthlyAchievements (12 months) and perform full cascade rollup across Level 1, Level 2, Level 3
+  updated = syncNewsAchievements(
+    currentNewsReports, 
+    updated, 
+    currentReporterTargets, 
+    currentEmployees.length > 0 ? currentEmployees : INITIAL_EMPLOYEES
+  );
 
   return updated;
 };

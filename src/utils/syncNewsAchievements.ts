@@ -193,43 +193,35 @@ export function syncNewsAchievements(
   // Pass 2: Rollup Level 2 (Ketua Tim / Kabid) from Level 3 or Station Totals
   updatedAgreements.forEach(ag => {
     if (ag.level !== 'Kepala Stasiun' && ag.level !== 'Pegawai') {
-      // If a specific targetLevel is requested, skip updating other level 2 agreements
-      if (targetLevel && targetLevel !== 'Semua' && ag.level !== targetLevel) {
-        ag.objectives.forEach(l2Obj => {
-          objMap[l2Obj.id] = l2Obj;
-        });
-        return;
-      }
-
       ag.objectives.forEach(l2Obj => {
         const l3Children = Object.values(objMap).filter(o => o.parentIndicatorId === l2Obj.id);
 
-        let rolledUpMonthly = new Array(12).fill(0);
-        let hasChildData = false;
-
         if (l3Children.length > 0) {
-          l3Children.forEach(child => {
-            if (Array.isArray(child.monthlyAchievements) && child.monthlyAchievements.length === 12) {
-              child.monthlyAchievements.forEach((val: number, idx: number) => {
-                rolledUpMonthly[idx] += (val || 0);
-              });
-              hasChildData = true;
-            }
-          });
-        }
+          const isConstantType = l2Obj.unit === '%' || l2Obj.unit === 'Skor' || l2Obj.unit === 'Nilai' || (l2Obj.indicatorName || '').toLowerCase().includes('ikpa') || l2Obj.trajectoryType === 'constant';
+          const rolledUpMonthly = new Array(12).fill(0);
 
-        const childSum = rolledUpMonthly.reduce((s, v) => s + v, 0);
+          for (let idx = 0; idx < 12; idx++) {
+            let sumMonth = 0;
+            l3Children.forEach(child => {
+              sumMonth += child.monthlyAchievements?.[idx] || 0;
+            });
+            rolledUpMonthly[idx] = isConstantType ? Math.round((sumMonth / l3Children.length) * 10) / 10 : sumMonth;
+          }
 
-        if (hasChildData && childSum > 0) {
           l2Obj.monthlyAchievements = rolledUpMonthly;
-          l2Obj.achievement = childSum;
+          const totalVal = rolledUpMonthly.reduce((s, v) => s + v, 0);
+          l2Obj.achievement = isConstantType ? Math.round((totalVal / 12) * 10) / 10 : Math.round(totalVal * 10) / 10;
         } else {
           // Direct calculation from station news reports if no child achievements exist
           const cat = getObjectiveCategory(l2Obj.indicatorName || '', l2Obj.unit || '');
-          if (cat) {
+          if (cat && allNewsReports.length > 0) {
             const counts = stationTypeMonthlyCounts[cat] || new Array(12).fill(0);
             l2Obj.monthlyAchievements = [...counts];
             l2Obj.achievement = counts.reduce((s, v) => s + v, 0);
+          } else if (Array.isArray(l2Obj.monthlyAchievements) && l2Obj.monthlyAchievements.length === 12) {
+            const isConstantType = l2Obj.unit === '%' || l2Obj.unit === 'Skor' || l2Obj.unit === 'Nilai' || (l2Obj.indicatorName || '').toLowerCase().includes('ikpa') || l2Obj.trajectoryType === 'constant';
+            const totalVal = l2Obj.monthlyAchievements.reduce((s, v) => s + v, 0);
+            l2Obj.achievement = isConstantType ? Math.round((totalVal / 12) * 10) / 10 : Math.round(totalVal * 10) / 10;
           }
         }
 
@@ -245,32 +237,32 @@ export function syncNewsAchievements(
       ag.objectives.forEach(l1Obj => {
         const l2Children = Object.values(objMap).filter(o => o.parentIndicatorId === l1Obj.id);
 
-        let rolledUpMonthly = new Array(12).fill(0);
-        let hasChildData = false;
-
         if (l2Children.length > 0) {
-          l2Children.forEach(child => {
-            if (Array.isArray(child.monthlyAchievements) && child.monthlyAchievements.length === 12) {
-              child.monthlyAchievements.forEach((val: number, idx: number) => {
-                rolledUpMonthly[idx] += (val || 0);
-              });
-              hasChildData = true;
-            }
-          });
-        }
+          const isConstantType = l1Obj.unit === '%' || l1Obj.unit === 'Skor' || l1Obj.unit === 'Nilai' || (l1Obj.indicatorName || '').toLowerCase().includes('ikpa') || l1Obj.trajectoryType === 'constant';
+          const rolledUpMonthly = new Array(12).fill(0);
 
-        const childSum = rolledUpMonthly.reduce((s, v) => s + v, 0);
+          for (let idx = 0; idx < 12; idx++) {
+            let sumMonth = 0;
+            l2Children.forEach(child => {
+              sumMonth += child.monthlyAchievements?.[idx] || 0;
+            });
+            rolledUpMonthly[idx] = isConstantType ? Math.round((sumMonth / l2Children.length) * 10) / 10 : sumMonth;
+          }
 
-        if (hasChildData && childSum > 0) {
           l1Obj.monthlyAchievements = rolledUpMonthly;
-          l1Obj.achievement = childSum;
+          const totalVal = rolledUpMonthly.reduce((s, v) => s + v, 0);
+          l1Obj.achievement = isConstantType ? Math.round((totalVal / 12) * 10) / 10 : Math.round(totalVal * 10) / 10;
         } else {
           // Direct calculation from station news reports if no child achievements exist
           const cat = getObjectiveCategory(l1Obj.indicatorName || '', l1Obj.unit || '');
-          if (cat) {
+          if (cat && allNewsReports.length > 0) {
             const counts = stationTypeMonthlyCounts[cat] || new Array(12).fill(0);
             l1Obj.monthlyAchievements = [...counts];
             l1Obj.achievement = counts.reduce((s, v) => s + v, 0);
+          } else if (Array.isArray(l1Obj.monthlyAchievements) && l1Obj.monthlyAchievements.length === 12) {
+            const isConstantType = l1Obj.unit === '%' || l1Obj.unit === 'Skor' || l1Obj.unit === 'Nilai' || (l1Obj.indicatorName || '').toLowerCase().includes('ikpa') || l1Obj.trajectoryType === 'constant';
+            const totalVal = l1Obj.monthlyAchievements.reduce((s, v) => s + v, 0);
+            l1Obj.achievement = isConstantType ? Math.round((totalVal / 12) * 10) / 10 : Math.round(totalVal * 10) / 10;
           }
         }
 

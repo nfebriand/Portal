@@ -184,8 +184,8 @@ export default function InputCapaianPKView({
         });
       }
 
-      // Synchronize news achievements into agreements (targetLevelToSync limits update to selected division for non-Admin)
-      const updatedAgs = syncNewsAchievements(reports, agreements, reporterTargets || [], employees, targetLevelToSync);
+      // Synchronize news achievements into agreements for all levels including Kepala Stasiun
+      const updatedAgs = syncNewsAchievements(reports, agreements, reporterTargets || [], employees);
       onUpdateAgreements(updatedAgs);
 
       if (onAddNotification) {
@@ -225,8 +225,7 @@ export default function InputCapaianPKView({
       newsReports || [],
       agreements,
       reporterTargets || [],
-      employees,
-      targetLevelToSync
+      employees
     );
 
     // Find updated objective in target agreement
