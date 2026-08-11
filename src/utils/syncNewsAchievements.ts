@@ -146,13 +146,15 @@ export function syncNewsAchievements(
 
         let cat: 'online' | 'lpu' | 'radio' | 'siaran' | 'total' | null = null;
 
-        if (target?.mediaType) {
+        if (unitLower === '%' || unitLower === 'skor' || unitLower === 'nilai' || unitLower.includes('persen')) {
+          cat = null;
+        } else if (target?.mediaType) {
           cat = getReportTypeCategory(target.mediaType);
         } else if (nameLower.includes('ringan') || nameLower.includes('lpu')) {
           cat = 'lpu';
         } else if (nameLower.includes('radio')) {
           cat = 'radio';
-        } else if (nameLower.includes('konten siaran') || (nameLower.includes('siaran') && !nameLower.includes('radio'))) {
+        } else if (nameLower.includes('konten siaran') || (nameLower.includes('siaran') && !nameLower.includes('radio') && !nameLower.includes('pemilu') && !nameLower.includes('prasarana') && !nameLower.includes('stabilitas'))) {
           cat = 'siaran';
         } else if (nameLower.includes('online') || nameLower.includes('kbrn') || nameLower.includes('media baru') || nameLower.includes('medsos') || nameLower.includes('harian') || nameLower.includes('publikasi')) {
           cat = 'online';
@@ -183,9 +185,15 @@ export function syncNewsAchievements(
   const getObjectiveCategory = (name: string, unit: string): 'online' | 'lpu' | 'radio' | 'siaran' | 'total' | null => {
     const nameLower = name.toLowerCase();
     const unitLower = unit.toLowerCase();
+
+    // If unit is %, Skor, Nilai, or non-quantity metrics, it is NOT a news count report indicator
+    if (unitLower === '%' || unitLower === 'skor' || unitLower === 'nilai' || unitLower.includes('persen')) {
+      return null;
+    }
+
     if (nameLower.includes('ringan') || nameLower.includes('lpu')) return 'lpu';
     if (nameLower.includes('radio')) return 'radio';
-    if (nameLower.includes('konten siaran') || (nameLower.includes('siaran') && !nameLower.includes('radio') && !nameLower.includes('pemilu'))) return 'siaran';
+    if (nameLower.includes('konten siaran') || (nameLower.includes('siaran') && !nameLower.includes('radio') && !nameLower.includes('pemilu') && !nameLower.includes('prasarana') && !nameLower.includes('stabilitas'))) return 'siaran';
     if (nameLower.includes('online') || nameLower.includes('kbrn') || nameLower.includes('media baru') || nameLower.includes('medsos')) return 'online';
     if (nameLower.includes('berita') || nameLower.includes('konten') || nameLower.includes('rilis') || unitLower.includes('berita')) return 'total';
     return null;

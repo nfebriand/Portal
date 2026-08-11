@@ -817,7 +817,7 @@ export default function DashboardBidangView({
                         ) : (
                           <div 
                             className="p-2 rounded-lg bg-slate-50 border border-slate-200/80 min-w-0 text-left"
-                            title="Eviden List hanya aktif untuk Berita Ringan LPU, Berita Radio, dan Berita KBRN"
+                            title="Eviden List aktif untuk indikator kuantitas Berita & Siaran (Berita Ringan LPU, Berita Radio, Berita KBRN, dan Konten Siaran)"
                           >
                             <span className="text-[8px] text-slate-400 font-bold uppercase font-mono block">Realisasi</span>
                             <span className={`font-extrabold ${style.textColor} font-mono truncate block`} title={`${obj.achievement} ${obj.unit}`}>{obj.achievement} {obj.unit}</span>

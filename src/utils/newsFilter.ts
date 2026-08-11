@@ -38,10 +38,16 @@ export interface FilterNewsOptions {
  * 2. Berita Radio
  * 3. Berita KBRN (Berita Online)
  */
-export function isEligibleNewsIndicator(indicator?: { indicatorName?: string; mediaType?: string }): boolean {
+export function isEligibleNewsIndicator(indicator?: { indicatorName?: string; mediaType?: string; unit?: string }): boolean {
   if (!indicator) return false;
   const nameLower = (indicator.indicatorName || '').toLowerCase();
   const mediaType = indicator.mediaType || '';
+  const unitLower = (indicator.unit || '').toLowerCase();
+
+  // Non-quantity indicators (Skor, %, Nilai) are manual input indicators, not report count list indicators
+  if (unitLower === '%' || unitLower === 'skor' || unitLower === 'nilai' || unitLower.includes('persen')) {
+    return false;
+  }
 
   // 1. Berita Ringan LPU
   if (
@@ -73,6 +79,16 @@ export function isEligibleNewsIndicator(indicator?: { indicatorName?: string; me
     nameLower.includes('produksi berita online') ||
     nameLower.includes('kbrn') ||
     nameLower.includes('media baru')
+  ) {
+    return true;
+  }
+
+  // 4. Konten Siaran / Siaran
+  if (
+    mediaType === 'Konten Siaran' ||
+    mediaType === 'Siaran' ||
+    nameLower.includes('konten siaran') ||
+    (nameLower.includes('siaran') && !nameLower.includes('radio') && !nameLower.includes('pemilu') && !nameLower.includes('prasarana') && !nameLower.includes('stabilitas'))
   ) {
     return true;
   }
@@ -131,6 +147,15 @@ export function filterNewsForIndicator({
     isEligible = true;
     typeLabel = 'Berita KBRN';
     matchesType = (r: NewsReport) => r.type === 'Berita Online' || (r.type as string) === 'Berita KBRN';
+  } else if (
+    mediaType === 'Konten Siaran' ||
+    mediaType === 'Siaran' ||
+    nameLower.includes('konten siaran') ||
+    (nameLower.includes('siaran') && !nameLower.includes('radio') && !nameLower.includes('pemilu') && !nameLower.includes('prasarana') && !nameLower.includes('stabilitas'))
+  ) {
+    isEligible = true;
+    typeLabel = 'Konten Siaran';
+    matchesType = (r: NewsReport) => r.type === 'Konten Siaran' || (r.type as string)?.toLowerCase().includes('siaran');
   }
 
   if (!isEligible) {

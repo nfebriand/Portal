@@ -1433,7 +1433,7 @@ export default function DashboardView({
                           ) : (
                             <span 
                               className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-slate-50 text-slate-600 font-extrabold rounded-lg border border-slate-200 font-mono" 
-                              title="Eviden List hanya aktif untuk Berita Ringan LPU, Berita Radio, dan Berita KBRN"
+                              title="Eviden List aktif untuk indikator kuantitas Berita & Siaran (Berita Ringan LPU, Berita Radio, Berita KBRN, dan Konten Siaran)"
                             >
                               <span>Realisasi: {obj.achievement} {obj.unit}</span>
                             </span>
