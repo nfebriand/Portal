@@ -364,6 +364,15 @@ export default function InputCapaianPKView({
           objectives: ag.objectives.map(obj => {
             const currentAchievements = localAchievements[obj.id] || Array(12).fill(0);
             
+            // For news indicators, calculate the manual delta
+            let manualAchievements = obj.manualAchievements;
+            if (isEligibleNewsIndicator(obj)) {
+              const originalTotal = obj.monthlyAchievements || Array(12).fill(0);
+              const oldManual = obj.manualAchievements || Array(12).fill(0);
+              const imported = originalTotal.map((t, idx) => t - (oldManual[idx] || 0));
+              manualAchievements = currentAchievements.map((t, idx) => t - imported[idx]);
+            }
+            
             // Recalculate annual value
             const type = obj.trajectoryType || (
               obj.unit === '%' || 
@@ -383,6 +392,7 @@ export default function InputCapaianPKView({
             return {
               ...obj,
               monthlyAchievements: currentAchievements,
+              ...(manualAchievements ? { manualAchievements } : {}),
               periodType: localPeriodTypes[obj.id] || 'tahunan',
               achievement: Math.round(annualAchievement * 10) / 10
             };

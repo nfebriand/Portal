@@ -167,8 +167,8 @@ export function syncNewsAchievements(
             ? empCounts[cat]
             : new Array(12).fill(0);
           
-          obj.monthlyAchievements = [...counts];
-          obj.achievement = counts.reduce((sum, val) => sum + val, 0);
+          obj.monthlyAchievements = counts.map((val, idx) => val + (obj.manualAchievements?.[idx] || 0));
+          obj.achievement = obj.monthlyAchievements.reduce((sum, val) => sum + val, 0);
           objMap[obj.id] = obj;
         }
       });
@@ -201,8 +201,8 @@ export function syncNewsAchievements(
         if (cat) {
           // News indicators ALWAYS sync to station totals for L2
           const counts = stationTypeMonthlyCounts[cat] || new Array(12).fill(0);
-          l2Obj.monthlyAchievements = [...counts];
-          l2Obj.achievement = counts.reduce((s, v) => s + v, 0);
+          l2Obj.monthlyAchievements = counts.map((val, idx) => val + (l2Obj.manualAchievements?.[idx] || 0));
+          l2Obj.achievement = l2Obj.monthlyAchievements.reduce((s, v) => s + v, 0);
         } else if (l3Children.length > 0) {
           // Non-news indicators rollup from L3 if children exist
           const isConstantType = l2Obj.unit === '%' || l2Obj.unit === 'Skor' || l2Obj.unit === 'Nilai' || (l2Obj.indicatorName || '').toLowerCase().includes('ikpa') || l2Obj.trajectoryType === 'constant';
@@ -242,8 +242,8 @@ export function syncNewsAchievements(
         if (cat) {
           // News indicators ALWAYS sync to station totals for L1
           const counts = stationTypeMonthlyCounts[cat] || new Array(12).fill(0);
-          l1Obj.monthlyAchievements = [...counts];
-          l1Obj.achievement = counts.reduce((s, v) => s + v, 0);
+          l1Obj.monthlyAchievements = counts.map((val, idx) => val + (l1Obj.manualAchievements?.[idx] || 0));
+          l1Obj.achievement = l1Obj.monthlyAchievements.reduce((s, v) => s + v, 0);
         } else if (l2Children.length > 0) {
           // Non-news indicators rollup from L2 if children exist
           const isConstantType = l1Obj.unit === '%' || l1Obj.unit === 'Skor' || l1Obj.unit === 'Nilai' || (l1Obj.indicatorName || '').toLowerCase().includes('ikpa') || l1Obj.trajectoryType === 'constant';

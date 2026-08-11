@@ -63,6 +63,7 @@ export interface PerformanceIndicator {
   trajectory?: number[]; // Proyeksi target per bulan (12 bulan, indeks 0 = Jan, 11 = Des)
   trajectoryType?: 'cumulative' | 'constant'; // Trajectory accumulation type: cumulative or constant/average
   monthlyAchievements?: number[]; // Realisasi per bulan (12 bulan, indeks 0 = Jan, 11 = Des)
+  manualAchievements?: number[]; // Realisasi manual (tambahan) per bulan (12 bulan, indeks 0 = Jan, 11 = Des)
   calculationType?: 'automatic' | 'manual'; // Level 2 calculation source: automatic from staff or manual intervention
   periodType?: 'tahunan' | 'triwulanan' | 'semesteran'; // Tipe evaluasi capaian terhadap target tahunan
 }

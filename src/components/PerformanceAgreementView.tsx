@@ -870,6 +870,14 @@ export default function PerformanceAgreementView({
               const currentAchievements = [...getSafeMonthlyAchievements(o)];
               currentAchievements[monthIndex] = value;
               
+              let manualAchievements = o.manualAchievements;
+              if (isEligibleNewsIndicator(o)) {
+                const originalTotal = o.monthlyAchievements || Array(12).fill(0);
+                const oldManual = o.manualAchievements || Array(12).fill(0);
+                const imported = originalTotal.map((t, idx) => t - (oldManual[idx] || 0));
+                manualAchievements = currentAchievements.map((t, idx) => t - imported[idx]);
+              }
+
               // Recalculate annual value for backward compatibility & direct display
               const type = o.trajectoryType || (o.unit === '%' || o.indicatorName.toLowerCase().includes('ikpa') || o.indicatorName.toLowerCase().includes('nilai') ? 'constant' : 'cumulative');
               let annualAchievement = 0;
@@ -882,6 +890,7 @@ export default function PerformanceAgreementView({
               return { 
                 ...o, 
                 monthlyAchievements: currentAchievements,
+                ...(manualAchievements ? { manualAchievements } : {}),
                 achievement: Math.round(annualAchievement * 10) / 10 
               };
             }
