@@ -1,3 +1,4 @@
+import { getGaugeColorByPercentage } from "../utils/colors";
 import React, { useMemo, useState } from 'react';
 import { ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { 
@@ -178,12 +179,7 @@ export default function DashboardTmbView({
               const fillPercentage = Math.min(100, Math.max(0, percentage));
               const remaining = 100 - fillPercentage;
 
-              let gaugeColor = '#10b981'; // Emerald (>= 90%)
-              if (percentage < 50) {
-                gaugeColor = '#f43f5e'; // Rose (< 50%)
-              } else if (percentage < 90) {
-                gaugeColor = '#f59e0b'; // Amber (50% - 89%)
-              }
+              const gaugeColor = getGaugeColorByPercentage(percentage);
 
               const gaugeData = [
                 { value: fillPercentage },

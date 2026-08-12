@@ -1,3 +1,10 @@
+import bgPemberitaan from "../assets/images/bg_pemberitaan_1786536281249.jpg";
+import bgTmb from "../assets/images/bg_tmb_1786536298066.jpg";
+import bgLpu from "../assets/images/bg_lpu_1786536319133.jpg";
+import bgKmb from "../assets/images/bg_kmb_1786536334535.jpg";
+import bgSiaran from "../assets/images/bg_siaran_1786536353427.jpg";
+import bgTu from "../assets/images/bg_tu_1786536368415.jpg";
+import { getGaugeColorByPercentage } from "../utils/colors";
 import { useState, useMemo } from 'react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell, BarChart, Bar } from 'recharts';
 import { Employee, CriticalNotification, CooperationContract, PerformanceAgreement, ReporterTarget, NewsReport } from '../types';
@@ -185,6 +192,19 @@ function calculateObjectivePerformance(
     percentage: clampedPercentage
   };
 }
+
+
+const getDivisionBgImage = (key: string) => {
+  switch (key) {
+    case 'Pemberitaan': return bgPemberitaan;
+    case 'Teknologi dan Media Baru': return bgTmb;
+    case 'Layanan Pengembangan Usaha': return bgLpu;
+    case 'Konten Media Baru': return bgKmb;
+    case 'Siaran': return bgSiaran;
+    case 'Tata Usaha / Umum': return bgTu;
+    default: return '';
+  }
+};
 
 export default function DashboardView({
   employees,
@@ -1020,7 +1040,7 @@ export default function DashboardView({
               const percentage = adjustedDivisionsPercentages[div.key] || 0;
               const fillPercentage = Math.min(100, Math.max(0, percentage));
               const remaining = 100 - fillPercentage;
-              const gaugeColor = getGaugeColor(div.key);
+              const gaugeColor = getGaugeColorByPercentage(div.percentage);
 
               const gaugeData = [
                 { value: fillPercentage },
@@ -1036,20 +1056,24 @@ export default function DashboardView({
                     setSelectedKpiDivision(div.key);
                     setDrillDownActive(true);
                   }}
-                  className={`relative ${styles.bgColor} p-5 rounded-2xl border ${styles.borderColor} ${styles.hoverBorderColor} hover:ring-2 ${styles.hoverRingColor} shadow-xs hover:shadow-md transition-all duration-300 cursor-pointer flex flex-col items-center justify-between space-y-4 select-none overflow-hidden pt-6`}
+                  className={`group relative ${styles.bgColor} p-5 rounded-2xl border ${styles.borderColor} ${styles.hoverBorderColor} hover:ring-2 ${styles.hoverRingColor} shadow-xs hover:shadow-md transition-all duration-300 cursor-pointer flex flex-col items-center justify-between space-y-4 select-none overflow-hidden pt-6`}
                 >
+                  <div 
+                    className="absolute inset-0 z-0 opacity-[0.07] bg-cover bg-center transition-opacity duration-300 group-hover:opacity-[0.15]"
+                    style={{ backgroundImage: `url(${getDivisionBgImage(div.key)})` }}
+                  />
                   {/* Elegant status line at the top of the card */}
-                  <div className={`absolute top-0 left-0 right-0 h-[3.5px] ${styles.accentColor}`} />
+                  <div className={`absolute top-0 left-0 right-0 h-[3.5px] z-10 ${styles.accentColor}`} />
 
                   {/* Top content */}
-                  <div className="text-center w-full min-h-[36px] flex flex-col justify-center">
+                  <div className="text-center w-full min-h-[36px] flex flex-col justify-center relative z-10">
                     <span className="text-xs md:text-sm font-black text-slate-800 uppercase tracking-tight leading-tight line-clamp-2">
                       {div.name}
                     </span>
                   </div>
 
                   {/* Elegant Gauge Half Circle - Enlarged for perfect readability */}
-                  <div className="relative w-full h-44 flex items-center justify-center overflow-hidden">
+                  <div className="relative z-10 w-full h-44 flex items-center justify-center overflow-hidden">
                     <ResponsiveContainer width="100%" height="100%">
                       <PieChart margin={{ top: 12, left: 0, right: 0, bottom: 0 }}>
                         <Pie
@@ -1079,7 +1103,7 @@ export default function DashboardView({
                   </div>
 
                   {/* Stasiun division info indicator */}
-                  <div className="w-full flex justify-between items-center text-[10px] text-slate-500 border-t border-slate-200/80 pt-2">
+                  <div className="w-full relative z-10 flex justify-between items-center text-[10px] text-slate-500 border-t border-slate-200/80 pt-2">
                     <span className="font-semibold">Lihat Rincian Indikator</span>
                     <ChevronRight className={`w-3.5 h-3.5 ${styles.textColor}`} />
                   </div>
@@ -1401,7 +1425,7 @@ export default function DashboardView({
                                   paddingAngle={0}
                                   dataKey="value"
                                 >
-                                  <Cell fill={palette.gaugeColor} />
+                                  <Cell fill={getGaugeColorByPercentage(objPercentage)} />
                                   <Cell fill="#cbd5e1" />
                                 </Pie>
                               </PieChart>

@@ -1,3 +1,4 @@
+import { getGaugeColorByPercentage } from "../utils/colors";
 import { useMemo, useState } from 'react';
 import { ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { Employee, PerformanceAgreement, CooperationContract, ReporterTarget, NewsReport } from '../types';
@@ -781,7 +782,7 @@ export default function DashboardBidangView({
                                 paddingAngle={0}
                                 dataKey="value"
                               >
-                                <Cell fill={style.gaugeColor} />
+                                <Cell fill={getGaugeColorByPercentage(fillPercentage)} />
                                 <Cell fill="#cbd5e1" />
                               </Pie>
                             </PieChart>
@@ -975,7 +976,7 @@ export default function DashboardBidangView({
                                 paddingAngle={0}
                                 dataKey="value"
                               >
-                                <Cell fill={pct >= 90 ? '#10b981' : pct >= 50 ? '#f59e0b' : '#f43f5e'} />
+                                <Cell fill={getGaugeColorByPercentage(pct)} />
                                 <Cell fill="#e2e8f0" />
                               </Pie>
                             </PieChart>
@@ -1050,7 +1051,7 @@ export default function DashboardBidangView({
                                 paddingAngle={0}
                                 dataKey="value"
                               >
-                                <Cell fill={pct >= 90 ? '#10b981' : pct >= 50 ? '#f59e0b' : '#f43f5e'} />
+                                <Cell fill={getGaugeColorByPercentage(pct)} />
                                 <Cell fill="#e2e8f0" />
                               </Pie>
                             </PieChart>

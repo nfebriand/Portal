@@ -76,6 +76,11 @@ export default function LoginView({ employees, onLogin, namaInstansi, kepalaStas
 
   return (
     <div className="min-h-screen bg-slate-950 flex flex-col justify-center items-center p-4 relative overflow-hidden select-none">
+      <div 
+        className="absolute inset-0 bg-cover bg-center z-0 opacity-20" 
+        style={{ backgroundImage: `url(${bgLogin})` }} 
+      />
+      <div className="absolute inset-0 bg-slate-950/80 z-0" />
       {/* Decorative ambient glow */}
       <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-80 h-80 bg-indigo-600/10 rounded-full blur-3xl pointer-events-none" />
       <div className="absolute bottom-1/4 left-1/2 -translate-x-1/2 translate-y-1/2 w-80 h-80 bg-rose-500/5 rounded-full blur-3xl pointer-events-none" />
