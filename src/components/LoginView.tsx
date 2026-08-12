@@ -1,4 +1,5 @@
 import React, { useState, FormEvent } from 'react';
+import bgLogin from '../assets/images/bg_login_rri_1786536696501.jpg';
 import { Radio, ShieldCheck, Key, UserCheck, Eye, EyeOff } from 'lucide-react';
 import { Employee } from '../types';
 
