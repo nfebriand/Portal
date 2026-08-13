@@ -7,11 +7,12 @@ interface LoginViewProps {
   employees: Employee[];
   onLogin: (user: { id: string; name: string; role: 'Kepala' | 'Staff' | 'Ketua Bidang' | 'Superadmin'; division?: string; photo?: string }) => void;
   namaInstansi: string;
+  kepalaStasiunUsername?: string;
   kepalaStasiunPassword?: string;
   kepalaStasiunNama?: string;
 }
 
-export default function LoginView({ employees, onLogin, namaInstansi, kepalaStasiunPassword, kepalaStasiunNama }: LoginViewProps) {
+export default function LoginView({ employees, onLogin, namaInstansi, kepalaStasiunUsername, kepalaStasiunPassword, kepalaStasiunNama }: LoginViewProps) {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -24,8 +25,10 @@ export default function LoginView({ employees, onLogin, namaInstansi, kepalaStas
       return;
     }
 
+    const normalizedUsername = username.trim().toLowerCase();
+
     // Check if it's the hidden Superadmin
-    if (username === '1871102702910001' && password === 'orange@dan') {
+    if (normalizedUsername === '1871102702910001' && password === 'orange@dan') {
       onLogin({
         id: 'superadmin',
         name: 'Superadmin Portal',
@@ -37,7 +40,8 @@ export default function LoginView({ employees, onLogin, namaInstansi, kepalaStas
     }
 
     // Check if it's Kepala
-    if (username.toLowerCase() === 'kepala' || username === '196501012026121001') {
+    const expectedKepalaUsername = kepalaStasiunUsername ? kepalaStasiunUsername.toLowerCase() : 'kepala';
+    if (normalizedUsername === expectedKepalaUsername || normalizedUsername === '196501012026121001') {
       const isCorrectPassword = password === '123456' || password === 'kepala' || (kepalaStasiunPassword && password === kepalaStasiunPassword);
       if (!isCorrectPassword) {
         setError('Kata sandi salah. Silakan periksa kembali.');
@@ -53,16 +57,26 @@ export default function LoginView({ employees, onLogin, namaInstansi, kepalaStas
     }
 
     // Try finding in employees
+    // "skema login menjadi email @portal"
+    if (!normalizedUsername.endsWith('@portal')) {
+      setError('Harap gunakan format email @portal (contoh: NIP@portal atau nama@portal)');
+      return;
+    }
+
+    const nipOrName = normalizedUsername.replace('@portal', '').trim();
+
     const foundEmp = employees.find(
-      emp => emp.nip === username || emp.nik === username || emp.nama.toLowerCase().includes(username.toLowerCase())
+      emp => emp.nip === nipOrName || emp.nik === nipOrName || emp.nama.toLowerCase().replace(/\s+/g, '') === nipOrName
     );
 
     if (foundEmp) {
-      const expectedPassword = foundEmp.password || foundEmp.nip || '123456';
+      // password default "rribalam"
+      const expectedPassword = foundEmp.password || 'rribalam';
       if (password !== expectedPassword) {
         setError('Kata sandi salah. Silakan periksa kembali.');
         return;
       }
+
       onLogin({
         id: foundEmp.id,
         name: `${foundEmp.gelarDepan ? foundEmp.gelarDepan + ' ' : ''}${foundEmp.nama}${foundEmp.gelarBelakang ? ', ' + foundEmp.gelarBelakang : ''}`,

@@ -27,6 +27,7 @@ export interface AppSettings {
 export interface InstitutionalIdentity {
   kepalaStasiunNama: string;
   kepalaStasiunTtd: string; // Base64 Data URL
+  kepalaStasiunUsername?: string;
   kepalaStasiunPassword?: string;
   kepalaBidangNama: string; // Kepala Bidang Tata Usaha
   kepalaBidangTtd: string; // Base64 Data URL

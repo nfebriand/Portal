@@ -680,14 +680,6 @@ export default function App() {
         setAgreements(initialCascaded);
 
         // Mirror locally for instant loading and reliability
-        localStorage.setItem('e_station_employees', JSON.stringify(migratedEmployees));
-        localStorage.setItem('e_station_settings', JSON.stringify(fireSettings));
-        localStorage.setItem('e_station_identity', JSON.stringify(fireIdentity));
-        localStorage.setItem('e_station_notifications', JSON.stringify(fireNotifications));
-        localStorage.setItem('e_station_contracts', JSON.stringify(fireContracts));
-        localStorage.setItem('e_station_reporter_targets', JSON.stringify(fireTargets));
-        localStorage.setItem('e_station_news_reports', JSON.stringify(fireReports));
-        localStorage.setItem('e_station_agreements', JSON.stringify(initialCascaded));
 
       } catch (err) {
         console.error("Critical error during cloud sync:", err);
@@ -701,19 +693,16 @@ export default function App() {
   // Sync helpers
   const handleUpdateEmployees = async (newEmployees: Employee[]) => {
     setEmployees(newEmployees);
-    localStorage.setItem('e_station_employees', JSON.stringify(newEmployees));
     await saveCollectionList('employees', newEmployees);
   };
 
   const handleUpdateSettings = async (newSettings: AppSettings) => {
     setSettings(newSettings);
-    localStorage.setItem('e_station_settings', JSON.stringify(newSettings));
     await saveDocument('settings', 'current', newSettings);
   };
 
   const handleUpdateIdentity = async (newIdentity: InstitutionalIdentity) => {
     setIdentity(newIdentity);
-    localStorage.setItem('e_station_identity', JSON.stringify(newIdentity));
     await saveDocument('identity', 'current', newIdentity);
 
     // Synchronize active session if logged in as Kepala
@@ -859,14 +848,6 @@ export default function App() {
       setAgreements(data.agreements);
 
       // Save to localStorage backups
-      localStorage.setItem('e_station_employees', JSON.stringify(data.employees));
-      localStorage.setItem('e_station_settings', JSON.stringify(data.settings));
-      localStorage.setItem('e_station_identity', JSON.stringify(data.identity));
-      localStorage.setItem('e_station_notifications', JSON.stringify(data.notifications));
-      localStorage.setItem('e_station_contracts', JSON.stringify(data.contracts));
-      localStorage.setItem('e_station_reporter_targets', JSON.stringify(data.reporterTargets));
-      localStorage.setItem('e_station_news_reports', JSON.stringify(data.newsReports));
-      localStorage.setItem('e_station_agreements', JSON.stringify(data.agreements));
 
       // Check current session user
       const currentLoggedIn = localStorage.getItem('swara_current_user');
@@ -893,25 +874,21 @@ export default function App() {
 
   const handleUpdateNotifications = async (newNotifs: CriticalNotification[]) => {
     setNotifications(newNotifs);
-    localStorage.setItem('e_station_notifications', JSON.stringify(newNotifs));
     await saveCollectionList('notifications', newNotifs);
   };
 
   const handleUpdateAgreements = async (newAgs: PerformanceAgreement[]) => {
     const cascaded = recalculateCascade(newAgs, contracts, newsReports, reporterTargets, employees);
     setAgreements(cascaded);
-    localStorage.setItem('e_station_agreements', JSON.stringify(cascaded));
     await saveCollectionList('agreements', cascaded);
   };
 
   const handleUpdateContracts = async (newContracts: CooperationContract[]) => {
     setContracts(newContracts);
-    localStorage.setItem('e_station_contracts', JSON.stringify(newContracts));
     
     // Auto cascade PNBP totals up to the agreements
     const cascaded = recalculateCascade(agreements, newContracts, newsReports, reporterTargets, employees);
     setAgreements(cascaded);
-    localStorage.setItem('e_station_agreements', JSON.stringify(cascaded));
 
     await saveCollectionList('contracts', newContracts);
     await saveCollectionList('agreements', cascaded);
@@ -919,11 +896,9 @@ export default function App() {
 
   const handleUpdateReporterTargets = async (newTargets: ReporterTarget[]) => {
     setReporterTargets(newTargets);
-    localStorage.setItem('e_station_reporter_targets', JSON.stringify(newTargets));
     
     const cascaded = recalculateCascade(agreements, contracts, newsReports, newTargets, employees);
     setAgreements(cascaded);
-    localStorage.setItem('e_station_agreements', JSON.stringify(cascaded));
 
     await saveCollectionList('reporterTargets', newTargets);
     await saveCollectionList('agreements', cascaded);
@@ -931,11 +906,9 @@ export default function App() {
 
   const handleUpdateNewsReports = async (newReports: NewsReport[]) => {
     setNewsReports(newReports);
-    localStorage.setItem('e_station_news_reports', JSON.stringify(newReports));
     
     const cascaded = recalculateCascade(agreements, contracts, newReports, reporterTargets, employees);
     setAgreements(cascaded);
-    localStorage.setItem('e_station_agreements', JSON.stringify(cascaded));
 
     await saveCollectionList('newsReports', newReports);
     await saveCollectionList('agreements', cascaded);
@@ -956,7 +929,6 @@ export default function App() {
     if (window.confirm("Apakah Anda yakin ingin menghapus data pegawai ini?")) {
       const updated = employees.filter(e => e.id !== id);
       setEmployees(updated);
-      localStorage.setItem('e_station_employees', JSON.stringify(updated));
       await deleteDocument('employees', id);
     }
   };
@@ -1023,6 +995,7 @@ export default function App() {
         employees={employees}
         onLogin={handleLogin}
         namaInstansi={identity.namaInstansi || settings.namaInstansi}
+        kepalaStasiunUsername={identity.kepalaStasiunUsername || 'kepala'}
         kepalaStasiunPassword={identity.kepalaStasiunPassword || 'kepala'}
         kepalaStasiunNama={identity.kepalaStasiunNama}
       />

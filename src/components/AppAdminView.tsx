@@ -80,6 +80,7 @@ export default function AppAdminView({
   // Institutional Identity Local State
   const [stasiunNama, setStasiunNama] = useState(identity.kepalaStasiunNama);
   const [stasiunTtd, setStasiunTtd] = useState(identity.kepalaStasiunTtd);
+  const [stasiunUsername, setStasiunUsername] = useState(identity.kepalaStasiunUsername || 'kepala');
   const [stasiunPassword, setStasiunPassword] = useState(identity.kepalaStasiunPassword || 'kepala');
 
   const [bidangNama, setBidangNama] = useState(identity.kepalaBidangNama);
@@ -537,6 +538,7 @@ export default function AppAdminView({
       ...identity,
       kepalaStasiunNama: stasiunNama,
       kepalaStasiunTtd: stasiunTtd,
+      kepalaStasiunUsername: stasiunUsername,
       kepalaStasiunPassword: stasiunPassword,
     });
     setIsSavedKepala(true);
@@ -738,6 +740,16 @@ export default function AppAdminView({
                       value={stasiunNama}
                       onChange={(e) => setStasiunNama(e.target.value)}
                       placeholder="Budi Rahardjo, M.Sn."
+                      className="w-full bg-white border border-slate-200 focus:outline-hidden focus:ring-1 focus:ring-slate-400 rounded-lg px-2.5 py-1.5 text-xs text-slate-800 font-semibold"
+                    />
+                  </div>
+                                    <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-slate-500 uppercase">Username Akun Kepala</label>
+                    <input
+                      type="text"
+                      value={stasiunUsername}
+                      onChange={(e) => setStasiunUsername(e.target.value)}
+                      placeholder="Masukkan username"
                       className="w-full bg-white border border-slate-200 focus:outline-hidden focus:ring-1 focus:ring-slate-400 rounded-lg px-2.5 py-1.5 text-xs text-slate-800 font-semibold"
                     />
                   </div>
