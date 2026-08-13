@@ -576,7 +576,17 @@ const recalculateCascade = (
 };
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'kepegawaian' | 'aplikasi' | 'pk' | 'lpu' | 'pemberitaan' | 'tmb' | 'input-capaian-pk'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'kepegawaian' | 'aplikasi' | 'pk' | 'lpu' | 'pemberitaan' | 'tmb' | 'input-capaian-pk'>(() => {
+    const saved = localStorage.getItem('swara_current_user');
+    if (saved) {
+      try {
+        const user = JSON.parse(saved);
+        if (user.role === 'Superadmin') return 'aplikasi';
+        if (user.division === 'Tata Usaha / Umum' && user.role !== 'Kepala') return 'kepegawaian';
+      } catch (e) {}
+    }
+    return 'dashboard';
+  });
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(true);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isSyncing, setIsSyncing] = useState(true);
@@ -602,7 +612,13 @@ export default function App() {
   const handleLogin = (user: { id: string; name: string; role: 'Kepala' | 'Staff' | 'Ketua Bidang' | 'Superadmin'; division?: string; photo?: string }) => {
     setCurrentUser(user);
     localStorage.setItem('swara_current_user', JSON.stringify(user));
-    setActiveTab('dashboard');
+    if (user.role === 'Superadmin') {
+      setActiveTab('aplikasi');
+    } else if (user.division === 'Tata Usaha / Umum') {
+      setActiveTab('kepegawaian');
+    } else {
+      setActiveTab('dashboard');
+    }
   };
 
   const handleLogout = () => {
@@ -1061,6 +1077,7 @@ export default function App() {
             <span className="text-[10px] bg-rose-900/80 text-rose-200 px-2 py-0.5 rounded font-mono">Exit</span>
           </button>
 
+          {currentUser.role !== 'Superadmin' && (
           <button
             onClick={() => setActiveTab('dashboard')}
             className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-semibold tracking-wide transition-all ${
@@ -1072,9 +1089,10 @@ export default function App() {
             <LayoutDashboard className="w-4 h-4" />
             {currentUser.role === 'Kepala' ? 'Capaian Indikator Kinerja Program' : 'Dashboard Bidang'}
           </button>
+          )}
 
           {/* Administrasi Kepegawaian (Kepala or Tata Usaha) */}
-          {currentUser.role !== 'Kepala' && (currentUser.role === 'Kepala' || currentUser.division === 'Tata Usaha / Umum') && (
+          {currentUser.role !== 'Superadmin' && currentUser.role !== 'Kepala' && currentUser.division === 'Tata Usaha / Umum' && (
             <button
               onClick={() => setActiveTab('kepegawaian')}
               className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-semibold tracking-wide transition-all ${
@@ -1133,7 +1151,8 @@ export default function App() {
             </button>
           )}
 
-          {/* Pemberitaan & Media Baru (Accessible to all roles and divisions) */}
+          {/* Pemberitaan & Media Baru */}
+          {currentUser.role !== 'Superadmin' && (
           <button
             onClick={() => setActiveTab('pemberitaan')}
             className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-semibold tracking-wide transition-all ${
@@ -1145,9 +1164,10 @@ export default function App() {
             <Share2 className="w-4 h-4" />
             Produksi Siaran & Berita
           </button>
+          )}
 
           {/* Dashboard TMB */}
-          {currentUser.role !== 'Kepala' && (currentUser.role === 'Kepala' || currentUser.role === 'Superadmin' || currentUser.division === 'Teknik' || currentUser.division === 'Teknologi & Media Baru') && (
+          {currentUser.role !== 'Superadmin' && currentUser.role !== 'Kepala' && (currentUser.division === 'Teknik' || currentUser.division === 'Teknologi & Media Baru') && (
             <button
               onClick={() => setActiveTab('tmb')}
               className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-semibold tracking-wide transition-all ${
@@ -1235,6 +1255,7 @@ export default function App() {
             <span className="text-[10px] bg-rose-900 text-rose-200 px-2 py-0.5 rounded font-mono">Exit</span>
           </button>
 
+          {currentUser.role !== 'Superadmin' && (
           <button
             onClick={() => { setActiveTab('dashboard'); setIsMobileMenuOpen(false); }}
             className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-semibold tracking-wide transition-colors ${
@@ -1244,8 +1265,9 @@ export default function App() {
             <LayoutDashboard className="w-4 h-4" />
             {currentUser.role === 'Kepala' ? 'Capaian Indikator Kinerja Program' : 'Dashboard Bidang'}
           </button>
+          )}
 
-          {currentUser.role !== 'Kepala' && (currentUser.role === 'Kepala' || currentUser.division === 'Tata Usaha / Umum') && (
+          {currentUser.role !== 'Superadmin' && currentUser.role !== 'Kepala' && currentUser.division === 'Tata Usaha / Umum' && (
             <button
               onClick={() => { setActiveTab('kepegawaian'); setIsMobileMenuOpen(false); }}
               className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-semibold tracking-wide transition-colors ${
@@ -1295,7 +1317,8 @@ export default function App() {
             </button>
           )}
 
-          {/* Pemberitaan & Media Baru (Accessible to all roles and divisions) */}
+          {/* Pemberitaan & Media Baru */}
+          {currentUser.role !== 'Superadmin' && (
           <button
             onClick={() => { setActiveTab('pemberitaan'); setIsMobileMenuOpen(false); }}
             className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-semibold tracking-wide transition-colors ${
@@ -1305,9 +1328,10 @@ export default function App() {
             <Share2 className="w-4 h-4" />
             Produksi Siaran & Berita
           </button>
+          )}
 
           {/* Dashboard TMB */}
-          {currentUser.role !== 'Kepala' && (currentUser.role === 'Kepala' || currentUser.role === 'Superadmin' || currentUser.division === 'Teknik' || currentUser.division === 'Teknologi & Media Baru') && (
+          {currentUser.role !== 'Superadmin' && currentUser.role !== 'Kepala' && (currentUser.division === 'Teknik' || currentUser.division === 'Teknologi & Media Baru') && (
             <button
               onClick={() => { setActiveTab('tmb'); setIsMobileMenuOpen(false); }}
               className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-semibold tracking-wide transition-colors ${
