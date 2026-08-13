@@ -21,11 +21,7 @@ import {
 
 // Helper to identify if the app is currently running in a development/preview environment
 export function isDevelopmentEnvironment(): boolean {
-  if (typeof window !== 'undefined' && window.location) {
-    const hostname = window.location.hostname;
-    // Development/preview URLs contain '-dev-' or run on localhost
-    return hostname.includes('-dev-') || hostname === 'localhost' || hostname === '127.0.0.1';
-  }
+  // Always use the real Firestore database
   return false;
 }
 

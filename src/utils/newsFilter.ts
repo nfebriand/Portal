@@ -92,6 +92,16 @@ export function isEligibleNewsIndicator(indicator?: { indicatorName?: string; me
   ) {
     return true;
   }
+  
+  // 5. Total Pemberitaan / Berita Lainnya (To align with getObjectiveCategory)
+  if (
+    nameLower.includes('berita') || 
+    nameLower.includes('konten') || 
+    nameLower.includes('rilis') || 
+    unitLower.includes('berita')
+  ) {
+    return true;
+  }
 
   return false;
 }
