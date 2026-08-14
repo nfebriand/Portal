@@ -60,6 +60,7 @@ export interface PerformanceIndicator {
   weight: number; // Bobot percentage, e.g. 25
   achievement: number; // Realisasi, e.g. 90
   parentIndicatorId?: string; // Links back to parent target for cascading traceability
+  supportedByKMB?: boolean; // Tautan dukungan oleh Tim Konten Media Baru (KMB)
   comments?: IndicatorComment[];
   trajectory?: number[]; // Proyeksi target per bulan (12 bulan, indeks 0 = Jan, 11 = Des)
   trajectoryType?: 'cumulative' | 'constant'; // Trajectory accumulation type: cumulative or constant/average

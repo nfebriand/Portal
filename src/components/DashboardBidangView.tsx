@@ -1,3 +1,4 @@
+import React from 'react';
 import { getGaugeColorByPercentage } from "../utils/colors";
 import { useMemo, useState } from 'react';
 import { ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
@@ -27,7 +28,8 @@ import {
   GraduationCap,
   Layers,
   Eye,
-  BarChart3
+  BarChart3,
+  Sparkles
 } from 'lucide-react';
 import NewsDetailModal from './NewsDetailModal';
 import { filterNewsForIndicator, isEligibleNewsIndicator } from '../utils/newsFilter';
@@ -71,6 +73,46 @@ export default function DashboardBidangView({
     unit: string;
   } | null>(null);
   const [newAchievementVal, setNewAchievementVal] = useState('');
+
+
+  // KMB Shared Indicators Calculation
+  const kmbSharedIndicators = React.useMemo(() => {
+    let indicators: any[] = [];
+    let sum = 0;
+    
+    // Group support by division
+    let siaranCount = 0;
+    let siaranSum = 0;
+    let beritaCount = 0;
+    let beritaSum = 0;
+
+    agreements.forEach(ag => {
+      if (!ag.objectives) return;
+      ag.objectives.forEach(obj => {
+        if (obj.supportedByKMB) {
+          const targetVal = parseFloat(obj.target) || 100;
+          const pct = targetVal > 0 ? Math.min(100, Math.round((obj.achievement / targetVal) * 100)) : 0;
+          
+          indicators.push({ ...obj, _pct: pct, division: ag.level });
+          sum += pct;
+
+          if (ag.level.includes('Siaran')) {
+            siaranCount++;
+            siaranSum += pct;
+          } else if (ag.level.includes('Pemberitaan')) {
+            beritaCount++;
+            beritaSum += pct;
+          }
+        }
+      });
+    });
+
+    const average = indicators.length > 0 ? Math.round(sum / indicators.length) : 0;
+    const siaranAverage = siaranCount > 0 ? Math.round(siaranSum / siaranCount) : 0;
+    const beritaAverage = beritaCount > 0 ? Math.round(beritaSum / beritaCount) : 0;
+
+    return { indicators, average, siaranAverage, beritaAverage };
+  }, [agreements]);
 
   // Mode visualisasi target PK per divisi
   const [visualizerMode, setVisualizerMode] = useState<'auto' | 'akumulatif' | 'triwulanan' | 'bulanan_tahunan' | 'gauge'>('gauge');
@@ -835,6 +877,116 @@ export default function DashboardBidangView({
 
           {/* Overview Division Metrics Rows */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            
+          {/* SIMULASI OPSI 1: KMB SHARED INDICATORS */}
+          {activeDivision === 'Konten Media Baru' && (
+            <div className="bg-gradient-to-r from-slate-950 via-slate-900 to-slate-950 p-6 rounded-2xl border border-indigo-500/30 shadow-xl mb-6 relative overflow-hidden">
+              <div className="absolute -top-24 -right-24 w-48 h-48 bg-indigo-500/20 rounded-full blur-3xl" />
+              <div className="absolute -bottom-24 -left-24 w-48 h-48 bg-pink-500/20 rounded-full blur-3xl" />
+              
+              <div className="flex flex-col md:flex-row items-center gap-8 relative z-10">
+                <div className="flex-1 space-y-4">
+                  <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-indigo-500/20 border border-indigo-500/30 text-indigo-300 text-[10px] font-bold uppercase tracking-wider">
+                    <Sparkles className="w-3.5 h-3.5" />
+                    Simulasi Sistem: Opsi 1 (Shared Indicators)
+                  </div>
+                  <div>
+                    <h2 className="text-xl font-black text-white tracking-tight">Kalkulasi Capaian Otomatis KMB</h2>
+                    <p className="text-xs text-slate-400 mt-1 leading-relaxed max-w-xl">
+                      Capaian kinerja KMB ditarik otomatis dari persentase indikator Bidang Siaran & Pemberitaan yang memiliki tag <strong className="text-indigo-300">"Didukung oleh KMB"</strong>.
+                    </p>
+                  </div>
+                  
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
+                    <div className="bg-slate-800/50 border border-slate-700/50 p-3 rounded-xl">
+                      <div className="flex justify-between items-center mb-2">
+                        <span className="text-[10px] font-bold text-slate-400 uppercase">Kontribusi Siaran</span>
+                        <span className="text-xs font-black text-emerald-400">{kmbSharedIndicators.siaranAverage}%</span>
+                      </div>
+                      <div className="text-xs text-slate-300 font-medium">Video Podcast, Multiplatform RRI</div>
+                    </div>
+                    <div className="bg-slate-800/50 border border-slate-700/50 p-3 rounded-xl">
+                      <div className="flex justify-between items-center mb-2">
+                        <span className="text-[10px] font-bold text-slate-400 uppercase">Kontribusi Berita</span>
+                        <span className="text-xs font-black text-emerald-400">{kmbSharedIndicators.beritaAverage}%</span>
+                      </div>
+                      <div className="text-xs text-slate-300 font-medium">Infografis Medsos, KBRN Online</div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="shrink-0 w-48 flex flex-col items-center">
+                  <div className="w-40 h-40 relative">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Pie
+                          data={[
+                            { name: 'Capaian', value: kmbSharedIndicators.average },
+                            { name: 'Sisa', value: 100 - kmbSharedIndicators.average }
+                          ]}
+                          cx="50%"
+                          cy="50%"
+                          startAngle={180}
+                          endAngle={0}
+                          innerRadius={50}
+                          outerRadius={70}
+                          dataKey="value"
+                          stroke="none"
+                          cornerRadius={5}
+                        >
+                          <Cell fill="#6366f1" />
+                          <Cell fill="#1e293b" />
+                        </Pie>
+                      </PieChart>
+                    </ResponsiveContainer>
+                    <div className="absolute inset-0 flex flex-col items-center justify-center -mt-6">
+                      <span className="text-3xl font-black text-white font-mono">{kmbSharedIndicators.average}<span className="text-sm text-slate-400">%</span></span>
+                    </div>
+                    <div className="absolute bottom-4 inset-x-0 text-center">
+                      <span className="text-[10px] font-bold text-indigo-400 uppercase tracking-widest bg-slate-900/80 px-2 py-0.5 rounded-full border border-indigo-500/20">Capaian Agregat</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* DAFTAR INDIKATOR KMB */}
+              {kmbSharedIndicators.indicators.length > 0 && (
+                <div className="mt-6 pt-6 border-t border-slate-700/50 relative z-10">
+                  <h3 className="text-xs font-bold text-slate-300 uppercase tracking-widest mb-3 flex items-center gap-1.5">
+                    <CheckCircle2 className="w-3.5 h-3.5 text-indigo-400" />
+                    Rincian Ketercapaian Indikator
+                  </h3>
+                  <div className="space-y-2">
+                    {kmbSharedIndicators.indicators.map((ind, idx) => (
+                      <div key={idx} className="bg-slate-800/40 border border-slate-700/50 hover:bg-slate-800/60 transition-colors rounded-lg p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                        <div className="flex-1 min-w-0">
+                           <div className="flex items-center gap-2 mb-1.5">
+                             <span className="text-[9px] font-black uppercase bg-indigo-500/20 text-indigo-300 px-1.5 py-0.5 rounded border border-indigo-500/30 tracking-wider">
+                               {ind.division}
+                             </span>
+                           </div>
+                           <p className="text-xs font-semibold text-slate-200 line-clamp-2 leading-relaxed">{ind.indicatorName}</p>
+                        </div>
+                        <div className="shrink-0 sm:text-right flex sm:block items-center justify-between">
+                          <p className="text-[10px] text-slate-400 sm:mb-1 font-mono">
+                            {ind.achievement} / {ind.target} <span className="text-[9px]">{ind.unit}</span>
+                          </p>
+                          <div className="flex items-center gap-2">
+                            <div className="w-20 sm:w-16 h-1.5 bg-slate-700 rounded-full overflow-hidden">
+                              <div className="h-full bg-emerald-400 rounded-full" style={{ width: `${Math.min(100, ind._pct)}%` }} />
+                            </div>
+                            <span className="text-xs font-black text-white font-mono w-8 text-right">{ind._pct}%</span>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+
             {/* Metric 1 */}
             <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-xs flex items-center justify-between">
               <div className="space-y-1">

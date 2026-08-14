@@ -461,13 +461,18 @@ export default function DashboardView({
     });
     const tmbPct = tmbObjectives.length > 0 ? Math.round(tmbSum / tmbObjectives.length) : 0;
 
-    // KMB
-    const kmbAg = agreements.find(ag => ag.id === 'pk-default-katim-konten' || ag.level.includes('Konten Media Baru'));
-    const kmbObjectives = kmbAg ? kmbAg.objectives : [];
+    // KMB (Shared Indicators - Option 1)
+    let kmbObjectives: any[] = [];
     let kmbSum = 0;
-    kmbObjectives.forEach(obj => {
-      const targetVal = parseFloat(obj.target) || 100;
-      kmbSum += targetVal > 0 ? (obj.achievement / targetVal) * 100 : 0;
+    agreements.forEach(ag => {
+      if (!ag.objectives) return;
+      ag.objectives.forEach(obj => {
+        if (obj.supportedByKMB) {
+          kmbObjectives.push(obj);
+          const targetVal = parseFloat(obj.target) || 100;
+          kmbSum += targetVal > 0 ? (obj.achievement / targetVal) * 100 : 0;
+        }
+      });
     });
     const kmbPct = kmbObjectives.length > 0 ? Math.round(kmbSum / kmbObjectives.length) : 0;
 
@@ -696,6 +701,19 @@ export default function DashboardView({
     const lpuAg = findActiveAg('Ketua Tim Layanan Pengembangan Usaha');
     const tmbAg = findActiveAg('Ketua Tim Teknologi dan Media Baru');
     const kmbAg = findActiveAg('Ketua Tim Konten Media Baru');
+    // Calculate shared KMB percentage for Capaian PK Bidang section
+    let sharedKmbObjectives: any[] = [];
+    let sharedKmbSum = 0;
+    currentPeriodAgreements.forEach(ag => {
+      if (!ag.objectives) return;
+      ag.objectives.forEach(obj => {
+        if (obj.supportedByKMB) {
+          sharedKmbObjectives.push(obj);
+          sharedKmbSum += obj._computedPct !== undefined ? obj._computedPct : 0;
+        }
+      });
+    });
+    const sharedKmbPct = sharedKmbObjectives.length > 0 ? Math.round(sharedKmbSum / sharedKmbObjectives.length) : 0;
     const siaranAg = findActiveAg('Ketua Tim Siaran');
     const tuAg = findActiveAg('Kabid Tata Usaha');
 
@@ -749,10 +767,10 @@ export default function DashboardView({
         key: 'Konten Media Baru',
         name: 'Konten Media Baru (KMB)',
         level: 'Ketua Tim Konten Media Baru',
-        agreement: kmbAg,
-        pic: kmbAg?.assignedToName || 'Ketua Tim KMB',
-        status: kmbAg?.status || 'Draft',
-        percentage: getAvgPercentage(kmbAg),
+        agreement: kmbAg, // Kept for reference but not strictly needed for percentage
+        pic: kmbAg?.assignedToName || 'Siti Rahmawati, S.I.Kom.',
+        status: sharedKmbObjectives.length > 0 ? 'Aktif (Agregasi)' : 'Menunggu Dukungan',
+        percentage: sharedKmbPct,
         description: 'Kreasi konten visual kreatif, pengelolaan media sosial, dan engagement publik.',
         colorClass: 'text-pink-500 font-bold',
         iconName: 'Konten Media Baru'
