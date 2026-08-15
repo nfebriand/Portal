@@ -590,14 +590,80 @@ export default function App() {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(true);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isSyncing, setIsSyncing] = useState(true);
-  const [employees, setEmployees] = useState<Employee[]>([]);
-  const [settings, setSettings] = useState<AppSettings>(INITIAL_SETTINGS);
-  const [identity, setIdentity] = useState<InstitutionalIdentity>(INITIAL_IDENTITY);
-  const [notifications, setNotifications] = useState<CriticalNotification[]>([]);
-  const [agreements, setAgreements] = useState<PerformanceAgreement[]>([]);
-  const [contracts, setContracts] = useState<CooperationContract[]>([]);
-  const [reporterTargets, setReporterTargets] = useState<ReporterTarget[]>([]);
-  const [newsReports, setNewsReports] = useState<NewsReport[]>([]);
+  const [employees, setEmployees] = useState<Employee[]>(() => {
+    try {
+      const cached = localStorage.getItem('swara_cache_col_employees');
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch (e) {}
+    return INITIAL_EMPLOYEES;
+  });
+  const [settings, setSettings] = useState<AppSettings>(() => {
+    try {
+      const cached = localStorage.getItem('swara_cache_doc_settings_current');
+      if (cached) return JSON.parse(cached);
+    } catch (e) {}
+    return INITIAL_SETTINGS;
+  });
+  const [identity, setIdentity] = useState<InstitutionalIdentity>(() => {
+    try {
+      const cached = localStorage.getItem('swara_cache_doc_identity_current');
+      if (cached) return JSON.parse(cached);
+    } catch (e) {}
+    return INITIAL_IDENTITY;
+  });
+  const [notifications, setNotifications] = useState<CriticalNotification[]>(() => {
+    try {
+      const cached = localStorage.getItem('swara_cache_col_notifications');
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (Array.isArray(parsed)) return parsed;
+      }
+    } catch (e) {}
+    return [];
+  });
+  const [agreements, setAgreements] = useState<PerformanceAgreement[]>(() => {
+    try {
+      const cached = localStorage.getItem('swara_cache_col_agreements');
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch (e) {}
+    return INITIAL_AGREEMENTS;
+  });
+  const [contracts, setContracts] = useState<CooperationContract[]>(() => {
+    try {
+      const cached = localStorage.getItem('swara_cache_col_contracts');
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (Array.isArray(parsed)) return parsed;
+      }
+    } catch (e) {}
+    return [];
+  });
+  const [reporterTargets, setReporterTargets] = useState<ReporterTarget[]>(() => {
+    try {
+      const cached = localStorage.getItem('swara_cache_col_reporterTargets');
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (Array.isArray(parsed)) return parsed;
+      }
+    } catch (e) {}
+    return [];
+  });
+  const [newsReports, setNewsReports] = useState<NewsReport[]>(() => {
+    try {
+      const cached = localStorage.getItem('swara_cache_col_newsReports');
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch (e) {}
+    return [];
+  });
   const [currentUser, setCurrentUser] = useState<{
     id: string;
     name: string;
@@ -642,37 +708,51 @@ export default function App() {
         let fireAgreements: PerformanceAgreement[];
 
         if (!seeded) {
-          // First time database initialization: seed empty arrays for dynamic entities
-          fireEmployees = [];
+          // Check if local cache has any newsReports/contracts/etc. so we never accidentally overwrite them
+          let localReports: NewsReport[] = [];
+          try {
+            const cached = localStorage.getItem('swara_cache_col_newsReports');
+            if (cached) {
+              const parsed = JSON.parse(cached);
+              if (Array.isArray(parsed) && parsed.length > 0) localReports = parsed;
+            }
+          } catch (e) {}
+
+          // First time database initialization: seed arrays for dynamic entities with INITIAL values
+          fireEmployees = INITIAL_EMPLOYEES;
           fireSettings = INITIAL_SETTINGS;
           fireIdentity = INITIAL_IDENTITY;
           fireNotifications = [];
           fireContracts = [];
           fireTargets = [];
-          fireReports = [];
-          fireAgreements = [];
+          fireReports = localReports;
+          fireAgreements = INITIAL_AGREEMENTS;
 
-          await saveCollectionList('employees', []);
+          await saveCollectionList('employees', INITIAL_EMPLOYEES);
           await saveDocument('settings', 'current', INITIAL_SETTINGS);
           await saveDocument('identity', 'current', INITIAL_IDENTITY);
           await saveCollectionList('notifications', []);
           await saveCollectionList('contracts', []);
           await saveCollectionList('reporterTargets', []);
-          await saveCollectionList('newsReports', []);
-          await saveCollectionList('agreements', []);
+          if (localReports.length > 0) {
+            await saveCollectionList('newsReports', localReports);
+          } else {
+            await saveCollectionList('newsReports', []);
+          }
+          await saveCollectionList('agreements', INITIAL_AGREEMENTS);
           
           await markSystemSeeded();
         } else {
           // Database is already seeded. Fetch current state. If a collection is emptied
           // by the user, keep it empty instead of falling back to default dummy data.
-          fireEmployees = await fetchCollection<Employee>('employees', []);
+          fireEmployees = await fetchCollection<Employee>('employees', INITIAL_EMPLOYEES);
           fireSettings = await fetchDocument<AppSettings>('settings', 'current', INITIAL_SETTINGS);
           fireIdentity = await fetchDocument<InstitutionalIdentity>('identity', 'current', INITIAL_IDENTITY);
           fireNotifications = await fetchCollection<CriticalNotification>('notifications', []);
           fireContracts = await fetchCollection<CooperationContract>('contracts', []);
           fireTargets = await fetchCollection<ReporterTarget>('reporterTargets', []);
           fireReports = await fetchCollection<NewsReport>('newsReports', []);
-          fireAgreements = await fetchCollection<PerformanceAgreement>('agreements', []);
+          fireAgreements = await fetchCollection<PerformanceAgreement>('agreements', INITIAL_AGREEMENTS);
         }
 
         // Migrate employee division field values if needed

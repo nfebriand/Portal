@@ -1,0 +1,21 @@
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+
+                      </div>
+        </div>
+      )}
+              </>
+      )}
+      {/* Delegation Form Modal */}
+      {delegatingIndicator && (
+        <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-xs flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-3xl border border-slate-100 max-w-lg w-full overflow-hidden shadow-2xl animate-in fade-in zoom-in-95 duration-150 text-slate-800">
+            {/* Modal Header */}
+            <div className="bg-slate-900 p-5 text-white flex justify-between items-start">
+              <div className="space-y-1">
+                <span className="text-[9px] font-bold font-mono tracking-wider text-indigo-400 uppercase">PENDELEGASIAN INDIKATOR</span>

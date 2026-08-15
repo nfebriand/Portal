@@ -25,36 +25,78 @@ export function isDevelopmentEnvironment(): boolean {
   return false;
 }
 
-// Generic fetch array collection
+/**
+ * Recursively cleans an object for Firestore and localStorage by removing undefined fields,
+ * functions, or unsupported object prototypes that Firestore throws errors on.
+ */
+export function cleanObjectForFirestore<T>(obj: T): T {
+  if (obj === null || obj === undefined) {
+    return null as any;
+  }
+  if (Array.isArray(obj)) {
+    return obj.map(item => cleanObjectForFirestore(item)) as any;
+  }
+  if (typeof obj === 'object') {
+    const cleaned: any = {};
+    for (const [key, value] of Object.entries(obj)) {
+      if (value !== undefined) {
+        cleaned[key] = cleanObjectForFirestore(value);
+      }
+    }
+    return cleaned;
+  }
+  return obj;
+}
+
+// Generic fetch array collection with dual-layer Firestore + Local Cache recovery
 export async function fetchCollection<T extends { id: string }>(collectionName: string, fallbackData: T[]): Promise<T[]> {
   const cacheKey = `swara_cache_col_${collectionName}`;
 
   try {
     const colRef = collection(db, collectionName);
     const snapshot = await getDocs(colRef);
+    
     if (snapshot.empty) {
       // Check local cache first
       const cached = localStorage.getItem(cacheKey);
       if (cached !== null) {
         try {
-          return JSON.parse(cached) as T[];
+          const parsed = JSON.parse(cached) as T[];
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            // Re-sync to Firestore in background so Firestore gets populated
+            saveCollectionList(collectionName, parsed).catch(err => 
+              console.warn(`Background re-sync for ${collectionName}:`, err)
+            );
+            return parsed;
+          }
         } catch (e) {}
       }
       return fallbackData;
     }
+
     const data: T[] = [];
-    snapshot.forEach((doc) => {
-      data.push(doc.data() as T);
+    snapshot.forEach((docSnap) => {
+      const docData = docSnap.data();
+      if (docData && typeof docData === 'object') {
+        data.push(docData as T);
+      }
     });
-    // Cache for offline use
-    localStorage.setItem(cacheKey, JSON.stringify(data));
+
+    // Cache locally for instant offline/reload access
+    try {
+      localStorage.setItem(cacheKey, JSON.stringify(data));
+    } catch (e) {}
+
     return data;
   } catch (error: any) {
     console.warn(`Fetch notice for ${collectionName} (using offline cache):`, error?.message || error);
     const cached = localStorage.getItem(cacheKey);
     if (cached !== null) {
       try {
-        return JSON.parse(cached) as T[];
+        const parsed = JSON.parse(cached) as T[];
+        if (Array.isArray(parsed)) {
+          return parsed;
+        }
       } catch (e) {}
     }
     return fallbackData;
@@ -70,7 +112,9 @@ export async function fetchDocument<T>(collectionName: string, docId: string, fa
     const docSnap = await getDoc(docRef);
     if (docSnap.exists()) {
       const data = docSnap.data() as T;
-      localStorage.setItem(cacheKey, JSON.stringify(data));
+      try {
+        localStorage.setItem(cacheKey, JSON.stringify(data));
+      } catch (e) {}
       return data;
     } else {
       const cached = localStorage.getItem(cacheKey);
@@ -93,68 +137,105 @@ export async function fetchDocument<T>(collectionName: string, docId: string, fa
   }
 }
 
-// Save document helper
+// Save document helper with auto-clean and instant local backup
 export async function saveDocument(collectionName: string, docId: string, data: any): Promise<void> {
   const cacheKey = `swara_cache_doc_${collectionName}_${docId}`;
-  localStorage.setItem(cacheKey, JSON.stringify(data));
+  const cleaned = cleanObjectForFirestore(data);
+
+  try {
+    localStorage.setItem(cacheKey, JSON.stringify(cleaned));
+  } catch (e) {}
 
   try {
     const docRef = doc(db, collectionName, docId);
-    await setDoc(docRef, data);
+    await setDoc(docRef, cleaned);
   } catch (error: any) {
     console.warn(`Saved ${collectionName}/${docId} to local cache (offline sync pending):`, error?.message || error);
   }
 }
 
-// Save list (bulk write) helper with automatic deletion of removed items
+// Save list (bulk write) helper with automatic sanitization, chunking (<= 350 ops/batch), and deletion
 export async function saveCollectionList<T extends { id: string }>(collectionName: string, list: T[]): Promise<void> {
   const cacheKey = `swara_cache_col_${collectionName}`;
-  localStorage.setItem(cacheKey, JSON.stringify(list));
+  const safeList = Array.isArray(list) ? list : [];
+  const cleanedList = safeList.map(item => cleanObjectForFirestore(item));
 
+  // 1. Immediately mirror to local cache to ensure zero data loss on browser refresh
+  try {
+    localStorage.setItem(cacheKey, JSON.stringify(cleanedList));
+  } catch (e) {
+    console.warn(`LocalStorage write warning for ${collectionName}:`, e);
+  }
+
+  // 2. Persist to Firestore with chunked batches (Firestore maximum is 500 operations per batch)
   try {
     const colRef = collection(db, collectionName);
     const snapshot = await getDocs(colRef);
-    const existingIds = snapshot.docs.map(doc => doc.id);
-    const listIds = new Set(list.map(item => item.id));
+    const existingIds = snapshot.docs.map(docSnap => docSnap.id);
+    const listIds = new Set(cleanedList.map(item => item.id));
 
-    const batch = writeBatch(db);
-    let hasOps = false;
-    
+    const operations: { type: 'delete' | 'set'; id: string; data?: any }[] = [];
+
     // Delete documents that are no longer in the list
     existingIds.forEach((id) => {
       if (!listIds.has(id)) {
-        const docRef = doc(db, collectionName, id);
-        batch.delete(docRef);
-        hasOps = true;
+        operations.push({ type: 'delete', id });
       }
     });
 
     // Write/Update current items
-    list.forEach((item) => {
-      const docRef = doc(db, collectionName, item.id);
-      batch.set(docRef, item);
-      hasOps = true;
+    cleanedList.forEach((item) => {
+      operations.push({ type: 'set', id: item.id, data: item });
     });
 
-    if (hasOps) {
+    if (operations.length === 0) return;
+
+    // Chunk writes into safe batches of 350 ops
+    const CHUNK_SIZE = 350;
+    for (let i = 0; i < operations.length; i += CHUNK_SIZE) {
+      const chunk = operations.slice(i, i + CHUNK_SIZE);
+      const batch = writeBatch(db);
+      chunk.forEach(op => {
+        const docRef = doc(db, collectionName, op.id);
+        if (op.type === 'delete') {
+          batch.delete(docRef);
+        } else {
+          batch.set(docRef, op.data);
+        }
+      });
       await batch.commit();
     }
   } catch (error: any) {
-    console.warn(`Saved ${collectionName} list to local cache (offline sync pending):`, error?.message || error);
+    console.warn(`Saved ${collectionName} list to local cache (cloud notice):`, error?.message || error);
   }
 }
 
-// System initialization status helpers to prevent re-seeding dummy data when collections are emptied
+// System initialization status helpers to prevent re-seeding dummy data when collections are emptied or populated
 export async function isSystemSeeded(): Promise<boolean> {
-  const isDev = isDevelopmentEnvironment();
-  if (isDev) {
-    const val = localStorage.getItem('dev_firestore_system_seeded');
-    return val === 'true';
-  }
-
   const localSeeded = localStorage.getItem('swara_system_seeded');
   if (localSeeded === 'true') {
     return true;
+  }
+
+  // Check if any existing collection has data in localStorage
+  const keysToCheck = [
+    'swara_cache_col_newsReports',
+    'swara_cache_col_employees',
+    'swara_cache_col_agreements',
+    'swara_cache_col_contracts',
+    'swara_cache_col_reporterTargets'
+  ];
+  for (const k of keysToCheck) {
+    const val = localStorage.getItem(k);
+    if (val) {
+      try {
+        const parsed = JSON.parse(val);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          localStorage.setItem('swara_system_seeded', 'true');
+          return true;
+        }
+      } catch (e) {}
+    }
   }
 
   try {
@@ -162,10 +243,18 @@ export async function isSystemSeeded(): Promise<boolean> {
     const isSeeded = docSnap.exists() && docSnap.data()?.seeded === true;
     if (isSeeded) {
       localStorage.setItem('swara_system_seeded', 'true');
+      return true;
     }
-    return isSeeded;
+
+    // Also check if Firestore already contains documents in employees or newsReports
+    const empSnap = await getDocs(collection(db, 'employees'));
+    if (!empSnap.empty) {
+      await markSystemSeeded();
+      return true;
+    }
+
+    return false;
   } catch (error: any) {
-    // When offline or initial check, gracefully fallback without triggering unhandled console errors
     console.warn("Firestore system init check (offline/cached fallback):", error?.message || error);
     return localSeeded === 'true';
   }
@@ -173,12 +262,6 @@ export async function isSystemSeeded(): Promise<boolean> {
 
 export async function markSystemSeeded(): Promise<void> {
   localStorage.setItem('swara_system_seeded', 'true');
-  const isDev = isDevelopmentEnvironment();
-  if (isDev) {
-    localStorage.setItem('dev_firestore_system_seeded', 'true');
-    return;
-  }
-
   try {
     await setDoc(doc(db, 'system', 'init'), { seeded: true });
   } catch (error: any) {
