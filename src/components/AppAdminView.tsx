@@ -415,7 +415,7 @@ export default function AppAdminView({
     }
   };
 
-  const handleSaveImportedNews = () => {
+  const handleSaveImportedNews = async () => {
     if (parsedNews.length === 0) return;
     if (!onUpdateNewsReports) {
       alert("Fungsi penyimpanan berita tidak tersedia.");
@@ -427,7 +427,7 @@ export default function AppAdminView({
       const existingIds = new Set(newsReports.map(r => r.id));
       const newItems = parsedNews.filter(r => !existingIds.has(r.id));
       const updatedReports = [...newItems, ...newsReports];
-      onUpdateNewsReports(updatedReports);
+      await onUpdateNewsReports(updatedReports);
       setImportSuccess(`Berhasil menambahkan ${newItems.length} data berita baru ke database Firestore! (Total data berita: ${updatedReports.length})`);
       setParsedNews([]);
       setNewsImportText('');

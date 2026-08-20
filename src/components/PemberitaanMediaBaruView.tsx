@@ -444,19 +444,19 @@ export default function PemberitaanMediaBaruView({
     }
   };
 
-  const handleSaveImportedNews = () => {
+  const handleSaveImportedNews = async () => {
     if (parsedNews.length === 0) return;
     try {
       // Append parsed news as additional data to existing news reports
       const existingIds = new Set(newsReports.map(r => r.id));
       const newItems = parsedNews.filter(r => !existingIds.has(r.id));
       const updatedReports = [...newItems, ...newsReports];
-      onUpdateNewsReports(updatedReports);
+      await onUpdateNewsReports(updatedReports);
 
       // Automatically sync and update PK monthly achievements for reporters & higher levels
       if (agreements && onUpdateAgreements) {
         const updatedAgreements = syncNewsAchievements(updatedReports, agreements, reporterTargets, employees);
-        onUpdateAgreements(updatedAgreements);
+        await onUpdateAgreements(updatedAgreements);
       }
 
       setImportSuccess(`Berhasil menambahkan ${newItems.length} data berita baru dan mengupdate capaian bulanan PK! (Total data berita: ${updatedReports.length})`);

@@ -52,32 +52,34 @@ export function cleanObjectForFirestore<T>(obj: T): T {
 export async function fetchCollection<T extends { id: string }>(collectionName: string, fallbackData: T[]): Promise<T[]> {
   const cacheKey = `swara_cache_col_${collectionName}`;
 
+  // 1. Read local cache first
+  let cachedList: T[] | null = null;
+  const cached = localStorage.getItem(cacheKey);
+  if (cached !== null) {
+    try {
+      const parsed = JSON.parse(cached) as T[];
+      if (Array.isArray(parsed)) {
+        cachedList = parsed;
+      }
+    } catch (e) {}
+  }
+
   try {
     const colRef = collection(db, collectionName);
     const snapshot = await getDocs(colRef);
     
     if (snapshot.empty) {
-      // If caller expects an empty list as fallback when unpopulated (e.g. contracts, newsReports, targets)
-      if (fallbackData.length === 0) {
-        try {
-          localStorage.setItem(cacheKey, JSON.stringify([]));
-        } catch (e) {}
-        return [];
+      // If Firestore is empty but we have local cache with items, PRESERVE and re-sync to Firestore!
+      if (cachedList && cachedList.length > 0) {
+        saveCollectionList(collectionName, cachedList).catch(err => 
+          console.warn(`Background re-sync for ${collectionName}:`, err)
+        );
+        return cachedList;
       }
 
-      // Check local cache first for initial boot
-      const cached = localStorage.getItem(cacheKey);
-      if (cached !== null) {
-        try {
-          const parsed = JSON.parse(cached) as T[];
-          if (Array.isArray(parsed) && parsed.length > 0) {
-            // Re-sync to Firestore in background so Firestore gets populated
-            saveCollectionList(collectionName, parsed).catch(err => 
-              console.warn(`Background re-sync for ${collectionName}:`, err)
-            );
-            return parsed;
-          }
-        } catch (e) {}
+      // If both Firestore and local cache are empty:
+      if (fallbackData.length === 0) {
+        return [];
       }
       return fallbackData;
     }
@@ -90,6 +92,23 @@ export async function fetchCollection<T extends { id: string }>(collectionName: 
       }
     });
 
+    // If Firestore has documents, but local cache had newly added/imported records that were not yet in Firestore,
+    // merge them by id so that nothing is lost across rapid reloads!
+    if (cachedList && cachedList.length > 0) {
+      const fireIds = new Set(data.map(d => d.id));
+      const missingFromFirestore = cachedList.filter(item => item && item.id && !fireIds.has(item.id));
+      if (missingFromFirestore.length > 0) {
+        const merged = [...data, ...missingFromFirestore];
+        try {
+          localStorage.setItem(cacheKey, JSON.stringify(merged));
+        } catch (e) {}
+        saveCollectionList(collectionName, merged).catch(err => 
+          console.warn(`Background sync merged ${collectionName} to Firestore:`, err)
+        );
+        return merged;
+      }
+    }
+
     // Cache locally for instant offline/reload access
     try {
       localStorage.setItem(cacheKey, JSON.stringify(data));
@@ -98,14 +117,8 @@ export async function fetchCollection<T extends { id: string }>(collectionName: 
     return data;
   } catch (error: any) {
     console.warn(`Fetch notice for ${collectionName} (using offline cache):`, error?.message || error);
-    const cached = localStorage.getItem(cacheKey);
-    if (cached !== null) {
-      try {
-        const parsed = JSON.parse(cached) as T[];
-        if (Array.isArray(parsed)) {
-          return parsed;
-        }
-      } catch (e) {}
+    if (cachedList !== null) {
+      return cachedList;
     }
     return fallbackData;
   }
@@ -166,7 +179,9 @@ export async function saveDocument(collectionName: string, docId: string, data: 
 export async function saveCollectionList<T extends { id: string }>(collectionName: string, list: T[]): Promise<void> {
   const cacheKey = `swara_cache_col_${collectionName}`;
   const safeList = Array.isArray(list) ? list : [];
-  const cleanedList = safeList.map(item => cleanObjectForFirestore(item));
+  const cleanedList = safeList
+    .map(item => cleanObjectForFirestore(item))
+    .filter((item): item is T => Boolean(item && typeof item === 'object' && item.id));
 
   // 1. Immediately mirror to local cache to ensure zero data loss on browser refresh
   try {
@@ -180,7 +195,7 @@ export async function saveCollectionList<T extends { id: string }>(collectionNam
     const colRef = collection(db, collectionName);
     const snapshot = await getDocs(colRef);
     const existingIds = snapshot.docs.map(docSnap => docSnap.id);
-    const listIds = new Set(cleanedList.map(item => item.id));
+    const listIds = new Set(cleanedList.map(item => String(item.id)));
 
     const operations: { type: 'delete' | 'set'; id: string; data?: any }[] = [];
 
@@ -193,7 +208,7 @@ export async function saveCollectionList<T extends { id: string }>(collectionNam
 
     // Write/Update current items
     cleanedList.forEach((item) => {
-      operations.push({ type: 'set', id: item.id, data: item });
+      operations.push({ type: 'set', id: String(item.id), data: item });
     });
 
     if (operations.length === 0) return;

@@ -1049,7 +1049,8 @@ export default function App() {
   const handleUpdateNewsReports = async (newReports: NewsReport[]) => {
     setNewsReports(newReports);
     
-    const cascaded = recalculateCascade(agreements, contracts, newReports, reporterTargets, employees);
+    const autoSyncedAgreements = syncNewsAchievements(newReports, agreements, reporterTargets, employees);
+    const cascaded = recalculateCascade(autoSyncedAgreements, contracts, newReports, reporterTargets, employees);
     setAgreements(cascaded);
 
     await saveCollectionList('newsReports', newReports);
