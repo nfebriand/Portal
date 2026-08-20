@@ -604,20 +604,27 @@ export default function PerformanceAgreementView({
 
   // Total Statistics
   const stats = useMemo(() => {
+    // 1. PK Aktif & Total PK dihitung dari sasaran/indikator PK Level 1 (Kepala Stasiun)
+    const level1Agreements = periodAgreements.filter(a => a.level === 'Kepala Stasiun');
+    const level1Objectives = level1Agreements.flatMap(a => a.objectives);
+    const activePks = level1Agreements.filter(a => a.status === 'Aktif').reduce((sum, a) => sum + a.objectives.length, 0);
+    const totalPks = level1Objectives.length;
+
+    // 2. Total Indikator & Rata-Rata Capaian dihitung dari seluruh sasaran PK Level 2 (Ketua Tim / Kabid)
+    // Konten Media Baru (KMB) yang di-tag terlibat pada sasaran bidang terkait tidak dihitung terpisah sebagai indikator mandiri
+    const level2Agreements = periodAgreements.filter(
+      a => a.level !== 'Kepala Stasiun' && a.level !== 'Pegawai' && a.level !== 'Ketua Tim Konten Media Baru'
+    );
     let totalIndicators = 0;
     let sumAchievement = 0;
-    let activePks = 0;
 
-    periodAgreements.forEach(a => {
-      if (a.objectives.length > 0) {
-        if (a.status === 'Aktif') activePks++;
-        a.objectives.forEach(obj => {
-          totalIndicators++;
-          // Calculate achievement percentage score using dynamic getIndicatorScore helper
-          const score = getIndicatorScore(obj);
-          sumAchievement += score;
-        });
-      }
+    level2Agreements.forEach(a => {
+      a.objectives.forEach(obj => {
+        totalIndicators++;
+        // Calculate achievement percentage score using dynamic getIndicatorScore helper
+        const score = getIndicatorScore(obj);
+        sumAchievement += score;
+      });
     });
 
     const avgAchievement = totalIndicators > 0 ? Math.round(sumAchievement / totalIndicators) : 0;
@@ -626,7 +633,8 @@ export default function PerformanceAgreementView({
       totalIndicators,
       avgAchievement,
       activePks,
-      totalPks: periodAgreements.filter(a => a.objectives.length > 0).length
+      totalPks,
+      level2Count: level2Agreements.length
     };
   }, [periodAgreements]);
 

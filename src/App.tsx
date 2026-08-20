@@ -179,7 +179,7 @@ const INITIAL_AGREEMENTS: PerformanceAgreement[] = [
         indicatorName: "Indeks Kepuasan Layanan Publik Radio",
         target: "90",
         unit: "Skor",
-        weight: 30,
+        weight: 20,
         achievement: 85
       },
       {
@@ -187,7 +187,7 @@ const INITIAL_AGREEMENTS: PerformanceAgreement[] = [
         indicatorName: "Persentase Digitalisasi Studio & Media Baru",
         target: "100",
         unit: "%",
-        weight: 30,
+        weight: 20,
         achievement: 75
       },
       {
@@ -205,6 +205,14 @@ const INITIAL_AGREEMENTS: PerformanceAgreement[] = [
         unit: "%",
         weight: 20,
         achievement: 100
+      },
+      {
+        id: "ind-15-pnbp",
+        indicatorName: "Optimalisasi Realisasi Penerimaan Negara Bukan Pajak (PNBP)",
+        target: "150",
+        unit: "Juta Rupiah",
+        weight: 20,
+        achievement: 120
       }
     ],
     status: "Aktif",
@@ -336,7 +344,7 @@ const INITIAL_AGREEMENTS: PerformanceAgreement[] = [
         unit: "Juta Rupiah",
         weight: 100,
         achievement: 120,
-        parentIndicatorId: "ind-1"
+        parentIndicatorId: "ind-15-pnbp"
       }
     ],
     status: "Aktif",
@@ -756,6 +764,30 @@ export default function App() {
           fireReports = await fetchCollection<NewsReport>('newsReports', []);
           fireAgreements = await fetchCollection<PerformanceAgreement>('agreements', INITIAL_AGREEMENTS);
         }
+
+        // Ensure Level 1 (Kepala Stasiun) contains all 5 strategic indicators
+        fireAgreements = fireAgreements.map((ag) => {
+          if (ag.level === 'Kepala Stasiun' && ag.year === 2026) {
+            const hasPnbp = ag.objectives.some(o => o.id === 'ind-15-pnbp' || o.indicatorName.toLowerCase().includes('pnbp'));
+            if (!hasPnbp) {
+              return {
+                ...ag,
+                objectives: [
+                  ...ag.objectives.map(o => ({ ...o, weight: 20 })),
+                  {
+                    id: 'ind-15-pnbp',
+                    indicatorName: 'Optimalisasi Realisasi Penerimaan Negara Bukan Pajak (PNBP)',
+                    target: '150',
+                    unit: 'Juta Rupiah',
+                    weight: 20,
+                    achievement: 120
+                  }
+                ]
+              };
+            }
+          }
+          return ag;
+        });
 
         // Migrate employee division field values if needed
         const migratedEmployees = fireEmployees.map((emp) => {
