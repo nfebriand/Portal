@@ -4,7 +4,11 @@ import bgLpu from "../assets/images/bg_lpu_1786536319133.jpg";
 import bgKmb from "../assets/images/bg_kmb_1786536334535.jpg";
 import bgSiaran from "../assets/images/bg_siaran_1786536353427.jpg";
 import bgTu from "../assets/images/bg_tu_1786536368415.jpg";
-import { getGaugeColorByPercentage } from "../utils/colors";
+import { 
+  getGaugeColorByPercentage, 
+  getKpiStatusByPercentage, 
+  KPI_TRAFFIC_LIGHT_SYSTEM 
+} from "../utils/colors";
 import { useState, useMemo } from 'react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell, BarChart, Bar } from 'recharts';
 import { Employee, CriticalNotification, CooperationContract, PerformanceAgreement, ReporterTarget, NewsReport } from '../types';
@@ -21,7 +25,6 @@ import {
   RefreshCw, 
   Layers,
   Handshake,
-  DollarSign,
   Target,
   FileText,
   CheckCircle2,
@@ -36,9 +39,16 @@ import {
   BarChart3,
   ListFilter,
   Clock,
-  CheckCircle
+  CheckCircle,
+  ShieldAlert,
+  HelpCircle,
+  Info,
+  TrendingDown,
+  Activity,
+  Percent
 } from 'lucide-react';
 import NewsDetailModal from './NewsDetailModal';
+import RedFlagIndicatorsModal, { RedFlagIndicatorItem } from './RedFlagIndicatorsModal';
 import { filterNewsForIndicator, isEligibleNewsIndicator } from '../utils/newsFilter';
 
 interface DashboardViewProps {
@@ -220,6 +230,7 @@ export default function DashboardView({
   const [selectedGenderFilter, setSelectedGenderFilter] = useState<string>('Semua');
   const [selectedDivisionFilter, setSelectedDivisionFilter] = useState<string>('Semua');
   const [selectedKpiDivision, setSelectedKpiDivision] = useState<string>('Pemberitaan');
+  const [selectedKpiYear, setSelectedKpiYear] = useState<number>(2026);
   const [selectedKpiPeriod, setSelectedKpiPeriod] = useState<string>('Tahunan');
   const [selectedKpiMonth, setSelectedKpiMonth] = useState<number>(new Date().getMonth());
   const [drillDownActive, setDrillDownActive] = useState<boolean>(false);
@@ -246,6 +257,10 @@ export default function DashboardView({
     periodLabel: '',
     newsReports: []
   });
+
+  // State for Red Flag / Lagging indicators list modal
+  const [isRedFlagModalOpen, setIsRedFlagModalOpen] = useState<boolean>(false);
+  const [isLegendExpanded, setIsLegendExpanded] = useState<boolean>(true);
 
   const handleOpenNewsModal = (obj: any, agreement?: any) => {
     const { filteredReports, periodLabel, typeLabel, isEligible } = filterNewsForIndicator({
@@ -820,16 +835,43 @@ export default function DashboardView({
 
   // Adjust objectives based on the selected period
   const adjustedObjectives = useMemo(() => {
-    if (!selectedDivData || !selectedDivData.agreement) return [];
+    if (!selectedDivData) return [];
+
+    // Special handling for Konten Media Baru (KMB): Aggregate all indicators across divisions where KMB contributes
+    if (selectedDivData.key === 'Konten Media Baru') {
+      const kmbContributedObjectives: any[] = [];
+      currentPeriodAgreements.forEach(ag => {
+        if (!ag.objectives) return;
+        ag.objectives.forEach(obj => {
+          if (obj.supportedByKMB) {
+            kmbContributedObjectives.push({
+              ...obj,
+              target: typeof obj.target === 'string' ? obj.target : `${obj.target}`,
+              achievement: obj.achievement,
+              percentage: obj._computedPct !== undefined ? obj._computedPct : 0,
+              originAgreement: ag,
+              originDivision: ag.level || 'Bidang Terkait',
+              originPic: ag.assignedToName || 'PIC Bidang'
+            });
+          }
+        });
+      });
+      return kmbContributedObjectives;
+    }
+
+    if (!selectedDivData.agreement) return [];
     return selectedDivData.agreement.objectives.map((obj: any) => {
       return {
         ...obj,
         target: typeof obj.target === 'string' ? obj.target : `${obj.target}`,
         achievement: obj.achievement,
-        percentage: obj._computedPct !== undefined ? obj._computedPct : 0
+        percentage: obj._computedPct !== undefined ? obj._computedPct : 0,
+        originAgreement: selectedDivData.agreement,
+        originDivision: selectedDivData.name,
+        originPic: selectedDivData.pic
       };
     });
-  }, [selectedDivData]);
+  }, [selectedDivData, currentPeriodAgreements]);
 
   // Average Achievement percentage for adjusted objectives
   const adjustedDivPercentage = useMemo(() => {
@@ -837,6 +879,254 @@ export default function DashboardView({
     const sum = adjustedObjectives.reduce((acc, curr) => acc + curr.percentage, 0);
     return Math.round(sum / adjustedObjectives.length);
   }, [adjustedObjectives]);
+
+  // Selected period human-readable label
+  const selectedPeriodLabel = useMemo(() => {
+    if (selectedKpiPeriod === 'Bulanan') {
+      return `Bulan ${INDONESIAN_MONTHS[selectedKpiMonth]}`;
+    }
+    return selectedKpiPeriod;
+  }, [selectedKpiPeriod, selectedKpiMonth]);
+
+  // 1. Total Capaian Kinerja Satker (%)
+  const satkerOverallStats = useMemo(() => {
+    // Priority: Level 1 (Kepala Stasiun) objectives roll-up
+    const kepalaAg = currentPeriodAgreements.find(a => a.level === 'Kepala Stasiun');
+    if (kepalaAg && kepalaAg.objectives && kepalaAg.objectives.length > 0) {
+      const sum = kepalaAg.objectives.reduce((acc, curr: any) => acc + (curr._computedPct ?? 0), 0);
+      const pct = Math.round(sum / kepalaAg.objectives.length);
+      return {
+        percentage: pct,
+        status: getKpiStatusByPercentage(pct),
+        totalObjectives: kepalaAg.objectives.length,
+        source: 'Kepala Stasiun'
+      };
+    }
+
+    // Fallback: Average of all 6 active operational divisions
+    if (activeDivisionsData.length > 0) {
+      const sum = activeDivisionsData.reduce((acc, curr) => acc + curr.percentage, 0);
+      const pct = Math.round(sum / activeDivisionsData.length);
+      return {
+        percentage: pct,
+        status: getKpiStatusByPercentage(pct),
+        totalObjectives: activeDivisionsData.reduce((acc, d) => acc + (d.agreement?.objectives?.length || 0), 0),
+        source: 'Agregasi 6 Bidang'
+      };
+    }
+
+    return {
+      percentage: 0,
+      status: getKpiStatusByPercentage(0),
+      totalObjectives: 0,
+      source: 'Belum Ada Data'
+    };
+  }, [currentPeriodAgreements, activeDivisionsData]);
+
+  // 2. Status SAKIP (Ambil nilai tertinggi capaian "Nilai AKIP berdasarkan hasil evaluasi SPI" atau "Belum Dinilai")
+  const sakipStatusData = useMemo(() => {
+    let highestAkipScore: number | null = null;
+    let foundIndicatorName = '';
+
+    currentPeriodAgreements.forEach(ag => {
+      (ag.objectives || []).forEach((obj: any) => {
+        const nameLower = (obj.indicatorName || '').toLowerCase();
+        if (
+          nameLower.includes('nilai akip') ||
+          nameLower.includes('evaluasi spi') ||
+          nameLower.includes('akip') ||
+          nameLower.includes('sakip')
+        ) {
+          const score = typeof obj.achievement === 'number' 
+            ? obj.achievement 
+            : parseFloat(obj.achievement) || 0;
+          if (score > 0) {
+            if (highestAkipScore === null || score > highestAkipScore) {
+              highestAkipScore = score;
+              foundIndicatorName = obj.indicatorName;
+            }
+          }
+        }
+      });
+    });
+
+    if (highestAkipScore === null || highestAkipScore === 0) {
+      return {
+        isEvaluated: false,
+        score: null,
+        predicate: 'Belum Dinilai',
+        label: 'Menunggu Evaluasi SPI',
+        badgeBg: 'bg-slate-100',
+        badgeBorder: 'border-slate-300',
+        badgeText: 'text-slate-700',
+        indicatorName: foundIndicatorName || 'Nilai AKIP berdasarkan hasil evaluasi SPI'
+      };
+    }
+
+    const score = Math.round(highestAkipScore * 10) / 10;
+    let pred = 'B';
+    let label = 'Baik';
+    let badgeBg = 'bg-blue-50';
+    let badgeBorder = 'border-blue-300';
+    let badgeText = 'text-blue-800';
+
+    if (score >= 90) {
+      pred = 'AA';
+      label = 'Sangat Memuaskan';
+      badgeBg = 'bg-emerald-50';
+      badgeBorder = 'border-emerald-300';
+      badgeText = 'text-emerald-800';
+    } else if (score >= 80) {
+      pred = 'A';
+      label = 'Memuaskan';
+      badgeBg = 'bg-teal-50';
+      badgeBorder = 'border-teal-300';
+      badgeText = 'text-teal-800';
+    } else if (score >= 70) {
+      pred = 'BB';
+      label = 'Sangat Baik';
+      badgeBg = 'bg-blue-50';
+      badgeBorder = 'border-blue-300';
+      badgeText = 'text-blue-800';
+    } else if (score >= 60) {
+      pred = 'B';
+      label = 'Baik';
+      badgeBg = 'bg-indigo-50';
+      badgeBorder = 'border-indigo-300';
+      badgeText = 'text-indigo-800';
+    } else if (score >= 50) {
+      pred = 'CC';
+      label = 'Cukup';
+      badgeBg = 'bg-amber-50';
+      badgeBorder = 'border-amber-300';
+      badgeText = 'text-amber-800';
+    } else if (score >= 30) {
+      pred = 'C';
+      label = 'Kurang';
+      badgeBg = 'bg-orange-50';
+      badgeBorder = 'border-orange-300';
+      badgeText = 'text-orange-800';
+    } else {
+      pred = 'D';
+      label = 'Sangat Kurang';
+      badgeBg = 'bg-rose-50';
+      badgeBorder = 'border-rose-300';
+      badgeText = 'text-rose-800';
+    }
+
+    return {
+      isEvaluated: true,
+      score,
+      predicate: pred,
+      label,
+      badgeBg,
+      badgeBorder,
+      badgeText,
+      indicatorName: foundIndicatorName
+    };
+  }, [currentPeriodAgreements]);
+
+  // 3. Persentase Penyerapan Anggaran
+  const budgetAbsorptionData = useMemo(() => {
+    let budgetObj: any = null;
+    let parentAgreement: any = null;
+
+    // Check all agreements for budget indicator (prefer Kepala Stasiun or TU)
+    for (const ag of currentPeriodAgreements) {
+      const match = (ag.objectives || []).find((obj: any) => {
+        const nameLower = (obj.indicatorName || '').toLowerCase();
+        return (
+          nameLower.includes('penyerapan anggaran') ||
+          nameLower.includes('realisasi anggaran') ||
+          nameLower.includes('anggaran dipa') ||
+          nameLower.includes('ikpa')
+        );
+      });
+      if (match) {
+        budgetObj = match;
+        parentAgreement = ag;
+        break;
+      }
+    }
+
+    if (budgetObj) {
+      const targetVal = budgetObj._scaledTargetVal !== undefined ? budgetObj._scaledTargetVal : (parseFloat(budgetObj.target) || 100);
+      const achVal = typeof budgetObj.achievement === 'number' ? budgetObj.achievement : (parseFloat(budgetObj.achievement) || 0);
+      const pct = budgetObj._computedPct !== undefined ? budgetObj._computedPct : (targetVal > 0 ? Math.round((achVal / targetVal) * 100) : 0);
+      return {
+        hasData: true,
+        percentage: pct,
+        achievement: achVal,
+        target: budgetObj.target,
+        unit: budgetObj.unit || '%',
+        indicatorName: budgetObj.indicatorName,
+        pic: parentAgreement?.assignedToName || 'Kabid Tata Usaha',
+        status: getKpiStatusByPercentage(pct)
+      };
+    }
+
+    // Default fallback
+    return {
+      hasData: false,
+      percentage: 90,
+      achievement: 90,
+      target: '97 %',
+      unit: '%',
+      indicatorName: 'Efisiensi Penyerapan Anggaran DIPA Stasiun',
+      pic: 'Ir. Hendra Saputra, M.T.',
+      status: getKpiStatusByPercentage(90)
+    };
+  }, [currentPeriodAgreements]);
+
+  // 4. Jumlah Indikator Red-Flag / Tertinggal (Realisasi < 50% atau Kategori Merah)
+  const redFlagIndicators = useMemo<RedFlagIndicatorItem[]>(() => {
+    const list: RedFlagIndicatorItem[] = [];
+
+    currentPeriodAgreements.forEach(ag => {
+      let divName = ag.level === 'Kepala Stasiun' ? 'Satker / Pimpinan'
+        : ag.level.replace('Ketua Tim ', '').replace('Kabid ', '');
+
+      (ag.objectives || []).forEach((obj: any) => {
+        const pct = obj._computedPct !== undefined ? obj._computedPct : 0;
+        // Threshold: below 50% (kategori merah / kritis)
+        if (pct < 50) {
+          list.push({
+            id: `${ag.id}-${obj.id}`,
+            indicatorName: obj.indicatorName,
+            divisionName: divName,
+            assignedToName: ag.assignedToName || 'Penanggung Jawab',
+            level: ag.level,
+            target: typeof obj.target === 'string' ? obj.target : `${obj.target} ${obj.unit || ''}`,
+            achievement: obj.achievement || 0,
+            unit: obj.unit || '',
+            percentage: pct,
+            agreementId: ag.id,
+            rawObjective: obj
+          });
+        }
+      });
+    });
+
+    return list;
+  }, [currentPeriodAgreements]);
+
+  const handleNavigateToDivisionFromRedFlag = (item: RedFlagIndicatorItem) => {
+    const divName = (item.divisionName || '').toLowerCase();
+    if (divName.includes('pemberitaan')) {
+      setSelectedKpiDivision('Pemberitaan');
+    } else if (divName.includes('lpu') || divName.includes('layanan pengembangan')) {
+      setSelectedKpiDivision('Layanan Pengembangan Usaha');
+    } else if (divName.includes('tmb') || divName.includes('teknik') || divName.includes('teknologi')) {
+      setSelectedKpiDivision('Teknologi dan Media Baru');
+    } else if (divName.includes('kmb') || divName.includes('konten media baru')) {
+      setSelectedKpiDivision('Konten Media Baru');
+    } else if (divName.includes('siaran')) {
+      setSelectedKpiDivision('Siaran');
+    } else if (divName.includes('tu') || divName.includes('tata usaha')) {
+      setSelectedKpiDivision('Tata Usaha / Umum');
+    }
+    setDrillDownActive(true);
+  };
 
   const triggerAlertSimulation = () => {
     const alertTypes = [
@@ -976,77 +1266,388 @@ export default function DashboardView({
   };
 
   return (
-    <div className="space-y-3">
-      {/* SECTION VISUALISASI CAPAIAN IKP PER DIVISI (HALF CIRCLE GAUGES) */}
-      <div id="trend-pimpinan-section" className="bg-[#f0f4f8] p-5 rounded-2xl border border-slate-200/80 shadow-md space-y-4">
+    <div className="space-y-4">
+      {/* ========================================================================= */}
+      {/* 1. FILTER WAKTU & PERIODE (PALING ATAS SEKALI)                            */}
+      {/* ========================================================================= */}
+      <div className="bg-white p-3.5 sm:p-4 rounded-2xl border border-slate-200/90 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-3 select-none">
+        <div className="flex items-center gap-3">
+          <div className="p-2.5 bg-indigo-600 text-white rounded-xl shadow-xs shadow-indigo-600/20">
+            <Calendar className="w-5 h-5" />
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] font-black uppercase tracking-wider text-indigo-600 font-mono">
+                FILTER PERIODE EVALUASI KINERJA
+              </span>
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+            </div>
+            <h2 className="text-sm sm:text-base font-extrabold text-slate-800">
+              Periode: <span className="text-indigo-600">{selectedPeriodLabel} (Tahun {selectedKpiYear})</span>
+            </h2>
+          </div>
+        </div>
+
+        {/* Filter Controls (Tahun, Semester/Triwulan/Bulanan, Bulan) */}
+        <div className="flex flex-wrap items-center gap-2.5">
+          {/* Filter Tahun */}
+          <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1">
+            <span className="text-[10px] font-extrabold text-slate-700 uppercase font-mono">Tahun:</span>
+            <select
+              value={selectedKpiYear}
+              onChange={(e) => setSelectedKpiYear(parseInt(e.target.value))}
+              className="bg-transparent border-none text-xs font-black text-indigo-600 focus:outline-hidden cursor-pointer"
+            >
+              {[2024, 2025, 2026, 2027].map((yr) => (
+                <option key={yr} value={yr}>{yr}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* Filter Periode (Tahunan, Semester 1/2, Triwulan 1-4, Bulanan) */}
+          <div className="w-48 sm:w-52">
+            <select
+              value={selectedKpiPeriod}
+              onChange={(e) => setSelectedKpiPeriod(e.target.value)}
+              className="w-full bg-slate-50 hover:bg-slate-100/80 border border-slate-300 rounded-xl px-3 py-2 text-xs font-black text-slate-800 focus:ring-2 focus:ring-indigo-500 focus:outline-hidden transition-all cursor-pointer shadow-2xs"
+            >
+              <option value="Tahunan">Tahunan (Jan - Des)</option>
+              <option value="Semester 1">Semester 1 (Jan - Jun)</option>
+              <option value="Semester 2">Semester 2 (Jul - Des)</option>
+              <option value="Triwulan 1">Triwulan 1 (Jan - Mar)</option>
+              <option value="Triwulan 2">Triwulan 2 (Apr - Jun)</option>
+              <option value="Triwulan 3">Triwulan 3 (Jul - Sep)</option>
+              <option value="Triwulan 4">Triwulan 4 (Okt - Des)</option>
+              <option value="Bulanan">Bulanan</option>
+            </select>
+          </div>
+
+          {/* Selector Bulan jika memilih Bulanan */}
+          {selectedKpiPeriod === 'Bulanan' && (
+            <div className="w-36 sm:w-40 animate-in fade-in slide-in-from-left-2 duration-150">
+              <select
+                value={selectedKpiMonth}
+                onChange={(e) => setSelectedKpiMonth(parseInt(e.target.value))}
+                className="w-full bg-slate-50 hover:bg-slate-100/80 border border-slate-300 rounded-xl px-3 py-2 text-xs font-black text-slate-800 focus:ring-2 focus:ring-indigo-500 focus:outline-hidden transition-all cursor-pointer shadow-2xs"
+              >
+                {INDONESIAN_MONTHS.map((month, idx) => (
+                  <option key={idx} value={idx}>{month}</option>
+                ))}
+              </select>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* ========================================================================= */}
+      {/* 2. BARIS SCORECARD INDIKATOR UTAMA SATKER & SAKIP                        */}
+      {/* ========================================================================= */}
+      <div className="space-y-3">
+        {/* Executive Scorecards Grid (4 Cards) */}
+        <div id="executive-scorecards" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
+          
+          {/* Card 1: Total Capaian Kinerja Satker (%) */}
+          <div className="bg-white rounded-2xl p-4.5 border border-slate-200/80 shadow-xs hover:shadow-md transition-all relative overflow-hidden flex flex-col justify-between group">
+            <div className="absolute top-0 right-0 w-24 h-24 bg-linear-to-bl from-indigo-500/10 via-indigo-500/5 to-transparent rounded-bl-full pointer-events-none -mr-4 -mt-4 transition-transform group-hover:scale-110" />
+            <div>
+              <div className="flex items-center justify-between gap-2 mb-2">
+                <div className="flex items-center gap-2">
+                  <div className="p-2 rounded-xl bg-indigo-50 text-indigo-600 border border-indigo-100">
+                    <Award className="w-4 h-4" />
+                  </div>
+                  <span className="text-[10px] font-black uppercase tracking-wider text-slate-700 font-mono">
+                    Total Capaian Satker
+                  </span>
+                </div>
+                <span className={`text-[9px] font-extrabold px-2 py-0.5 rounded-full border font-mono ${satkerOverallStats.status.bgLight} ${satkerOverallStats.status.textColor} ${satkerOverallStats.status.borderLight}`}>
+                  {satkerOverallStats.status.label}
+                </span>
+              </div>
+
+              <div className="flex items-baseline gap-2 mt-1">
+                <span className="text-3xl font-black text-slate-900 font-mono tracking-tight">
+                  {satkerOverallStats.percentage}%
+                </span>
+                <span className="text-xs font-semibold text-slate-700">
+                  dari target {selectedPeriodLabel}
+                </span>
+              </div>
+            </div>
+
+            <div className="mt-3 pt-2.5 border-t border-slate-100 space-y-1.5">
+              <div className="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
+                <div 
+                  className="h-1.5 rounded-full transition-all duration-700"
+                  style={{ 
+                    width: `${Math.min(100, Math.max(5, satkerOverallStats.percentage))}%`,
+                    backgroundColor: satkerOverallStats.status.color
+                  }}
+                />
+              </div>
+              <p className="text-[10px] text-slate-700 leading-tight">
+                Rerata agregasi seluruh indikator kinerja utama & 6 bidang operasional
+              </p>
+            </div>
+          </div>
+
+          {/* Card 2: Status SAKIP */}
+          <div className="bg-white rounded-2xl p-4.5 border border-slate-200/80 shadow-xs hover:shadow-md transition-all relative overflow-hidden flex flex-col justify-between group">
+            <div className="absolute top-0 right-0 w-24 h-24 bg-linear-to-bl from-teal-500/10 via-teal-500/5 to-transparent rounded-bl-full pointer-events-none -mr-4 -mt-4 transition-transform group-hover:scale-110" />
+            <div>
+              <div className="flex items-center justify-between gap-2 mb-2">
+                <div className="flex items-center gap-2">
+                  <div className="p-2 rounded-xl bg-teal-50 text-teal-600 border border-teal-100">
+                    <CheckCircle2 className="w-4 h-4" />
+                  </div>
+                  <span className="text-[10px] font-black uppercase tracking-wider text-slate-700 font-mono">
+                    Status SAKIP (SPI)
+                  </span>
+                </div>
+                <span className={`text-[9px] font-extrabold px-2 py-0.5 rounded-full border font-mono ${sakipStatusData.badgeBg} ${sakipStatusData.badgeText} ${sakipStatusData.badgeBorder}`}>
+                  {sakipStatusData.predicate}
+                </span>
+              </div>
+
+              <div className="mt-1">
+                {sakipStatusData.isEvaluated ? (
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-3xl font-black text-slate-900 font-mono tracking-tight">
+                      {sakipStatusData.score}
+                    </span>
+                    <span className="text-xs font-bold text-teal-700">
+                      {sakipStatusData.label}
+                    </span>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-1.5 py-1">
+                    <span className="text-xl font-black text-slate-700 tracking-tight">
+                      Belum Dinilai
+                    </span>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="mt-3 pt-2.5 border-t border-slate-100 space-y-1.5">
+              <div className="flex items-center justify-between text-[10px] text-slate-700">
+                <span className="font-medium truncate max-w-[190px]" title={sakipStatusData.indicatorName}>
+                  {sakipStatusData.indicatorName}
+                </span>
+                <span className="font-bold text-slate-700 font-mono">
+                  {sakipStatusData.isEvaluated ? 'Terverifikasi' : 'Menunggu SPI'}
+                </span>
+              </div>
+              <p className="text-[10px] text-slate-700 leading-tight">
+                Nilai AKIP berdasarkan hasil evaluasi akuntabilitas kinerja SPI
+              </p>
+            </div>
+          </div>
+
+          {/* Card 3: Persentase Penyerapan Anggaran (Logo Rp) */}
+          <div className="bg-white rounded-2xl p-4.5 border border-slate-200/80 shadow-xs hover:shadow-md transition-all relative overflow-hidden flex flex-col justify-between group">
+            <div className="absolute top-0 right-0 w-24 h-24 bg-linear-to-bl from-emerald-500/10 via-emerald-500/5 to-transparent rounded-bl-full pointer-events-none -mr-4 -mt-4 transition-transform group-hover:scale-110" />
+            <div>
+              <div className="flex items-center justify-between gap-2 mb-2">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center justify-center font-black font-mono text-xs shadow-2xs">
+                    Rp
+                  </div>
+                  <span className="text-[10px] font-black uppercase tracking-wider text-slate-700 font-mono">
+                    Penyerapan Anggaran
+                  </span>
+                </div>
+                <span className="text-[9px] font-extrabold px-2 py-0.5 rounded-full border border-emerald-200 bg-emerald-50 text-emerald-700 font-mono">
+                  Target {budgetAbsorptionData.target}
+                </span>
+              </div>
+
+              <div className="flex items-baseline gap-2 mt-1">
+                <span className="text-3xl font-black text-slate-900 font-mono tracking-tight">
+                  {budgetAbsorptionData.achievement}%
+                </span>
+                <span className="text-xs font-semibold text-slate-700 font-mono">
+                  Realisasi DIPA
+                </span>
+              </div>
+            </div>
+
+            <div className="mt-3 pt-2.5 border-t border-slate-100 space-y-1.5">
+              <div className="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
+                <div 
+                  className="h-1.5 rounded-full transition-all duration-700"
+                  style={{ 
+                    width: `${Math.min(100, Math.max(5, budgetAbsorptionData.percentage))}%`,
+                    backgroundColor: budgetAbsorptionData.status.color
+                  }}
+                />
+              </div>
+              <div className="flex items-center justify-between text-[10px] text-slate-700">
+                <span className="truncate max-w-[160px]" title={budgetAbsorptionData.indicatorName}>
+                  {budgetAbsorptionData.indicatorName}
+                </span>
+                <span className="font-bold text-emerald-600 font-mono">
+                  PIC: TU
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Card 4: Jumlah Indikator Red-Flag / Tertinggal */}
+          <div 
+            onClick={() => setIsRedFlagModalOpen(true)}
+            className="bg-white rounded-2xl p-4.5 border border-rose-200/90 shadow-xs hover:shadow-md hover:border-rose-300 transition-all relative overflow-hidden flex flex-col justify-between group cursor-pointer"
+            role="button"
+            tabIndex={0}
+            title="Klik untuk melihat daftar lengkap indikator kinerja tertinggal"
+          >
+            <div className="absolute top-0 right-0 w-24 h-24 bg-linear-to-bl from-rose-500/15 via-rose-500/5 to-transparent rounded-bl-full pointer-events-none -mr-4 -mt-4 transition-transform group-hover:scale-110" />
+            <div>
+              <div className="flex items-center justify-between gap-2 mb-2">
+                <div className="flex items-center gap-2">
+                  <div className="p-2 rounded-xl bg-rose-50 text-rose-600 border border-rose-200 relative">
+                    <ShieldAlert className="w-4 h-4" />
+                    {redFlagIndicators.length > 0 && (
+                      <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-rose-500 rounded-full animate-ping" />
+                    )}
+                  </div>
+                  <span className="text-[10px] font-black uppercase tracking-wider text-rose-800 font-mono">
+                    Indikator Red-Flag
+                  </span>
+                </div>
+                <span className={`text-[9px] font-extrabold px-2 py-0.5 rounded-full border font-mono ${
+                  redFlagIndicators.length > 0 
+                    ? 'bg-rose-100 text-rose-700 border-rose-300' 
+                    : 'bg-emerald-100 text-emerald-700 border-emerald-300'
+                }`}>
+                  {redFlagIndicators.length > 0 ? 'Perlu Akselerasi' : 'On-Track'}
+                </span>
+              </div>
+
+              <div className="flex items-baseline gap-2 mt-1">
+                <span className="text-3xl font-black text-rose-600 font-mono tracking-tight">
+                  {redFlagIndicators.length}
+                </span>
+                <span className="text-xs font-bold text-slate-700">
+                  Indikator Kritis (&lt; 50%)
+                </span>
+              </div>
+            </div>
+
+            <div className="mt-3 pt-2.5 border-t border-rose-100 space-y-1.5">
+              <div className="flex items-center justify-between text-[11px] font-bold text-rose-700 group-hover:text-rose-800">
+                <span className="flex items-center gap-1">
+                  Lihat List Indikator <ChevronRight className="w-3.5 h-3.5 transition-transform group-hover:translate-x-0.5" />
+                </span>
+                <span className="text-[9px] px-1.5 py-0.5 bg-rose-50 rounded text-rose-700 border border-rose-200 font-mono">
+                  Detail &rarr;
+                </span>
+              </div>
+              <p className="text-[10px] text-slate-700 leading-tight">
+                Indikator sasaran dengan capaian realisasi di bawah batas kritis
+              </p>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      {/* ========================================================================= */}
+      {/* 3. SECTION VISUALISASI CAPAIAN IKP PER DIVISI (HALF CIRCLE GAUGES)        */}
+      {/* ========================================================================= */}
+      <div id="trend-pimpinan-section" className="bg-[#f0f4f8] p-5 sm:p-6 rounded-2xl border border-slate-200/80 shadow-md space-y-5">
         
         {/* Header Dashboard / Drill Down */}
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-slate-200/60 pb-3">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200/80 pb-4">
           <div className="space-y-1">
             <div className="flex items-center gap-3">
               {drillDownActive && (
                 <button
                   onClick={() => setDrillDownActive(false)}
-                  className="p-1.5 hover:bg-slate-200/80 active:bg-slate-300 rounded-lg text-slate-700 transition-colors border border-slate-300"
+                  className="p-2 hover:bg-slate-200 active:bg-slate-300 rounded-xl text-slate-700 transition-colors border border-slate-300 cursor-pointer shadow-2xs"
                   title="Kembali ke Dashboard 6 Bidang"
                 >
                   <ArrowLeft className="w-4 h-4" />
                 </button>
               )}
-              <h2 className="text-base font-extrabold text-slate-800 flex items-center gap-2">
-                <Target className="w-4 h-4 text-indigo-600 animate-pulse" />
-                {!drillDownActive 
-                  ? "Capaian Indikator Kinerja Program RRI Bandar Lampung"
-                  : `Capaian Indikator Kinerja Program Divisi ${selectedDivData?.name || ''}`
-                }
-              </h2>
+              <div>
+                <h2 className="text-base sm:text-lg font-black text-slate-800 flex items-center gap-2.5">
+                  <Target className="w-5 h-5 text-indigo-600" />
+                  {!drillDownActive 
+                    ? "Capaian Indikator Kinerja Per Bidang"
+                    : `Capaian Indikator Kinerja Program Divisi ${selectedDivData?.name || ''}`
+                  }
+                </h2>
+                <p className="text-xs text-slate-500 font-medium">
+                  {!drillDownActive
+                    ? `Monitoring realisasi 6 bidang operasional terhadap target ${selectedPeriodLabel}`
+                    : `Rincian data capaian sasaran program bidang ${selectedDivData?.name}`
+                  }
+                </p>
+              </div>
             </div>
           </div>
 
-          <div className="flex items-center gap-3 self-end lg:self-center">
-            {drillDownActive && (
-              <button
-                onClick={() => setDrillDownActive(false)}
-                className="hidden sm:flex items-center gap-1.5 text-[10px] font-bold text-slate-600 hover:text-indigo-600 bg-slate-100 hover:bg-indigo-50 border border-slate-300 px-2.5 py-1 rounded-lg transition-all"
-              >
-                <ArrowLeft className="w-3 h-3" />
-                Kembali
-              </button>
-            )}
+          {drillDownActive && (
+            <button
+              onClick={() => setDrillDownActive(false)}
+              className="flex items-center gap-2 text-xs font-bold text-slate-700 hover:text-indigo-600 bg-white hover:bg-indigo-50 border border-slate-300 px-3.5 py-2 rounded-xl transition-all cursor-pointer shadow-2xs self-start sm:self-center"
+            >
+              <ArrowLeft className="w-3.5 h-3.5" />
+              Kembali ke 6 Bidang
+            </button>
+          )}
+        </div>
 
-            {/* Period Filter Control */}
-            <div className="flex items-center gap-2">
-              <div className="w-44">
-                <select
-                  value={selectedKpiPeriod}
-                  onChange={(e) => setSelectedKpiPeriod(e.target.value)}
-                  className="w-full bg-[#f8fafc] border border-slate-300/80 rounded-lg px-2.5 py-1 text-xs font-bold text-slate-700 focus:ring-1 focus:ring-indigo-500 focus:outline-hidden hover:bg-slate-100 transition-colors cursor-pointer"
-                >
-                  <option value="Tahunan">Tahunan (Jan - Des)</option>
-                  <option value="Semester 1">Semester 1 (Jan - Jun)</option>
-                  <option value="Semester 2">Semester 2 (Jul - Des)</option>
-                  <option value="Triwulan 1">Triwulan 1 (Jan - Mar)</option>
-                  <option value="Triwulan 2">Triwulan 2 (Apr - Jun)</option>
-                  <option value="Triwulan 3">Triwulan 3 (Jul - Sep)</option>
-                  <option value="Triwulan 4">Triwulan 4 (Okt - Des)</option>
-                  <option value="Bulanan">Bulanan</option>
-                </select>
+        {/* TRAFFIC LIGHT SYSTEM & SKALA INDIKATOR (LEBIH BESAR & DIDALAM CAPAIAN IKP) */}
+        <div className="bg-white rounded-2xl p-4 sm:p-5 border border-slate-200/90 shadow-xs space-y-3">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-2.5">
+            <div className="flex items-center gap-2.5">
+              <div className="p-2 bg-indigo-50 text-indigo-600 rounded-xl border border-indigo-100">
+                <Info className="w-4 h-4" />
               </div>
-
-              {selectedKpiPeriod === 'Bulanan' && (
-                <div className="w-36 animate-in fade-in slide-in-from-left-2 duration-150">
-                  <select
-                    value={selectedKpiMonth}
-                    onChange={(e) => setSelectedKpiMonth(parseInt(e.target.value))}
-                    className="w-full bg-[#f8fafc] border border-slate-300/80 rounded-lg px-2.5 py-1 text-xs font-bold text-slate-700 focus:ring-1 focus:ring-indigo-500 focus:outline-hidden hover:bg-slate-100 transition-colors cursor-pointer"
-                  >
-                    {INDONESIAN_MONTHS.map((month, idx) => (
-                      <option key={idx} value={idx}>{month}</option>
-                    ))}
-                  </select>
-                </div>
-              )}
+              <div>
+                <h3 className="text-xs sm:text-sm font-black text-slate-800 uppercase tracking-wider font-mono">
+                  Traffic Light System & Panduan Skala Indikator Kinerja (Gauge)
+                </h3>
+                <p className="text-[11px] text-slate-500">
+                  Standar evaluasi warna visual pada speedometer/gauge capaian indikator kinerja
+                </p>
+              </div>
             </div>
+            <span className="text-[10px] font-extrabold text-indigo-700 bg-indigo-50 border border-indigo-200/80 px-2.5 py-1 rounded-lg font-mono self-start sm:self-auto">
+              Standar Kepmen & SAKIP
+            </span>
+          </div>
+
+          {/* 5 Prominent Color Tier Badges / Cards (Lebih Besar) */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-2.5">
+            {KPI_TRAFFIC_LIGHT_SYSTEM.map((tier) => (
+              <div
+                key={tier.key}
+                className={`p-3 rounded-xl border flex flex-col justify-between transition-all hover:scale-[1.02] shadow-2xs ${tier.bgLight} ${tier.borderLight}`}
+              >
+                <div className="flex items-center justify-between gap-2 mb-1.5">
+                  <div className="flex items-center gap-2">
+                    <span 
+                      className="w-3.5 h-3.5 rounded-full shrink-0 shadow-xs ring-2 ring-white" 
+                      style={{ backgroundColor: tier.color }} 
+                    />
+                    <span className={`text-xs font-black font-mono tracking-tight ${tier.textColor}`}>
+                      {tier.rangeLabel}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="space-y-0.5">
+                  <span className="text-xs font-black text-slate-800 block leading-tight">
+                    {tier.label.split('/')[0].trim()}
+                  </span>
+                  <span className="text-[10px] text-slate-600 block leading-tight font-medium">
+                    {tier.description}
+                  </span>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
 
@@ -1168,9 +1769,15 @@ export default function DashboardView({
                 <div>
                   <h4 className="text-xs font-extrabold text-slate-700 uppercase tracking-wider font-mono flex items-center gap-2">
                     <BarChart3 className="w-4 h-4 text-indigo-600" />
-                    Daftar Ketercapaian Indikator (Level 3)
+                    {selectedDivData?.key === 'Konten Media Baru'
+                      ? 'Daftar Indikator yang Didukung oleh Konten Media Baru (KMB)'
+                      : 'Daftar Ketercapaian Indikator (Level 3)'}
                   </h4>
-                  <p className="text-[10px] text-slate-500 mt-0.5">Format visualisasi menyesuaikan jenis target PK divisi atau dapat diubah manual</p>
+                  <p className="text-[10px] text-slate-500 mt-0.5">
+                    {selectedDivData?.key === 'Konten Media Baru'
+                      ? 'Menampilkan seluruh sasaran kinerja lintas bidang/divisi yang mendapat dukungan Konten Media Baru beserta PIC asalnya'
+                      : 'Format visualisasi menyesuaikan jenis target PK divisi atau dapat diubah manual'}
+                  </p>
                 </div>
 
                 {/* Mode Selector */}
@@ -1237,7 +1844,9 @@ export default function DashboardView({
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {adjustedObjectives.length === 0 ? (
                   <div className="text-center py-12 text-sm text-slate-400 italic col-span-full bg-white rounded-2xl border border-dashed border-slate-200">
-                    Belum ada target PK aktif untuk periode {selectedKpiPeriod === 'Bulanan' ? `Bulanan (${INDONESIAN_MONTHS[selectedKpiMonth]})` : selectedKpiPeriod}
+                    {selectedDivData?.key === 'Konten Media Baru'
+                      ? 'Belum ada indikator yang ditandai dengan dukungan KMB pada periode ini'
+                      : `Belum ada target PK aktif untuk periode ${selectedKpiPeriod === 'Bulanan' ? `Bulanan (${INDONESIAN_MONTHS[selectedKpiMonth]})` : selectedKpiPeriod}`}
                   </div>
                 ) : (
                   adjustedObjectives.map((obj, idx) => {
@@ -1267,6 +1876,10 @@ export default function DashboardView({
                         bgColor: 'bg-white', borderColor: 'border-amber-200/80', hoverBorderColor: 'hover:border-amber-400',
                       },
                       {
+                        gaugeColor: '#ec4899', textColor: 'text-pink-600', accentColor: 'bg-pink-500',
+                        bgColor: 'bg-white', borderColor: 'border-pink-200/80', hoverBorderColor: 'hover:border-pink-400',
+                      },
+                      {
                         gaugeColor: '#6366f1', textColor: 'text-indigo-600', accentColor: 'bg-indigo-500',
                         bgColor: 'bg-white', borderColor: 'border-indigo-200/80', hoverBorderColor: 'hover:border-indigo-400',
                       }
@@ -1274,11 +1887,13 @@ export default function DashboardView({
 
                     const palette = level3Palettes[idx % level3Palettes.length];
 
-                    // Determine effective card display mode
+                    // Determine effective card display mode (Default to 'gauge' for Konten Media Baru)
                     let cardMode = globalVisualizerMode;
                     if (cardMode === 'auto') {
                       const divKey = selectedDivData?.key || '';
-                      if (divKey === 'Pemberitaan' || divKey === 'Layanan Publik' || obj.unit === 'Rilis' || obj.indicatorName?.toLowerCase().includes('berita')) {
+                      if (divKey === 'Konten Media Baru') {
+                        cardMode = 'gauge';
+                      } else if (divKey === 'Pemberitaan' || divKey === 'Layanan Publik' || obj.unit === 'Rilis' || obj.indicatorName?.toLowerCase().includes('berita')) {
                         cardMode = 'akumulatif';
                       } else if (divKey === 'Tata Usaha / Umum' || divKey === 'TMB' || obj.unit === '%' || obj.indicatorName?.toLowerCase().includes('sakip')) {
                         cardMode = 'triwulanan';
@@ -1317,7 +1932,7 @@ export default function DashboardView({
                         <div className={`absolute top-0 left-0 right-0 h-[3.5px] ${palette.accentColor}`} />
 
                         {/* Card Header & Title */}
-                        <div className="space-y-1 min-w-0">
+                        <div className="space-y-1.5 min-w-0">
                           <div className="flex justify-between items-center gap-2">
                             <span className="text-[8px] font-black text-slate-400 font-mono tracking-wider uppercase block">
                               INDIKATOR SASARAN
@@ -1336,6 +1951,24 @@ export default function DashboardView({
                           <span className="text-xs font-bold text-slate-800 leading-snug line-clamp-2 block" title={obj.indicatorName}>
                             {obj.indicatorName}
                           </span>
+
+                          {/* Keterangan Nama PIC & Asal Bidang (Khusus KMB / Cross-Cutting) */}
+                          {(selectedDivData?.key === 'Konten Media Baru' || obj.originDivision) && (
+                            <div className="pt-1 flex flex-col gap-1 border-t border-slate-100 text-[10px]">
+                              <div className="flex items-center gap-1.5 text-slate-600">
+                                <span className="font-bold text-slate-400 font-mono text-[9px] uppercase">Bidang Asal:</span>
+                                <span className="font-semibold text-slate-700 bg-slate-100 px-2 py-0.5 rounded text-[9px]">
+                                  {obj.originDivision || 'Bidang Terkait'}
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-1.5 text-slate-600">
+                                <span className="font-bold text-slate-400 font-mono text-[9px] uppercase">PIC Utama:</span>
+                                <span className="font-bold text-indigo-600 bg-indigo-50/70 border border-indigo-100 px-2 py-0.5 rounded text-[9px] truncate max-w-full">
+                                  {obj.originPic || 'Ketua Tim Bidang'}
+                                </span>
+                              </div>
+                            </div>
+                          )}
                         </div>
 
                         {/* DYNAMIC CARD CONTENT BASED ON MODE */}
@@ -1465,7 +2098,7 @@ export default function DashboardView({
                           {isEligibleNewsIndicator(obj) ? (
                             <button
                               type="button"
-                              onClick={() => handleOpenNewsModal(obj, selectedDivData?.agreement)}
+                              onClick={() => handleOpenNewsModal(obj, obj.originAgreement || selectedDivData?.agreement)}
                               className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-extrabold rounded-lg border border-indigo-200 transition-all cursor-pointer font-mono"
                               title="Klik untuk melihat bukti rilis / eviden berita"
                             >
@@ -1513,6 +2146,15 @@ export default function DashboardView({
         targetValue={newsModalConfig.targetValue}
         achievementValue={newsModalConfig.achievementValue}
         assignedToName={newsModalConfig.assignedToName}
+      />
+
+      {/* Red-Flag Lagging Indicators Detail Modal */}
+      <RedFlagIndicatorsModal
+        isOpen={isRedFlagModalOpen}
+        onClose={() => setIsRedFlagModalOpen(false)}
+        indicators={redFlagIndicators}
+        periodLabel={selectedPeriodLabel}
+        onViewDetail={handleNavigateToDivisionFromRedFlag}
       />
     </div>
   );

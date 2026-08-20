@@ -1,7 +1,8 @@
 import React, { useState, FormEvent } from 'react';
 import bgLogin from '../assets/images/bg_login_rri_1786536696501.jpg';
-import { Radio, ShieldCheck, Key, UserCheck, Eye, EyeOff } from 'lucide-react';
+import { Key, Eye, EyeOff } from 'lucide-react';
 import { Employee } from '../types';
+import PetaKomandoLogo from './PetaKomandoLogo';
 
 interface LoginViewProps {
   employees: Employee[];
@@ -104,14 +105,9 @@ export default function LoginView({ employees, onLogin, namaInstansi, kepalaStas
       <div className="w-full max-w-md bg-slate-900/40 border border-slate-800/80 shadow-2xl backdrop-blur-md rounded-3xl p-6 sm:p-8 space-y-6 z-10">
         
         {/* Brand Header */}
-        <div className="flex flex-col items-center text-center space-y-3">
-          <div className="p-2.5 bg-indigo-600 rounded-2xl text-white shadow-lg shadow-indigo-600/20">
-            <Radio className="w-6 h-6 animate-pulse" />
-          </div>
-          <div>
-            <span className="text-[10px] font-black uppercase tracking-widest text-indigo-400 font-mono">PORTAL KOMANDO</span>
-            <h1 className="text-xl font-extrabold text-white tracking-tight">RRI Bandar Lampung</h1>
-          </div>
+        <div className="flex flex-col items-center text-center space-y-2">
+          <PetaKomandoLogo size="md" className="max-w-[280px]" />
+          <p className="text-[11px] text-slate-400 font-medium">Sistem Monitoring & Evaluasi Kinerja Terpadu</p>
         </div>
 
         {/* Manual Login Form */}

@@ -11,6 +11,8 @@ import LoginView from './components/LoginView';
 import DashboardBidangView from './components/DashboardBidangView';
 import DashboardTmbView from './components/DashboardTmbView';
 import InputCapaianPKView from './components/InputCapaianPKView';
+import PetaKomandoLogo from './components/PetaKomandoLogo';
+import PetaKomandoIcon from './components/PetaKomandoIcon';
 import { 
   fetchCollection, 
   fetchDocument, 
@@ -1062,23 +1064,49 @@ export default function App() {
 
   if (isSyncing) {
     return (
-      <div className="min-h-screen bg-slate-950 flex flex-col justify-center items-center p-4">
-        <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-80 h-80 bg-indigo-600/10 rounded-full blur-3xl pointer-events-none" />
-        <div className="w-full max-w-sm text-center space-y-6 z-10 select-none">
-          <div className="flex justify-center">
-            <div className="p-4 bg-indigo-600/20 text-indigo-400 rounded-full border border-indigo-500/20 relative animate-pulse">
-              <Radio className="w-10 h-10 animate-bounce" />
-              <span className="absolute inset-0 rounded-full border-2 border-indigo-500/40 animate-ping" />
+      <div className="min-h-screen bg-slate-950 flex flex-col justify-center items-center p-4 sm:p-6 relative overflow-hidden select-none">
+        {/* Ambient neon radial glows */}
+        <div className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-cyan-500/10 rounded-full blur-3xl pointer-events-none animate-pulse" />
+        <div className="absolute bottom-1/4 left-1/2 -translate-x-1/2 translate-y-1/2 w-80 h-80 bg-indigo-600/15 rounded-full blur-3xl pointer-events-none" />
+
+        {/* Central Splash Container */}
+        <div className="w-full max-w-xl text-center space-y-7 z-10 px-2">
+          
+          {/* Official Peta Komando RRI Logo with subtle pulse (Preserves exact 600x200 proportions without clipping) */}
+          <div className="flex justify-center transition-transform hover:scale-[1.02] duration-300">
+            <div className="w-full max-w-[560px] p-2 sm:p-3 rounded-2xl bg-slate-900/60 border border-slate-800/80 shadow-2xl backdrop-blur-md relative group">
+              <div className="absolute inset-0 bg-linear-to-r from-cyan-500/10 via-transparent to-indigo-500/10 rounded-2xl animate-pulse" />
+              <PetaKomandoLogo size="xl" className="relative z-10" />
             </div>
           </div>
-          <div className="space-y-2">
-            <h2 className="text-sm font-black uppercase tracking-widest text-indigo-400 font-mono animate-pulse">Sinkronisasi Cloud</h2>
-            <h1 className="text-lg font-extrabold text-white">Menghubungkan Portal Komando...</h1>
-            <p className="text-xs text-slate-400">Sedang mengamankan data dan memperbarui jaringan operasional aktif.</p>
+
+          {/* Database Connection Status with Blinking Dots */}
+          <div className="space-y-3">
+            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-cyan-950/60 border border-cyan-500/30 text-cyan-400 text-xs font-mono font-bold tracking-wider uppercase shadow-xs">
+              <span className="w-2 h-2 rounded-full bg-cyan-400 animate-ping" />
+              <span>SINKRONISASI SISTEM REAL-TIME</span>
+            </div>
+
+            <div className="flex items-center justify-center gap-0.5 text-base sm:text-lg font-extrabold text-white tracking-wide">
+              <span>Sedang Menghubungkan Basis Data</span>
+              <span className="inline-flex text-cyan-400 font-mono tracking-widest pl-1 font-black">
+                <span className="animate-pulse duration-500" style={{ animationDelay: '0ms' }}>.</span>
+                <span className="animate-pulse duration-500" style={{ animationDelay: '150ms' }}>.</span>
+                <span className="animate-pulse duration-500" style={{ animationDelay: '300ms' }}>.</span>
+                <span className="animate-pulse duration-500" style={{ animationDelay: '450ms' }}>.</span>
+                <span className="animate-pulse duration-500" style={{ animationDelay: '600ms' }}>.</span>
+              </span>
+            </div>
+
+            <p className="text-xs text-slate-400 max-w-sm mx-auto">
+              Memverifikasi koneksi cloud database Firestore dan mengamankan jaringan komando operasional.
+            </p>
           </div>
-          <div className="flex justify-center items-center gap-2 text-[10px] font-bold text-emerald-400 font-mono">
-            <ShieldCheck className="w-4 h-4 animate-pulse" />
-            <span>KONEKSI TERSERTIFIKASI AMAN</span>
+
+          {/* Security Badge */}
+          <div className="flex justify-center items-center gap-2 text-[11px] font-extrabold text-emerald-400/90 font-mono">
+            <ShieldCheck className="w-4 h-4 animate-pulse text-emerald-400" />
+            <span>KONEKSI ENKRIPSI PROTOKOL AMAN</span>
           </div>
         </div>
       </div>
@@ -1105,13 +1133,13 @@ export default function App() {
       <aside className={`${isSidebarCollapsed ? 'hidden' : 'hidden md:flex'} flex-col w-64 bg-slate-900 text-white shrink-0 shadow-lg select-none`}>
         
         {/* Brand Header */}
-        <div className="p-5 border-b border-slate-800 flex items-center gap-3">
-          <div className="p-2 bg-indigo-600 rounded-xl text-white shadow-md shadow-indigo-600/30">
-            <Radio className="w-5 h-5 animate-pulse" />
+        <div className="p-4 border-b border-slate-800 flex items-center gap-3">
+          <div className="shrink-0 p-1 bg-slate-950 rounded-xl border border-cyan-500/40 shadow-lg shadow-cyan-500/10">
+            <PetaKomandoIcon size={38} className="animate-pulse" />
           </div>
-          <div>
-            <h1 className="text-xs font-black uppercase tracking-widest text-slate-300">Portal Komando</h1>
-            <p className="text-[10px] font-bold text-indigo-400 font-mono tracking-tight">RRI BANDAR LAMPUNG</p>
+          <div className="min-w-0 flex-1">
+            <h1 className="text-xs font-black uppercase tracking-wider text-cyan-400 font-mono">Peta Komando</h1>
+            <p className="text-[10px] font-extrabold text-slate-200 tracking-tight">RRI BANDAR LAMPUNG</p>
           </div>
         </div>
 
@@ -1145,18 +1173,6 @@ export default function App() {
 
         {/* Navigation Tabs List */}
         <nav className="flex-1 p-4 space-y-1.5 pt-3 flex flex-col">
-          {/* Top Logout Action Button in Sidebar */}
-          <button
-            onClick={handleLogout}
-            className="w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all text-rose-300 hover:text-white bg-rose-950/40 hover:bg-rose-900/60 border border-rose-800/40 shadow-2xs mb-2 shrink-0 cursor-pointer"
-          >
-            <div className="flex items-center gap-2.5">
-              <LogOut className="w-4 h-4 text-rose-400" />
-              <span>Keluar Aplikasi</span>
-            </div>
-            <span className="text-[10px] bg-rose-900/80 text-rose-200 px-2 py-0.5 rounded font-mono">Exit</span>
-          </button>
-
           {currentUser.role !== 'Superadmin' && (
           <button
             onClick={() => setActiveTab('dashboard')}
@@ -1285,19 +1301,19 @@ export default function App() {
             <ShieldCheck className="w-3.5 h-3.5" /> SECURE EXECUTIVE PORTAL
           </div>
           <p className="truncate">{settings.namaInstansi}</p>
-          <p>© 2026 PORTAL KOMANDO RRI</p>
+          <p>© 2026 PETA KOMANDO RRI</p>
         </div>
       </aside>
 
       {/* Navigation Bar - Mobile */}
       <header className="md:hidden bg-slate-900 text-white p-4 flex justify-between items-center shadow-md shrink-0 select-none">
-        <div className="flex items-center gap-2">
-          <div className="p-1.5 bg-indigo-600 rounded-lg text-white">
-            <Radio className="w-4 h-4 animate-pulse" />
+        <div className="flex items-center gap-2.5">
+          <div className="shrink-0 p-1 bg-slate-950 rounded-lg border border-cyan-500/30">
+            <PetaKomandoIcon size={28} />
           </div>
           <div>
-            <h1 className="text-[10px] font-black uppercase tracking-widest text-slate-300">Portal Komando</h1>
-            <p className="text-[8px] font-bold text-indigo-400 font-mono">RRI BANDAR LAMPUNG</p>
+            <h1 className="text-[11px] font-black uppercase tracking-wider text-cyan-400 font-mono">Peta Komando</h1>
+            <p className="text-[8px] font-bold text-slate-300">RRI BANDAR LAMPUNG</p>
           </div>
         </div>
 
@@ -1324,17 +1340,6 @@ export default function App() {
       {/* Mobile Drawer menu */}
       {isMobileMenuOpen && (
         <div className="md:hidden bg-slate-900 border-t border-slate-800 text-white p-4 space-y-2 select-none shadow-inner z-50">
-          <button
-            onClick={() => { handleLogout(); setIsMobileMenuOpen(false); }}
-            className="w-full flex items-center justify-between px-4 py-3 rounded-xl text-xs font-bold text-rose-300 bg-rose-950/60 border border-rose-800/50 mb-2 cursor-pointer"
-          >
-            <div className="flex items-center gap-3">
-              <LogOut className="w-4 h-4 text-rose-400" />
-              <span>Keluar Aplikasi</span>
-            </div>
-            <span className="text-[10px] bg-rose-900 text-rose-200 px-2 py-0.5 rounded font-mono">Exit</span>
-          </button>
-
           {currentUser.role !== 'Superadmin' && (
           <button
             onClick={() => { setActiveTab('dashboard'); setIsMobileMenuOpen(false); }}

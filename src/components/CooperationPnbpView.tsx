@@ -379,8 +379,8 @@ export default function CooperationPnbpView({
         <div className="bg-white p-5 rounded-2xl border border-slate-200/70 shadow-xs space-y-3">
           <div className="flex items-center justify-between">
             <span className="text-xs font-bold text-slate-500 uppercase font-mono">Sisa Piutang</span>
-            <div className="p-2 bg-amber-50 text-amber-600 rounded-lg">
-              <DollarSign className="w-4 h-4" />
+            <div className="px-2 py-1 bg-amber-50 text-amber-700 font-extrabold text-[11px] font-mono rounded-lg border border-amber-200">
+              Rp
             </div>
           </div>
           <div className="space-y-1">
