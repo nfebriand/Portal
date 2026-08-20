@@ -31,11 +31,198 @@ import {
   BarChart3,
   Sparkles,
   Download,
-  Printer
+  Printer,
+  Filter,
+  ListFilter,
+  Building2,
+  Users,
+  RotateCcw,
+  FolderKanban,
+  Check,
+  Info
 } from 'lucide-react';
 import NewsDetailModal from './NewsDetailModal';
 import QuickReportModal from './QuickReportModal';
 import { filterNewsForIndicator, isEligibleNewsIndicator } from '../utils/newsFilter';
+
+export interface SubTeamInfo {
+  id: string;
+  name: string;
+  shortName: string;
+  description: string;
+  keywords: string[];
+}
+
+export const DIVISIONS_LIST = [
+  'Tata Usaha / Umum',
+  'Siaran',
+  'Pemberitaan',
+  'Teknologi dan Media Baru',
+  'Konten Media Baru',
+  'Layanan Pengembangan Usaha'
+] as const;
+
+export const DIVISION_SUBTEAMS: Record<string, SubTeamInfo[]> = {
+  'Tata Usaha / Umum': [
+    {
+      id: 'tu-sdm',
+      name: 'Sub-Tim Kepegawaian & SDM',
+      shortName: 'Kepegawaian',
+      description: 'Pengelolaan ASN, SKP, disiplin, dan administrasi kepegawaian',
+      keywords: ['kepegawaian', 'sdm', 'asn', 'skp', 'diklat', 'disiplin', 'kompetensi']
+    },
+    {
+      id: 'tu-keuangan',
+      name: 'Sub-Tim Keuangan & Perbendaharaan',
+      shortName: 'Keuangan',
+      description: 'Realisasi anggaran DIPA, LPJ, penggajian, dan perbendaharaan',
+      keywords: ['anggaran', 'keuangan', 'dipa', 'penyerapan', 'lpj', 'perbendaharaan', 'sp2d']
+    },
+    {
+      id: 'tu-bmn',
+      name: 'Sub-Tim BMN & Rumah Tangga',
+      shortName: 'BMN & RT',
+      description: 'Inventarisasi aset negara, sarana prasarana, dan operasional kantor',
+      keywords: ['bmn', 'aset', 'gedung', 'sarana', 'prasarana', 'rumah tangga', 'pemeliharaan']
+    },
+    {
+      id: 'tu-sakip',
+      name: 'Sub-Tim Tata Laksana, Hukum & SAKIP',
+      shortName: 'SAKIP & Hukum',
+      description: 'Akuntabilitas kinerja, SPIP, reformasi birokrasi, dan kepatuhan regulasi',
+      keywords: ['sakip', 'lkjip', 'hukum', 'tata laksana', 'spip', 'rb', 'evaluasi', 'kepatuhan']
+    }
+  ],
+  'Siaran': [
+    {
+      id: 'siaran-pro1',
+      name: 'Sub-Tim Programa 1 (Kanal Informasi & Solusi)',
+      shortName: 'Programa 1',
+      description: 'Kanal informasi umum, dialog interaktif daerah, edukasi publik, dan religi',
+      keywords: ['pro 1', 'pro1', 'programa 1', 'dialog', 'informasi', 'solusi', 'siaran umum']
+    },
+    {
+      id: 'siaran-pro2',
+      name: 'Sub-Tim Programa 2 (Kanal Suara Kreativitas)',
+      shortName: 'Programa 2',
+      description: 'Kanal musik, hiburan kaum muda, komunitas kreatif, dan edukasi remaja',
+      keywords: ['pro 2', 'pro2', 'programa 2', 'kreativitas', 'musik', 'muda', 'hiburan', 'komunitas']
+    },
+    {
+      id: 'siaran-pro4',
+      name: 'Sub-Tim Programa 4 (Kanal Kebudayaan & Tradisi)',
+      shortName: 'Programa 4',
+      description: 'Pelestarian seni budaya Lampung, bahasa daerah, dan siaran tradisi nusantara',
+      keywords: ['pro 4', 'pro4', 'programa 4', 'budaya', 'tradisi', 'seni', 'lampung', 'kearifan lokal']
+    },
+    {
+      id: 'siaran-produksi',
+      name: 'Sub-Tim Produksi Acara & Siaran Khusus',
+      shortName: 'Produksi Acara',
+      description: 'Feature radio, sandiwara audio, siaran langsung luar studio (OB Van), dan acara khusus',
+      keywords: ['produksi', 'feature', 'sandiwara', 'khusus', 'ob van', 'siaran luar', 'paket']
+    }
+  ],
+  'Pemberitaan': [
+    {
+      id: 'berita-liputan',
+      name: 'Sub-Tim Liputan & Reportase Daerah',
+      shortName: 'Liputan Lapangan',
+      description: 'Wartawan/reporter investigasi, breaking news, dan liputan peristiwa daerah Lampung',
+      keywords: ['liputan', 'reporter', 'wartawan', 'lapangan', 'investigasi', 'daerah', 'peristiwa']
+    },
+    {
+      id: 'berita-redaksi',
+      name: 'Sub-Tim Redaksi & Gatekeeping Berita',
+      shortName: 'Redaksi & Editing',
+      description: 'Penyuntingan naskah warta, editing audio, pengecekan fakta, dan kurasi berita',
+      keywords: ['redaksi', 'gatekeeping', 'editing', 'naskah', 'akurasi', 'fakta', 'editor']
+    },
+    {
+      id: 'berita-kbrn',
+      name: 'Sub-Tim KBRN Online & Multiplatform Siber',
+      shortName: 'KBRN Online',
+      description: 'Portal berita daring rri.co.id / KBRN daerah Lampung dan distribusi digital',
+      keywords: ['kbrn', 'online', 'portal', 'siber', 'web', 'rri.co.id', 'artikel', 'rilis']
+    },
+    {
+      id: 'berita-buletin',
+      name: 'Sub-Tim Buletin & Siaran Warta RRI',
+      shortName: 'Buletin Warta',
+      description: 'Warta Berita Lampung, Berita Pagi/Siang/Malam, dan Flash News siaran radio',
+      keywords: ['buletin', 'warta', 'berita', 'siaran', 'flash news', 'siar', 'pemilu']
+    }
+  ],
+  'Teknologi dan Media Baru': [
+    {
+      id: 'tmb-pemancar',
+      name: 'Sub-Tim Pemancar & Transmisi MW/FM',
+      shortName: 'Transmisi Pemancar',
+      description: 'Pemeliharaan stasiun pemancar radio (Pahoman, Way Kanan), antena, dan daya pancar RF',
+      keywords: ['pemancar', 'transmisi', 'fm', 'mw', 'rf', 'antena', 'power', 'on-air', 'coverage']
+    },
+    {
+      id: 'tmb-it-studio',
+      name: 'Sub-Tim IT, Studio Digital & Audio Jaringan',
+      shortName: 'IT & Studio',
+      description: 'Infrastruktur komputer, routing audio digital, automation system, LAN, dan server',
+      keywords: ['it', 'studio', 'digital', 'audio', 'jaringan', 'server', 'komputer', 'automation']
+    },
+    {
+      id: 'tmb-streaming',
+      name: 'Sub-Tim Distribusi Streaming & Infrastruktur OTT',
+      shortName: 'Streaming & OTT',
+      description: 'Infrastruktur live audio/video streaming, backup server, dan interkoneksi internet',
+      keywords: ['streaming', 'ott', 'distribusi', 'internet', 'bandwidth', 'koneksi', 'relay', 'infrastruktur']
+    }
+  ],
+  'Konten Media Baru': [
+    {
+      id: 'kmb-video',
+      name: 'Sub-Tim Produksi Video & Podcast Visual',
+      shortName: 'Video & Podcast',
+      description: 'Live streaming studio visual, video podcast YouTube RRI, dan program audio-visual',
+      keywords: ['video', 'podcast', 'youtube', 'visual', 'live stream', 'kamera', 'editing video']
+    },
+    {
+      id: 'kmb-medsos',
+      name: 'Sub-Tim Media Sosial & Grafis Multiplatform',
+      shortName: 'Medsos & Grafis',
+      description: 'Konten Instagram, TikTok, Facebook, infografis berita, dan poster program',
+      keywords: ['medsos', 'sosial', 'instagram', 'tiktok', 'facebook', 'grafis', 'desain', 'infografis']
+    },
+    {
+      id: 'kmb-multiplatform',
+      name: 'Sub-Tim RRI Digital App & Interaktivitas',
+      shortName: 'Aplikasi RRI Digital',
+      description: 'Optimalisasi tayangan aplikasi RRI Digital, engagement pendengar, dan analitik',
+      keywords: ['rri digital', 'aplikasi', 'multiplatform', 'engagement', 'interaktivitas', 'analitik']
+    }
+  ],
+  'Layanan Pengembangan Usaha': [
+    {
+      id: 'lpu-mitra',
+      name: 'Sub-Tim Kemitraan & Kerjasama Strategis',
+      shortName: 'Kemitraan & MoU',
+      description: 'Inisiasi kerjasama dengan Pemda, BUMN, swasta, asosiasi, dan universitas',
+      keywords: ['kemitraan', 'kerjasama', 'mou', 'pks', 'mitra', 'pemda', 'bumn', 'instansi']
+    },
+    {
+      id: 'lpu-iklan',
+      name: 'Sub-Tim Layanan Siaran Iklan, PSA & PNBP',
+      shortName: 'Iklan & PNBP',
+      description: 'Pengelolaan siaran iklan, spot layanan masyarakat, ad-libs, dan optimalisasi target PNBP',
+      keywords: ['iklan', 'psa', 'pnbp', 'ad-libs', 'spot', 'sponsor', 'penerimaan', 'tarif']
+    },
+    {
+      id: 'lpu-event',
+      name: 'Sub-Tim Event Organizer Off-Air & Komersial',
+      shortName: 'Event & Komersial',
+      description: 'Penyelenggaraan event off-air, festival musik/budaya, sewa auditorium, dan studio komersial',
+      keywords: ['event', 'off-air', 'auditorium', 'sewa', 'komersial', 'festival', 'lomba', 'show']
+    }
+  ]
+};
 
 interface DashboardBidangViewProps {
   currentUser: { id: string; name: string; role: 'Kepala' | 'Staff' | 'Ketua Bidang' | 'Superadmin'; division?: string; photo?: string };
@@ -247,24 +434,67 @@ export default function DashboardBidangView({
     }));
   }, [employees]);
 
+  // Selected Division State - defaults to currentUser.division if valid, or 'Tata Usaha / Umum'
+  const [selectedDivision, setSelectedDivision] = useState<string>(() => {
+    if (currentUser.division && currentUser.division !== 'Pimpinan' && currentUser.division !== 'Umum') {
+      return currentUser.division;
+    }
+    return 'Tata Usaha / Umum';
+  });
+
+  // Selected Sub-Team filter ('all' or specific sub-team ID)
+  const [selectedSubTeam, setSelectedSubTeam] = useState<string>('all');
+
+  // Selected Staff filter ('all' or employee ID)
+  const [selectedStaffFilter, setSelectedStaffFilter] = useState<string>('all');
+
+  const activeDivision = selectedDivision;
+
+  // Handler for changing division with cascade reset
+  const handleDivisionChange = (newDivision: string) => {
+    setSelectedDivision(newDivision);
+    setSelectedSubTeam('all');
+    setSelectedStaffFilter('all');
+  };
+
   // Find current active employee details
   const currentEmployee = useMemo(() => {
     return employees.find(e => e.id === currentUser.id);
   }, [employees, currentUser]);
 
-  const activeDivision = currentUser.division || 'Umum';
+  // Ketua Tim / Penanggung Jawab Bidang
+  const ketuaTimBidangName = useMemo(() => {
+    const d = activeDivision.toLowerCase();
+    if (d.includes('tata usaha')) return identity.kepalaBidangNama || 'Ir. Hendra Saputra, M.T.';
+    if (d.includes('siaran')) return identity.ketuaTimSiaranNama || 'Rina Kartika, S.Sos.';
+    if (d.includes('pemberitaan')) return identity.ketuaTimPemberitaanNama || 'Drs. Heru Prasetyo, M.Si.';
+    if (d.includes('teknologi')) return identity.ketuaTimTeknikNama || 'Ir. Andi Wijaya, M.T.';
+    if (d.includes('konten')) return identity.ketuaTimKontenNama || 'Siti Rahmawati, S.I.Kom.';
+    if (d.includes('layanan')) return identity.ketuaTimLayananNama || 'Rizky Syahputra, A.Md.';
+    return 'Penanggung Jawab Bidang';
+  }, [activeDivision, identity]);
+
+  // Sub-teams of active division
+  const currentSubTeams = useMemo(() => {
+    return DIVISION_SUBTEAMS[activeDivision] || [];
+  }, [activeDivision]);
+
+  const activeSubTeamInfo = useMemo(() => {
+    if (selectedSubTeam === 'all') return null;
+    return currentSubTeams.find(st => st.id === selectedSubTeam) || null;
+  }, [selectedSubTeam, currentSubTeams]);
 
   // Find all agreements relevant to this division
   // 1. Their own agreement (assignedToEmployeeId === currentEmployee.id)
   // 2. Their Ketua Tim / Kabid agreement for this division
   const divisionAgreements = useMemo(() => {
     return agreements.filter(ag => {
-      // Direct assignment
-      if (ag.assignedToEmployeeId === currentUser.id) return true;
+      // Direct assignment if currentUser matches
+      if (ag.assignedToEmployeeId === currentUser.id && currentUser.division === activeDivision) return true;
       
       // Ketua Tim of their division
       const divisionKey = activeDivision.toLowerCase();
-      const levelKey = ag.level.toLowerCase();
+      const levelKey = (ag.level || '').toLowerCase();
       
       if (divisionKey.includes('pemberitaan') && levelKey.includes('pemberitaan')) return true;
       if (divisionKey.includes('konten') && levelKey.includes('konten')) return true;
@@ -279,9 +509,9 @@ export default function DashboardBidangView({
   }, [agreements, currentUser, activeDivision]);
 
   // Extract objectives
-  const { ownObjectives, teamObjectives } = useMemo(() => {
+  const { ownObjectives, teamObjectives, teamAgreement } = useMemo(() => {
     const own = divisionAgreements.find(ag => ag.assignedToEmployeeId === currentUser.id);
-    const team = divisionAgreements.find(ag => ag.assignedToEmployeeId !== currentUser.id && ag.level !== 'Pegawai');
+    const team = divisionAgreements.find(ag => ag.level !== 'Pegawai');
     
     return {
       ownObjectives: own ? own.objectives : [],
@@ -289,6 +519,23 @@ export default function DashboardBidangView({
       teamAgreement: team
     };
   }, [divisionAgreements, currentUser]);
+
+  // Filtered team objectives by sub-team
+  const filteredTeamObjectives = useMemo(() => {
+    if (selectedSubTeam === 'all') {
+      return teamObjectives;
+    }
+    const subTeam = currentSubTeams.find(st => st.id === selectedSubTeam);
+    if (!subTeam) return teamObjectives;
+
+    const matched = teamObjectives.filter(obj => {
+      const name = (obj.indicatorName || '').toLowerCase();
+      const code = (obj.id || '').toLowerCase();
+      return subTeam.keywords.some(kw => name.includes(kw) || code.includes(kw));
+    });
+
+    return matched.length > 0 ? matched : teamObjectives;
+  }, [teamObjectives, selectedSubTeam, currentSubTeams]);
 
   // Calculate stats for this specific division
   const stats = useMemo(() => {
@@ -303,12 +550,13 @@ export default function DashboardBidangView({
 
     // 2. Calculate average achievement of their team's objectives
     let teamPctTotal = 0;
-    teamObjectives.forEach(obj => {
+    const targetObjList = filteredTeamObjectives.length > 0 ? filteredTeamObjectives : teamObjectives;
+    targetObjList.forEach(obj => {
       const tgt = parseFloat(obj.target) || 100;
       const progress = tgt > 0 ? (obj.achievement / tgt) * 100 : 0;
       teamPctTotal += Math.min(120, progress);
     });
-    const teamAverageProgress = teamObjectives.length > 0 ? Math.round(teamPctTotal / teamObjectives.length) : 0;
+    const teamAverageProgress = targetObjList.length > 0 ? Math.round(teamPctTotal / targetObjList.length) : 0;
 
     // 3. For division-specific metrics
     const divReports = newsReports.filter(r => r.employeeId === currentUser.id);
@@ -322,13 +570,13 @@ export default function DashboardBidangView({
       divReportsCount: divReports.length,
       totalDivValue
     };
-  }, [ownObjectives, teamObjectives, newsReports, currentUser, contracts]);
+  }, [ownObjectives, teamObjectives, filteredTeamObjectives, newsReports, currentUser, contracts]);
 
   // Find Level 2 Agreement for this division (e.g. Siaran, Pemberitaan, etc.)
   const level2Agreement = useMemo(() => {
     const divKey = activeDivision.toLowerCase();
     return agreements.find(ag => {
-      const lvlKey = ag.level.toLowerCase();
+      const lvlKey = (ag.level || '').toLowerCase();
       if (divKey.includes('pemberitaan') && lvlKey.includes('pemberitaan')) return true;
       if (divKey.includes('konten') && lvlKey.includes('konten')) return true;
       if (divKey.includes('teknologi') && lvlKey.includes('teknologi')) return true;
@@ -339,19 +587,43 @@ export default function DashboardBidangView({
     });
   }, [agreements, activeDivision]);
 
+  // Staff/subordinates of this active division
+  const divisionStaff = useMemo(() => {
+    return employees.filter(e => {
+      if (e.role === 'Ketua Bidang') return false;
+      const empDiv = (e.divisi || '').toLowerCase();
+      const actDiv = activeDivision.toLowerCase();
+      return empDiv.includes(actDiv) || actDiv.includes(empDiv);
+    });
+  }, [employees, activeDivision]);
+
+  // Filtered staff list for display
+  const displayedStaff = useMemo(() => {
+    if (selectedStaffFilter === 'all') {
+      return divisionStaff;
+    }
+    return divisionStaff.filter(e => e.id === selectedStaffFilter);
+  }, [divisionStaff, selectedStaffFilter]);
+
   // Find all level 3 (Pegawai) agreements of this division
   const divisionPegawaiAgreements = useMemo(() => {
     return agreements.filter(ag => {
       if (ag.level !== 'Pegawai' || !ag.assignedToEmployeeId) return false;
       const emp = employees.find(e => e.id === ag.assignedToEmployeeId);
-      return emp?.divisi === activeDivision;
+      if (!emp) return false;
+      const empDiv = (emp.divisi || '').toLowerCase();
+      const actDiv = activeDivision.toLowerCase();
+      return empDiv.includes(actDiv) || actDiv.includes(empDiv);
     });
   }, [agreements, employees, activeDivision]);
 
-  // Find staff/subordinates of this division
-  const divisionStaff = useMemo(() => {
-    return employees.filter(e => e.divisi === activeDivision && e.role !== 'Ketua Bidang');
-  }, [employees, activeDivision]);
+  // Filtered level 3 agreements
+  const displayedPegawaiAgreements = useMemo(() => {
+    if (selectedStaffFilter === 'all') {
+      return divisionPegawaiAgreements;
+    }
+    return divisionPegawaiAgreements.filter(ag => ag.assignedToEmployeeId === selectedStaffFilter);
+  }, [divisionPegawaiAgreements, selectedStaffFilter]);
 
   const openDelegationForm = (indicator: any, agreement: any) => {
     setDelegatingIndicator({ indicator, agreement });
@@ -568,31 +840,209 @@ export default function DashboardBidangView({
         </div>
       </div>
 
-      {/* Tab Navigation if user is Ketua Bidang */}
-      {currentUser.role === 'Ketua Bidang' && (
-        <div className="flex border-b border-slate-200 gap-1 mt-2">
-          <button
-            onClick={() => setActiveTab('summary')}
-            className={`px-5 py-2.5 font-bold text-xs tracking-wider uppercase border-b-2 transition-all cursor-pointer ${
-              activeTab === 'summary'
-                ? 'border-indigo-600 text-indigo-600'
-                : 'border-transparent text-slate-500 hover:text-slate-800'
-            }`}
-          >
-            Ringkasan Kinerja Bidang
-          </button>
-          <button
-            onClick={() => setActiveTab('delegation')}
-            className={`px-5 py-2.5 font-bold text-xs tracking-wider uppercase border-b-2 transition-all flex items-center gap-1.5 cursor-pointer ${
-              activeTab === 'delegation'
-                ? 'border-indigo-600 text-indigo-600'
-                : 'border-transparent text-slate-500 hover:text-slate-800'
-            }`}
-          >
-            <GitFork className="w-4 h-4" /> Menu Delegasi Tugas
-          </button>
+      {/* FILTER PANEL: DIVISI, SUB-TIM & STAF PELAKSANA */}
+      <div className="bg-white p-5 rounded-3xl border border-slate-200/90 shadow-sm space-y-4">
+        {/* Top Header of Filter Bar */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100">
+          <div className="flex items-center gap-2.5">
+            <div className="p-2 bg-indigo-50 text-indigo-600 rounded-xl">
+              <ListFilter className="w-5 h-5" />
+            </div>
+            <div>
+              <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2">
+                Filter & Analisis Performa Bidang & Sub-Tim
+              </h3>
+              <p className="text-xs text-slate-500">
+                Pilih divisi, sub-tim operasional, atau staf pelaksana untuk navigasi performa
+              </p>
+            </div>
+          </div>
+
+          {/* Quick reset / action buttons */}
+          <div className="flex items-center gap-2">
+            {(selectedDivision !== (currentUser.division || 'Tata Usaha / Umum') || selectedSubTeam !== 'all' || selectedStaffFilter !== 'all') && (
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedDivision(currentUser.division || 'Tata Usaha / Umum');
+                  setSelectedSubTeam('all');
+                  setSelectedStaffFilter('all');
+                }}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-semibold transition-all cursor-pointer"
+                title="Kembalikan ke divisi default pengguna"
+              >
+                <RotateCcw className="w-3.5 h-3.5" />
+                <span>Reset Filter</span>
+              </button>
+            )}
+          </div>
         </div>
-      )}
+
+        {/* 3 Select Dropdowns in a Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5">
+          {/* 1. Dropdown Divisi / Bidang */}
+          <div className="space-y-1.5">
+            <label className="text-[11px] font-bold uppercase tracking-wider text-slate-600 flex items-center gap-1.5 font-mono">
+              <Building2 className="w-3.5 h-3.5 text-indigo-600" />
+              1. Divisi / Bidang Utama
+            </label>
+            <div className="relative">
+              <select
+                id="filter-division-select"
+                value={selectedDivision}
+                onChange={(e) => handleDivisionChange(e.target.value)}
+                className="w-full pl-3.5 pr-9 py-2.5 bg-slate-50 hover:bg-slate-100/80 focus:bg-white border border-slate-200 focus:border-indigo-500 rounded-2xl text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-100 transition-all appearance-none cursor-pointer"
+              >
+                {DIVISIONS_LIST.map((div) => (
+                  <option key={div} value={div}>
+                    {div} {currentUser.division === div ? '(Divisi Saya)' : ''}
+                  </option>
+                ))}
+              </select>
+              <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+            </div>
+          </div>
+
+          {/* 2. Dropdown Sub-Tim / Fungsi Kerja */}
+          <div className="space-y-1.5">
+            <label className="text-[11px] font-bold uppercase tracking-wider text-slate-600 flex items-center gap-1.5 font-mono">
+              <FolderKanban className="w-3.5 h-3.5 text-indigo-600" />
+              2. Sub-Tim / Fungsi Kerja
+            </label>
+            <div className="relative">
+              <select
+                id="filter-subteam-select"
+                value={selectedSubTeam}
+                onChange={(e) => setSelectedSubTeam(e.target.value)}
+                className="w-full pl-3.5 pr-9 py-2.5 bg-slate-50 hover:bg-slate-100/80 focus:bg-white border border-slate-200 focus:border-indigo-500 rounded-2xl text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-100 transition-all appearance-none cursor-pointer"
+              >
+                <option value="all">Semua Sub-Tim ({activeDivision})</option>
+                {currentSubTeams.map((st) => (
+                  <option key={st.id} value={st.id}>
+                    {st.name}
+                  </option>
+                ))}
+              </select>
+              <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+            </div>
+          </div>
+
+          {/* 3. Dropdown Staf Pelaksana */}
+          <div className="space-y-1.5">
+            <label className="text-[11px] font-bold uppercase tracking-wider text-slate-600 flex items-center gap-1.5 font-mono">
+              <Users className="w-3.5 h-3.5 text-indigo-600" />
+              3. Staf / Pegawai Pelaksana
+            </label>
+            <div className="relative">
+              <select
+                id="filter-staff-select"
+                value={selectedStaffFilter}
+                onChange={(e) => setSelectedStaffFilter(e.target.value)}
+                className="w-full pl-3.5 pr-9 py-2.5 bg-slate-50 hover:bg-slate-100/80 focus:bg-white border border-slate-200 focus:border-indigo-500 rounded-2xl text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-100 transition-all appearance-none cursor-pointer"
+              >
+                <option value="all">Semua Staf ({divisionStaff.length} Pegawai)</option>
+                {divisionStaff.map((emp) => (
+                  <option key={emp.id} value={emp.id}>
+                    {emp.nama} ({emp.nip || 'ASN'}) {emp.jabatan ? `• ${emp.jabatan}` : ''}
+                  </option>
+                ))}
+              </select>
+              <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+            </div>
+          </div>
+        </div>
+
+        {/* Quick Sub-Team Chips */}
+        {currentSubTeams.length > 0 && (
+          <div className="space-y-1.5 pt-1">
+            <div className="text-[10px] font-bold font-mono uppercase text-slate-400">Pilih Cepat Sub-Tim:</div>
+            <div className="flex flex-wrap gap-1.5 items-center">
+              <button
+                type="button"
+                onClick={() => setSelectedSubTeam('all')}
+                className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+                  selectedSubTeam === 'all'
+                    ? 'bg-indigo-600 text-white shadow-xs'
+                    : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
+                }`}
+              >
+                Semua Sub-Tim
+              </button>
+              {currentSubTeams.map((st) => {
+                const isActive = selectedSubTeam === st.id;
+                return (
+                  <button
+                    key={st.id}
+                    type="button"
+                    onClick={() => setSelectedSubTeam(st.id)}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer flex items-center gap-1.5 ${
+                      isActive
+                        ? 'bg-indigo-600 text-white shadow-xs'
+                        : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
+                    }`}
+                  >
+                    <span>{st.shortName}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* Active Context Banner */}
+        <div className="bg-slate-50 p-3 rounded-2xl border border-slate-200/70 flex flex-col md:flex-row md:items-center justify-between gap-2.5 text-xs text-slate-600">
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 font-medium">
+            <span className="flex items-center gap-1 text-slate-800">
+              <Building2 className="w-3.5 h-3.5 text-indigo-600" />
+              Bidang: <strong className="text-indigo-700 ml-0.5">{activeDivision}</strong>
+            </span>
+            <span className="text-slate-300">•</span>
+            <span className="flex items-center gap-1 text-slate-700">
+              <User className="w-3.5 h-3.5 text-indigo-600" />
+              Penanggung Jawab: <span className="font-semibold ml-0.5">{ketuaTimBidangName}</span>
+            </span>
+            {activeSubTeamInfo && (
+              <>
+                <span className="text-slate-300">•</span>
+                <span className="flex items-center gap-1 text-indigo-700 font-semibold bg-indigo-50 px-2 py-0.5 rounded-md border border-indigo-100">
+                  <FolderKanban className="w-3 h-3" />
+                  {activeSubTeamInfo.name}
+                </span>
+              </>
+            )}
+          </div>
+
+          <div className="flex items-center gap-3 font-mono text-[11px] text-slate-500">
+            <span>{filteredTeamObjectives.length} Sasaran IKP</span>
+            <span>•</span>
+            <span>{displayedStaff.length} Staf Pelaksana</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Tab Navigation */}
+      <div className="flex border-b border-slate-200 gap-1 mt-2">
+        <button
+          onClick={() => setActiveTab('summary')}
+          className={`px-5 py-2.5 font-bold text-xs tracking-wider uppercase border-b-2 transition-all cursor-pointer ${
+            activeTab === 'summary'
+              ? 'border-indigo-600 text-indigo-600'
+              : 'border-transparent text-slate-500 hover:text-slate-800'
+          }`}
+        >
+          Ringkasan Kinerja Bidang
+        </button>
+        <button
+          onClick={() => setActiveTab('delegation')}
+          className={`px-5 py-2.5 font-bold text-xs tracking-wider uppercase border-b-2 transition-all flex items-center gap-1.5 cursor-pointer ${
+            activeTab === 'delegation'
+              ? 'border-indigo-600 text-indigo-600'
+              : 'border-transparent text-slate-500 hover:text-slate-800'
+          }`}
+        >
+          <GitFork className="w-4 h-4" /> Menu Delegasi Tugas
+        </button>
+      </div>
 
       {activeTab === 'summary' && (
         <>
@@ -672,12 +1122,14 @@ export default function DashboardBidangView({
 
             {/* Clean Grid of Cards */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {teamObjectives.length === 0 ? (
+              {filteredTeamObjectives.length === 0 ? (
                 <div className="text-center py-12 text-sm text-slate-400 italic col-span-full bg-white rounded-2xl border border-dashed border-slate-200">
-                  Belum ada Perjanjian Kinerja Tingkat Bidang ({activeDivision})
+                  {selectedSubTeam !== 'all' 
+                    ? `Tidak ada indikator yang cocok dengan sub-tim "${activeSubTeamInfo?.name || selectedSubTeam}" di ${activeDivision}`
+                    : `Belum ada Perjanjian Kinerja Tingkat Bidang (${activeDivision})`}
                 </div>
               ) : (
-                teamObjectives.map((obj, idx) => {
+                filteredTeamObjectives.map((obj, idx) => {
                   const targetNum = parseFloat(obj.target) || 100;
                   const pct = targetNum > 0 ? Math.round((obj.achievement / targetNum) * 100) : 0;
                   const fillPercentage = Math.min(100, Math.max(0, pct));
@@ -913,152 +1365,342 @@ export default function DashboardBidangView({
 
           </div>
 
-          {/* SIMULASI OPSI 1: KMB SHARED INDICATORS */}
-          {activeDivision === 'Konten Media Baru' && (
-            <div className="bg-gradient-to-r from-slate-950 via-slate-900 to-slate-950 p-6 rounded-2xl border border-indigo-500/30 shadow-xl mb-6 relative overflow-hidden">
-              <div className="absolute -top-24 -right-24 w-48 h-48 bg-indigo-500/20 rounded-full blur-3xl" />
-              <div className="absolute -bottom-24 -left-24 w-48 h-48 bg-pink-500/20 rounded-full blur-3xl" />
-              
-              <div className="flex flex-col md:flex-row items-center gap-8 relative z-10">
-                <div className="flex-1 space-y-4">
-                  <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-indigo-500/20 border border-indigo-500/30 text-indigo-300 text-[10px] font-bold uppercase tracking-wider">
-                    <Sparkles className="w-3.5 h-3.5" />
-                    Simulasi Sistem: Opsi 1 (Shared Indicators)
-                  </div>
-                  <div>
-                    <h2 className="text-xl font-black text-white tracking-tight">Kalkulasi Capaian Otomatis KMB</h2>
-                    <p className="text-xs text-slate-400 mt-1 leading-relaxed max-w-xl">
-                      Capaian kinerja KMB ditarik otomatis dari persentase indikator Bidang Siaran & Pemberitaan yang memiliki tag <strong className="text-indigo-300">"Didukung oleh KMB"</strong>.
-                    </p>
-                  </div>
-                  
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
-                    <div className="bg-slate-800/50 border border-slate-700/50 p-3 rounded-xl">
-                      <div className="flex justify-between items-center mb-2">
-                        <span className="text-[10px] font-bold text-slate-400 uppercase">Kontribusi Siaran</span>
-                        <span className="text-xs font-black text-emerald-400">{kmbSharedIndicators.siaranAverage}%</span>
-                      </div>
-                      <div className="text-xs text-slate-300 font-medium">Video Podcast, Multiplatform RRI</div>
-                    </div>
-                    <div className="bg-slate-800/50 border border-slate-700/50 p-3 rounded-xl">
-                      <div className="flex justify-between items-center mb-2">
-                        <span className="text-[10px] font-bold text-slate-400 uppercase">Kontribusi Berita</span>
-                        <span className="text-xs font-black text-emerald-400">{kmbSharedIndicators.beritaAverage}%</span>
-                      </div>
-                      <div className="text-xs text-slate-300 font-medium">Infografis Medsos, KBRN Online</div>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="shrink-0 w-48 flex flex-col items-center">
-                  <div className="w-40 h-40 relative">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <PieChart>
-                        <Pie
-                          data={[
-                            { name: 'Capaian', value: kmbSharedIndicators.average },
-                            { name: 'Sisa', value: 100 - kmbSharedIndicators.average }
-                          ]}
-                          cx="50%"
-                          cy="50%"
-                          startAngle={180}
-                          endAngle={0}
-                          innerRadius={50}
-                          outerRadius={70}
-                          dataKey="value"
-                          stroke="none"
-                          cornerRadius={5}
-                        >
-                          <Cell fill="#6366f1" />
-                          <Cell fill="#1e293b" />
-                        </Pie>
-                      </PieChart>
-                    </ResponsiveContainer>
-                    <div className="absolute inset-0 flex flex-col items-center justify-center -mt-6">
-                      <span className="text-3xl font-black text-white font-mono">{kmbSharedIndicators.average}<span className="text-sm text-slate-400">%</span></span>
-                    </div>
-                    <div className="absolute bottom-4 inset-x-0 text-center">
-                      <span className="text-[10px] font-bold text-indigo-400 uppercase tracking-widest bg-slate-900/80 px-2 py-0.5 rounded-full border border-indigo-500/20">Capaian Agregat</span>
-                    </div>
-                  </div>
-                </div>
+          {/* TABEL & PERFORMA STAF PELAKSANA BIDANG */}
+          <div className="bg-white rounded-3xl border border-slate-200/90 shadow-sm p-6 space-y-5">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-100">
+              <div className="space-y-1">
+                <h3 className="text-base font-bold text-slate-800 flex items-center gap-2">
+                  <Users className="w-4 h-4 text-indigo-600" />
+                  Performa & Capaian Kinerja Staf ({activeDivision})
+                </h3>
+                <p className="text-xs text-slate-500">
+                  Menampilkan {displayedStaff.length} dari {divisionStaff.length} staf pelaksana • Integrasi Sasaran Level 3
+                </p>
               </div>
 
-                            {/* DAFTAR INDIKATOR KMB */}
-              {kmbSharedIndicators.indicators.length > 0 && (
-                <div className="mt-8 pt-6 border-t border-slate-700/50 relative z-10">
-                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-3">
-                    <div>
-                      <h3 className="text-sm font-black text-white uppercase tracking-widest flex items-center gap-2">
-                        <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                        Tabel Referensi Ketercapaian
-                      </h3>
-                      <p className="text-[10px] text-slate-400 mt-1">Daftar seluruh indikator (termasuk Level 3) yang didukung oleh Konten Media Baru.</p>
-                    </div>
-                  </div>
-                  
-                  <div className="bg-slate-900/50 border border-slate-700/50 rounded-xl overflow-hidden shadow-2xl">
-                    <div className="overflow-x-auto">
-                      <table className="w-full text-left text-xs whitespace-nowrap">
-                        <thead>
-                          <tr className="bg-slate-800/80 text-[10px] font-black text-slate-400 uppercase tracking-wider border-b border-slate-700/50">
-                            <th className="px-4 py-3">Nama Indikator</th>
-                            <th className="px-4 py-3">Pemilik PK / Level</th>
-                            <th className="px-4 py-3 text-center">Bobot</th>
-                            <th className="px-4 py-3 text-right">Target vs Realisasi</th>
-                            <th className="px-4 py-3 text-right">Status Capaian</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-800/60">
-                          {kmbSharedIndicators.indicators.map((ind, idx) => (
-                            <tr key={idx} className="hover:bg-slate-800/40 transition-colors">
-                              <td className="px-4 py-3">
-                                <p className="font-semibold text-slate-200 line-clamp-1 max-w-[200px] sm:max-w-xs whitespace-normal" title={ind.indicatorName}>
-                                  {ind.indicatorName}
-                                </p>
-                              </td>
-                              <td className="px-4 py-3">
-                                <div className="flex flex-col">
-                                  <span className="font-bold text-indigo-300">{ind.employeeName}</span>
-                                  <span className="text-[9px] text-slate-500 uppercase tracking-widest">{ind.division}</span>
-                                </div>
-                              </td>
-                              <td className="px-4 py-3 text-center">
-                                <span className="inline-flex px-2 py-0.5 rounded bg-slate-800 text-slate-300 font-mono text-[10px] border border-slate-700">
-                                  {ind.weight}%
-                                </span>
-                              </td>
-                              <td className="px-4 py-3 text-right">
-                                <div className="font-mono text-[10px]">
-                                  <span className="text-white">{ind.achievement}</span>
-                                  <span className="text-slate-500 mx-1">/</span>
-                                  <span className="text-slate-400">{ind.target} {ind.unit}</span>
-                                </div>
-                              </td>
-                              <td className="px-4 py-3 text-right">
-                                <div className="flex items-center justify-end gap-2">
-                                  <div className="w-16 h-1.5 bg-slate-800 rounded-full overflow-hidden shrink-0">
-                                    <div 
-                                      className={`h-full rounded-full ${ind._pct >= 100 ? 'bg-emerald-400' : ind._pct >= 50 ? 'bg-amber-400' : 'bg-rose-400'}`} 
-                                      style={{ width: `${Math.min(100, ind._pct)}%` }} 
-                                    />
-                                  </div>
-                                  <span className={`font-black font-mono w-9 text-right ${ind._pct >= 100 ? 'text-emerald-400' : ind._pct >= 50 ? 'text-amber-400' : 'text-rose-400'}`}>
-                                    {ind._pct}%
-                                  </span>
-                                </div>
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-                </div>
-              )}
+              <div className="flex items-center gap-2">
+                <span className="text-[11px] font-mono font-bold bg-indigo-50 text-indigo-700 px-3 py-1.5 rounded-xl border border-indigo-100">
+                  Total PK Pegawai: {divisionPegawaiAgreements.length} Sasaran
+                </span>
+              </div>
             </div>
-          )}
+
+            {displayedStaff.length === 0 ? (
+              <div className="text-center py-12 text-slate-400 bg-slate-50 rounded-2xl border border-dashed border-slate-200">
+                <Users className="w-8 h-8 text-slate-300 mx-auto mb-2" />
+                <p className="text-xs font-semibold">Tidak ada staf yang sesuai dengan filter yang dipilih.</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 gap-3.5">
+                {displayedStaff.map((staff) => {
+                  const staffAgreements = divisionPegawaiAgreements.filter(a => a.employeeId === staff.id);
+                  const totalIndicators = staffAgreements.length;
+                  
+                  // Calculate average staff progress
+                  let avgStaffPct = 0;
+                  if (totalIndicators > 0) {
+                    const totalPct = staffAgreements.reduce((acc, a) => {
+                      const t = parseFloat(a.target) || 1;
+                      const ach = a.achievement || 0;
+                      return acc + Math.min(100, Math.round((ach / t) * 100));
+                    }, 0);
+                    avgStaffPct = Math.round(totalPct / totalIndicators);
+                  }
+
+                  return (
+                    <div
+                      key={staff.id}
+                      className="bg-slate-50 hover:bg-white p-4.5 rounded-2xl border border-slate-200/80 hover:border-indigo-200 hover:shadow-md transition-all space-y-3.5"
+                    >
+                      {/* Top row: Staff Info & Overall Progress */}
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 to-indigo-400 text-white flex items-center justify-center font-bold text-sm shadow-xs shrink-0">
+                            {staff.nama.charAt(0)}
+                          </div>
+                          <div>
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="font-bold text-slate-800 text-sm">{staff.nama}</span>
+                              <span className="text-[10px] font-mono bg-slate-200/70 text-slate-700 px-2 py-0.5 rounded font-semibold">
+                                NIP: {staff.nip || 'ASN'}
+                              </span>
+                            </div>
+                            <p className="text-xs text-slate-500 mt-0.5">
+                              {staff.jabatan || 'Pelaksana Kinerja'} • <span className="text-indigo-600 font-semibold">{staff.division}</span>
+                            </p>
+                          </div>
+                        </div>
+
+                        {/* Overall Progress Badge */}
+                        <div className="flex items-center gap-4 shrink-0 sm:self-center">
+                          <div className="text-right">
+                            <span className="text-[9px] font-bold text-slate-400 uppercase font-mono block">Rata-rata Capaian</span>
+                            <span className={`text-base font-black font-mono ${
+                              avgStaffPct >= 90 ? 'text-emerald-600' :
+                              avgStaffPct >= 60 ? 'text-indigo-600' :
+                              avgStaffPct > 0 ? 'text-amber-600' : 'text-slate-400'
+                            }`}>
+                              {totalIndicators > 0 ? `${avgStaffPct}%` : 'Belum Ada PK'}
+                            </span>
+                          </div>
+
+                          <div className="w-24 bg-slate-200 h-2 rounded-full overflow-hidden hidden sm:block">
+                            <div
+                              className={`h-full rounded-full transition-all duration-500 ${
+                                avgStaffPct >= 90 ? 'bg-emerald-500' :
+                                avgStaffPct >= 60 ? 'bg-indigo-600' :
+                                avgStaffPct > 0 ? 'bg-amber-500' : 'bg-slate-300'
+                              }`}
+                              style={{ width: `${Math.min(100, avgStaffPct)}%` }}
+                            />
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Level 3 Cascaded Indicators for this staff */}
+                      {staffAgreements.length > 0 ? (
+                        <div className="pt-2 border-t border-slate-200/60 space-y-2">
+                          <span className="text-[10px] font-bold font-mono text-slate-500 uppercase tracking-wider block">
+                            Daftar Sasaran Kerja yang Didelegasikan (Level 3):
+                          </span>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                            {staffAgreements.map((sa) => {
+                              const t = parseFloat(sa.target) || 1;
+                              const pct = t > 0 ? Math.min(100, Math.round(((sa.achievement || 0) / t) * 100)) : 0;
+                              return (
+                                <div
+                                  key={sa.id}
+                                  className="bg-white p-3 rounded-xl border border-slate-200/70 text-xs space-y-1.5 flex flex-col justify-between"
+                                >
+                                  <div>
+                                    <div className="flex justify-between items-start gap-2">
+                                      <p className="font-semibold text-slate-800 leading-snug line-clamp-2" title={sa.indicatorName}>
+                                        {sa.indicatorName}
+                                      </p>
+                                      <span className="text-[9px] font-mono font-bold bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded shrink-0">
+                                        {sa.weight}%
+                                      </span>
+                                    </div>
+                                    {sa.cascadedFrom && (
+                                      <p className="text-[9px] text-indigo-600 mt-1 truncate">
+                                        Induk Level 2: {sa.cascadedFrom.indicatorName}
+                                      </p>
+                                    )}
+                                  </div>
+
+                                  <div className="pt-1.5 border-t border-slate-100 flex items-center justify-between">
+                                    <span className="text-[10px] font-mono text-slate-500">
+                                      Real: <strong className="text-slate-800">{sa.achievement}</strong> / {sa.target} {sa.unit}
+                                    </span>
+                                    <span className={`text-[10px] font-extrabold font-mono px-1.5 py-0.5 rounded ${
+                                      pct >= 100 ? 'bg-emerald-50 text-emerald-700' :
+                                      pct >= 50 ? 'bg-indigo-50 text-indigo-700' :
+                                      'bg-amber-50 text-amber-700'
+                                    }`}>
+                                      {pct}%
+                                    </span>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="pt-2 border-t border-slate-200/60 flex items-center justify-between text-xs text-slate-400">
+                          <span>Belum ada sasaran IKU Level 3 yang didelegasikan ke pegawai ini.</span>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setActiveTab('delegation');
+                              setDelegateEmployeeId(staff.id);
+                            }}
+                            className="text-xs text-indigo-600 hover:text-indigo-700 font-bold flex items-center gap-1 cursor-pointer"
+                          >
+                            <Plus className="w-3.5 h-3.5" />
+                            Delegasikan Tugas
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
         </>
+      )}
+
+      {/* TAB DELEGASI TUGAS */}
+      {activeTab === 'delegation' && (
+        <div className="space-y-6">
+          {/* Header Card for Delegation */}
+          <div className="bg-gradient-to-r from-slate-900 to-indigo-950 p-6 rounded-3xl text-white shadow-xl flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+            <div className="space-y-1.5">
+              <span className="text-[10px] font-mono uppercase tracking-widest text-indigo-400 font-bold bg-indigo-900/50 px-2.5 py-1 rounded-md border border-indigo-700/50">
+                Pendelegasian Sasaran Kinerja
+              </span>
+              <h2 className="text-lg md:text-xl font-black tracking-tight">
+                Menu Pendelegasian Tugas Level 2 &rarr; Level 3 ({activeDivision})
+              </h2>
+              <p className="text-xs text-slate-300 max-w-2xl leading-relaxed">
+                Pimpinan dan Ketua Tim dapat menurunkan indikator perjanjian kinerja bidang ke staf pelaksana sesuai fungsi dan kompetensinya.
+              </p>
+            </div>
+
+            <div className="bg-indigo-950/80 p-3.5 rounded-2xl border border-indigo-800 text-center shrink-0">
+              <span className="text-[10px] font-mono text-slate-400 block uppercase">Total Sasaran Bidang</span>
+              <span className="text-xl font-black text-indigo-300 font-mono">{teamObjectives.length} Sasaran</span>
+            </div>
+          </div>
+
+          {/* Section 1: Sasaran Level 2 yang siap didelegasikan */}
+          <div className="bg-white p-6 rounded-3xl border border-slate-200/90 shadow-sm space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <div>
+                <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2">
+                  <GitFork className="w-4 h-4 text-indigo-600" />
+                  1. Pilih Sasaran Level 2 untuk Didelegasikan
+                </h3>
+                <p className="text-xs text-slate-500">Klik tombol "Delegasikan ke Staf" pada indikator yang ingin diturunkan</p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+              {teamObjectives.map((obj, idx) => {
+                const existingCascaded = divisionPegawaiAgreements.filter(
+                  a => a.cascadedFrom?.agreementId === divisionAgreements[0]?.id && a.cascadedFrom?.indicatorIndex === idx
+                );
+
+                return (
+                  <div
+                    key={obj.id || idx}
+                    className="p-4 rounded-2xl bg-slate-50 border border-slate-200/80 hover:border-indigo-300 transition-all flex flex-col justify-between space-y-3"
+                  >
+                    <div className="space-y-1.5">
+                      <div className="flex justify-between items-center text-[10px]">
+                        <span className="font-mono text-slate-500 font-bold bg-slate-200/70 px-2 py-0.5 rounded">
+                          Sasaran #{idx + 1} • Bobot {obj.weight}%
+                        </span>
+                        <span className="font-mono text-indigo-600 font-bold bg-indigo-50 px-2 py-0.5 rounded">
+                          Target: {obj.target} {obj.unit}
+                        </span>
+                      </div>
+                      <p className="text-xs font-bold text-slate-800 leading-snug">
+                        {obj.indicatorName}
+                      </p>
+                    </div>
+
+                    <div className="pt-2 border-t border-slate-200/60 flex items-center justify-between gap-2">
+                      <span className="text-[10px] text-slate-500 font-mono">
+                        {existingCascaded.length} Staf Didelegasikan
+                      </span>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const parentAgreement = divisionAgreements[0];
+                          if (parentAgreement) {
+                            setDelegatingIndicator({
+                              agreement: parentAgreement,
+                              indicator: obj,
+                              indicatorIndex: idx
+                            });
+                            setDelegatedIndicatorName(`Pelaksanaan ${obj.indicatorName}`);
+                            setDelegatedTarget(obj.target);
+                            setDelegatedUnit(obj.unit);
+                            setDelegatedWeight(obj.weight);
+                          }
+                        }}
+                        className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-bold transition-all shadow-xs cursor-pointer"
+                      >
+                        <Plus className="w-3.5 h-3.5" />
+                        <span>Delegasikan ke Staf</span>
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Section 2: Daftar Seluruh Indikator Level 3 yang Telah Didelegasikan */}
+          <div className="bg-white p-6 rounded-3xl border border-slate-200/90 shadow-sm space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <div>
+                <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                  2. Rekap Seluruh Pendelegasian Sasaran (Level 3 Staf)
+                </h3>
+                <p className="text-xs text-slate-500">Daftar perjanjian kinerja staf yang telah didelegasikan di divisi {activeDivision}</p>
+              </div>
+            </div>
+
+            {divisionPegawaiAgreements.length === 0 ? (
+              <div className="text-center py-10 text-slate-400 bg-slate-50 rounded-2xl border border-dashed border-slate-200">
+                <GitFork className="w-7 h-7 text-slate-300 mx-auto mb-2" />
+                <p className="text-xs font-semibold">Belum ada tugas yang didelegasikan ke staf di divisi ini.</p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs whitespace-nowrap">
+                  <thead>
+                    <tr className="bg-slate-100/80 text-[10px] font-bold text-slate-600 uppercase font-mono border-b border-slate-200">
+                      <th className="px-4 py-3">Staf Pelaksana</th>
+                      <th className="px-4 py-3">Nama Sasaran (Level 3)</th>
+                      <th className="px-4 py-3">Induk Sasaran (Level 2)</th>
+                      <th className="px-4 py-3 text-center">Bobot</th>
+                      <th className="px-4 py-3 text-right">Target & Realisasi</th>
+                      <th className="px-4 py-3 text-right">Capaian (%)</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {divisionPegawaiAgreements.map((ag) => {
+                      const t = parseFloat(ag.target) || 1;
+                      const pct = t > 0 ? Math.min(100, Math.round(((ag.achievement || 0) / t) * 100)) : 0;
+                      return (
+                        <tr key={ag.id} className="hover:bg-slate-50/80 transition-colors">
+                          <td className="px-4 py-3">
+                            <div className="flex flex-col">
+                              <span className="font-bold text-slate-800">{ag.employeeName}</span>
+                              <span className="text-[10px] text-slate-500 font-mono">NIP: {ag.employeeNip || '-'}</span>
+                            </div>
+                          </td>
+                          <td className="px-4 py-3">
+                            <span className="font-medium text-slate-800 whitespace-normal max-w-xs block leading-snug">
+                              {ag.indicatorName}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3">
+                            <span className="text-indigo-600 whitespace-normal max-w-[200px] block text-[11px] leading-snug">
+                              {ag.cascadedFrom?.indicatorName || '-'}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 text-center font-mono font-bold text-slate-700">
+                            {ag.weight}%
+                          </td>
+                          <td className="px-4 py-3 text-right font-mono">
+                            <span className="font-bold text-slate-800">{ag.achievement}</span>
+                            <span className="text-slate-400 mx-1">/</span>
+                            <span className="text-slate-600">{ag.target} {ag.unit}</span>
+                          </td>
+                          <td className="px-4 py-3 text-right">
+                            <span className={`px-2 py-0.5 rounded font-mono font-bold text-[11px] ${
+                              pct >= 100 ? 'bg-emerald-100 text-emerald-800' :
+                              pct >= 50 ? 'bg-indigo-100 text-indigo-800' :
+                              'bg-amber-100 text-amber-800'
+                            }`}>
+                              {pct}%
+                            </span>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </div>
       )}
 
       {/* Delegation Form Modal */}
