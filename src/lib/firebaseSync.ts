@@ -57,7 +57,15 @@ export async function fetchCollection<T extends { id: string }>(collectionName: 
     const snapshot = await getDocs(colRef);
     
     if (snapshot.empty) {
-      // Check local cache first
+      // If caller expects an empty list as fallback when unpopulated (e.g. contracts, newsReports, targets)
+      if (fallbackData.length === 0) {
+        try {
+          localStorage.setItem(cacheKey, JSON.stringify([]));
+        } catch (e) {}
+        return [];
+      }
+
+      // Check local cache first for initial boot
       const cached = localStorage.getItem(cacheKey);
       if (cached !== null) {
         try {

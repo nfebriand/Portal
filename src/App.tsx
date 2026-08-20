@@ -179,7 +179,7 @@ const INITIAL_AGREEMENTS: PerformanceAgreement[] = [
         indicatorName: "Indeks Kepuasan Layanan Publik Radio",
         target: "90",
         unit: "Skor",
-        weight: 20,
+        weight: 30,
         achievement: 85
       },
       {
@@ -187,7 +187,7 @@ const INITIAL_AGREEMENTS: PerformanceAgreement[] = [
         indicatorName: "Persentase Digitalisasi Studio & Media Baru",
         target: "100",
         unit: "%",
-        weight: 20,
+        weight: 30,
         achievement: 75
       },
       {
@@ -205,14 +205,6 @@ const INITIAL_AGREEMENTS: PerformanceAgreement[] = [
         unit: "%",
         weight: 20,
         achievement: 100
-      },
-      {
-        id: "ind-15-pnbp",
-        indicatorName: "Optimalisasi Realisasi Penerimaan Negara Bukan Pajak (PNBP)",
-        target: "150",
-        unit: "Juta Rupiah",
-        weight: 20,
-        achievement: 120
       }
     ],
     status: "Aktif",
@@ -344,7 +336,7 @@ const INITIAL_AGREEMENTS: PerformanceAgreement[] = [
         unit: "Juta Rupiah",
         weight: 100,
         achievement: 120,
-        parentIndicatorId: "ind-15-pnbp"
+        parentIndicatorId: "ind-1"
       }
     ],
     status: "Aktif",
@@ -566,7 +558,7 @@ const recalculateCascade = (
   // 2. Map through agreements to update the LPU PNBP objective (ind-11)
   let updated = currentAgs.map(ag => {
     const objectives = ag.objectives.map(obj => {
-      if (obj.id === 'ind-11' || obj.indicatorName.toLowerCase().includes('pnbp')) {
+      if (obj.id === 'ind-11') {
         return { ...obj, achievement: totalPnbpForInd11 };
       }
       return obj;
@@ -765,29 +757,49 @@ export default function App() {
           fireAgreements = await fetchCollection<PerformanceAgreement>('agreements', INITIAL_AGREEMENTS);
         }
 
-        // Ensure Level 1 (Kepala Stasiun) contains all 5 strategic indicators
+        // Actively sanitize fireAgreements to permanently eliminate dummy "Optimalisasi Realisasi Penerimaan Negara Bukan Pajak (PNBP)" / ind-15-pnbp
+        let hadPnbpDummy = false;
         fireAgreements = fireAgreements.map((ag) => {
-          if (ag.level === 'Kepala Stasiun' && ag.year === 2026) {
-            const hasPnbp = ag.objectives.some(o => o.id === 'ind-15-pnbp' || o.indicatorName.toLowerCase().includes('pnbp'));
-            if (!hasPnbp) {
-              return {
-                ...ag,
-                objectives: [
-                  ...ag.objectives.map(o => ({ ...o, weight: 20 })),
-                  {
-                    id: 'ind-15-pnbp',
-                    indicatorName: 'Optimalisasi Realisasi Penerimaan Negara Bukan Pajak (PNBP)',
-                    target: '150',
-                    unit: 'Juta Rupiah',
-                    weight: 20,
-                    achievement: 120
-                  }
-                ]
-              };
+          const hasPnbp = ag.objectives.some(o => 
+            o.id === 'ind-15-pnbp' || 
+            o.indicatorName.toLowerCase().includes('optimalisasi realisasi penerimaan negara bukan pajak') ||
+            o.indicatorName.toLowerCase().includes('optimalisasi penerimaan negara bukan pajak')
+          );
+          const hasLinkedToPnbp = ag.objectives.some(o => o.parentIndicatorId === 'ind-15-pnbp');
+
+          if (hasPnbp || hasLinkedToPnbp) {
+            hadPnbpDummy = true;
+            let filteredObjectives = ag.objectives
+              .filter(o => 
+                o.id !== 'ind-15-pnbp' && 
+                !o.indicatorName.toLowerCase().includes('optimalisasi realisasi penerimaan negara bukan pajak') &&
+                !o.indicatorName.toLowerCase().includes('optimalisasi penerimaan negara bukan pajak')
+              )
+              .map(o => o.parentIndicatorId === 'ind-15-pnbp' ? { ...o, parentIndicatorId: 'ind-1' } : o);
+
+            // If Level 1 (Kepala Stasiun) has the 4 standard strategic indicators, restore official weights
+            if (ag.level === 'Kepala Stasiun' && filteredObjectives.length === 4) {
+              filteredObjectives = filteredObjectives.map(o => {
+                if (o.id === 'ind-1' || o.id === 'ind-2') return { ...o, weight: 30 };
+                if (o.id === 'ind-3' || o.id === 'ind-4') return { ...o, weight: 20 };
+                return o;
+              });
             }
+
+            return {
+              ...ag,
+              objectives: filteredObjectives
+            };
           }
           return ag;
         });
+
+        // If stale dummy data existed in Firestore, persist cleaned agreements to database
+        if (hadPnbpDummy) {
+          saveCollectionList('agreements', fireAgreements).catch(err => 
+            console.warn("Notice: Cleaned agreements sync to live database:", err)
+          );
+        }
 
         // Migrate employee division field values if needed
         const migratedEmployees = fireEmployees.map((emp) => {
