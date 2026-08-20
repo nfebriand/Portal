@@ -1537,6 +1537,8 @@ export default function App() {
                 agreements={agreements}
                 reporterTargets={reporterTargets}
                 newsReports={newsReports}
+                identity={identity}
+                settings={settings}
               />
             ) : (
               <DashboardBidangView
@@ -1548,6 +1550,8 @@ export default function App() {
                 newsReports={newsReports}
                 onUpdateAgreements={handleUpdateAgreements}
                 onAddNotification={addNotification}
+                identity={identity}
+                settings={settings}
               />
             )
           )}

@@ -11,7 +11,7 @@ import {
 } from "../utils/colors";
 import { useState, useMemo } from 'react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell, BarChart, Bar } from 'recharts';
-import { Employee, CriticalNotification, CooperationContract, PerformanceAgreement, ReporterTarget, NewsReport } from '../types';
+import { Employee, CriticalNotification, CooperationContract, PerformanceAgreement, ReporterTarget, NewsReport, InstitutionalIdentity, AppSettings } from '../types';
 import { 
   Users, 
   User, 
@@ -45,10 +45,14 @@ import {
   Info,
   TrendingDown,
   Activity,
-  Percent
+  Percent,
+  Download,
+  Printer,
+  FileSpreadsheet
 } from 'lucide-react';
 import NewsDetailModal from './NewsDetailModal';
 import RedFlagIndicatorsModal, { RedFlagIndicatorItem } from './RedFlagIndicatorsModal';
+import QuickReportModal from './QuickReportModal';
 import { filterNewsForIndicator, isEligibleNewsIndicator } from '../utils/newsFilter';
 
 interface DashboardViewProps {
@@ -60,6 +64,8 @@ interface DashboardViewProps {
   agreements?: PerformanceAgreement[];
   reporterTargets?: ReporterTarget[];
   newsReports?: NewsReport[];
+  identity?: InstitutionalIdentity;
+  settings?: AppSettings;
 }
 
 type TrendMetric = 'rating' | 'efficiency' | 'listener';
@@ -224,7 +230,28 @@ export default function DashboardView({
   contracts = [],
   agreements = [],
   reporterTargets = [],
-  newsReports = []
+  newsReports = [],
+  identity = {
+    kepalaStasiunNama: 'Drs. H. Rozani, M.Si.',
+    kepalaStasiunTtd: '',
+    kepalaBidangNama: '',
+    kepalaBidangTtd: '',
+    ketuaTimSiaranNama: '',
+    ketuaTimSiaranTtd: '',
+    ketuaTimPemberitaanNama: '',
+    ketuaTimPemberitaanTtd: '',
+    ketuaTimTeknikNama: '',
+    ketuaTimTeknikTtd: '',
+    ketuaTimKontenNama: '',
+    ketuaTimKontenTtd: '',
+    ketuaTimLayananNama: '',
+    ketuaTimLayananTtd: ''
+  },
+  settings = {
+    namaInstansi: 'LPP RRI Stasiun Penyiaran Bandar Lampung',
+    alamat: 'Jl. Gatot Subroto No. 26, Pahoman, Bandar Lampung',
+    noTelp: '(0721) 252111'
+  }
 }: DashboardViewProps) {
   const [selectedMetric, setSelectedMetric] = useState<TrendMetric>('rating');
   const [selectedGenderFilter, setSelectedGenderFilter] = useState<string>('Semua');
@@ -236,6 +263,7 @@ export default function DashboardView({
   const [drillDownActive, setDrillDownActive] = useState<boolean>(false);
   const [hoveredDataPoint, setHoveredDataPoint] = useState<{ month: string; value: number } | null>(null);
   const [hoveredDonutSegment, setHoveredDonutSegment] = useState<string | null>(null);
+  const [isReportModalOpen, setIsReportModalOpen] = useState<boolean>(false);
 
   // Dynamic visualizer display mode toggle for target PKs
   const [globalVisualizerMode, setGlobalVisualizerMode] = useState<'auto' | 'akumulatif' | 'triwulanan' | 'bulanan_tahunan' | 'gauge'>('gauge');
@@ -1336,6 +1364,16 @@ export default function DashboardView({
               </select>
             </div>
           )}
+
+          {/* Export Laporan Cepat / PDF Button */}
+          <button
+            onClick={() => setIsReportModalOpen(true)}
+            className="flex items-center gap-1.5 px-3.5 py-2 bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-500 hover:to-indigo-600 text-white rounded-xl text-xs font-black shadow-xs shadow-indigo-500/20 transition-all cursor-pointer active:scale-98"
+            title="Export Laporan Capaian Kinerja Seluruh Bidang (PDF / Excel / Cetak Resmi)"
+          >
+            <Download className="w-3.5 h-3.5" />
+            <span>Export Laporan / PDF</span>
+          </button>
         </div>
       </div>
 
@@ -2155,6 +2193,16 @@ export default function DashboardView({
         indicators={redFlagIndicators}
         periodLabel={selectedPeriodLabel}
         onViewDetail={handleNavigateToDivisionFromRedFlag}
+      />
+
+      {/* Quick Report & PDF Export Modal */}
+      <QuickReportModal
+        isOpen={isReportModalOpen}
+        onClose={() => setIsReportModalOpen(false)}
+        agreements={agreements}
+        identity={identity}
+        settings={settings}
+        defaultYear={selectedKpiYear}
       />
     </div>
   );

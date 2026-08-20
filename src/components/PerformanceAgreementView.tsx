@@ -33,12 +33,15 @@ import {
   Save,
   RotateCcw,
   Eye,
-  ListFilter
+  ListFilter,
+  Download,
+  FileSpreadsheet
 } from 'lucide-react';
 import { Employee, InstitutionalIdentity, PerformanceAgreement, PerformanceIndicator, AppSettings, CriticalNotification, NewsReport, CooperationContract, ReporterTarget, IndicatorComment } from '../types';
 import SignaturePad from './SignaturePad';
 import IndicatorCommentsSection from './IndicatorCommentsSection';
 import NewsDetailModal from './NewsDetailModal';
+import QuickReportModal from './QuickReportModal';
 import { filterNewsForIndicator, isEligibleNewsIndicator } from '../utils/newsFilter';
 
 // Helper to calculate indicator achievement percentage score based on periodType
@@ -272,6 +275,7 @@ export default function PerformanceAgreementView({
 
   const [evalPeriod, setEvalPeriod] = useState<string>('tahunan');
   const [scaleTargets, setScaleTargets] = useState<boolean>(false);
+  const [isReportModalOpen, setIsReportModalOpen] = useState<boolean>(false);
   const [sakipExpertData, setSakipExpertData] = useState<{
     indicator: PerformanceIndicator;
     agreementId: string;
@@ -1326,6 +1330,17 @@ export default function PerformanceAgreementView({
               Evaluasi Berkala (Triwulan/Semester)
             </button>
           </div>
+
+          <div className="h-5 w-px bg-slate-800" />
+
+          <button
+            onClick={() => setIsReportModalOpen(true)}
+            className="flex items-center gap-1.5 px-3.5 py-1.5 bg-gradient-to-r from-indigo-500 to-indigo-600 hover:from-indigo-400 hover:to-indigo-500 text-white text-xs font-black rounded-xl transition-all shadow-md shadow-indigo-500/20 active:scale-98"
+            title="Buka Menu Cetak & Export PDF / Excel Laporan Kinerja Resmi"
+          >
+            <Download className="w-3.5 h-3.5" />
+            <span>Export PDF / Laporan</span>
+          </button>
         </div>
       </div>
 
@@ -2353,13 +2368,22 @@ export default function PerformanceAgreementView({
                 <p className="text-[11px] text-slate-400">Analisis pencapaian Sasaran Strategis Pimpinan dan turunannya secara bertahap (Triwulan, Semester, dan Tahunan).</p>
               </div>
 
-              {/* Print Button */}
-              <button 
-                onClick={() => window.print()}
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl transition-colors self-start"
-              >
-                <Printer className="w-3.5 h-3.5" /> Cetak Laporan
-              </button>
+              {/* Action Buttons */}
+              <div className="flex items-center gap-2 self-start">
+                <button 
+                  onClick={() => setIsReportModalOpen(true)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 text-xs font-bold rounded-xl transition-colors"
+                  title="Export Dokumen Laporan Kinerja ke PDF atau Excel"
+                >
+                  <Download className="w-3.5 h-3.5" /> Export PDF
+                </button>
+                <button 
+                  onClick={() => window.print()}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl transition-colors"
+                >
+                  <Printer className="w-3.5 h-3.5" /> Cetak
+                </button>
+              </div>
             </div>
 
             {/* Controls panel */}
@@ -4200,6 +4224,16 @@ ${tindakLanjut}
         targetValue={newsModalConfig.targetValue}
         achievementValue={newsModalConfig.achievementValue}
         assignedToName={newsModalConfig.assignedToName}
+      />
+
+      {/* Quick Report & PDF Export Modal */}
+      <QuickReportModal
+        isOpen={isReportModalOpen}
+        onClose={() => setIsReportModalOpen(false)}
+        agreements={agreements}
+        identity={identity}
+        settings={settings}
+        defaultYear={selectedYear}
       />
 
     </div>

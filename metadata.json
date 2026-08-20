@@ -1,6 +1,6 @@
 {
   "name": "PETA KOMANDO",
-  "description": "Dashboard eksekutif interaktif untuk pimpinan RRI Bandar Lampung dengan Scorecard Indikator Utama (Capaian Satker, Status SAKIP, Penyerapan Anggaran, Indikator Red-Flag) dan Traffic Light System.",
+  "description": "Dashboard eksekutif dan cascading kinerja terintegrasi RRI Bandar Lampung dengan fitur Laporan Cepat/Export PDF resmi Perjanjian Kinerja dan Capaian Kinerja Seluruh Bidang (SAKIP/LKjIP format).",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

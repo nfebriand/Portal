@@ -2,7 +2,7 @@ import React from 'react';
 import { getGaugeColorByPercentage } from "../utils/colors";
 import { useMemo, useState } from 'react';
 import { ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
-import { Employee, PerformanceAgreement, CooperationContract, ReporterTarget, NewsReport } from '../types';
+import { Employee, PerformanceAgreement, CooperationContract, ReporterTarget, NewsReport, InstitutionalIdentity, AppSettings } from '../types';
 import { 
   TrendingUp, 
   Target, 
@@ -29,9 +29,12 @@ import {
   Layers,
   Eye,
   BarChart3,
-  Sparkles
+  Sparkles,
+  Download,
+  Printer
 } from 'lucide-react';
 import NewsDetailModal from './NewsDetailModal';
+import QuickReportModal from './QuickReportModal';
 import { filterNewsForIndicator, isEligibleNewsIndicator } from '../utils/newsFilter';
 
 interface DashboardBidangViewProps {
@@ -43,6 +46,8 @@ interface DashboardBidangViewProps {
   newsReports?: NewsReport[];
   onUpdateAgreements?: (agreements: PerformanceAgreement[]) => void;
   onAddNotification?: (notification: any) => void;
+  identity?: InstitutionalIdentity;
+  settings?: AppSettings;
 }
 
 export default function DashboardBidangView({
@@ -53,10 +58,32 @@ export default function DashboardBidangView({
   reporterTargets = [],
   newsReports = [],
   onUpdateAgreements,
-  onAddNotification
+  onAddNotification,
+  identity = {
+    kepalaStasiunNama: 'Drs. H. Rozani, M.Si.',
+    kepalaStasiunTtd: '',
+    kepalaBidangNama: '',
+    kepalaBidangTtd: '',
+    ketuaTimSiaranNama: '',
+    ketuaTimSiaranTtd: '',
+    ketuaTimPemberitaanNama: '',
+    ketuaTimPemberitaanTtd: '',
+    ketuaTimTeknikNama: '',
+    ketuaTimTeknikTtd: '',
+    ketuaTimKontenNama: '',
+    ketuaTimKontenTtd: '',
+    ketuaTimLayananNama: '',
+    ketuaTimLayananTtd: ''
+  },
+  settings = {
+    namaInstansi: 'LPP RRI Stasiun Penyiaran Bandar Lampung',
+    alamat: 'Jl. Gatot Subroto No. 26, Pahoman, Bandar Lampung',
+    noTelp: '(0721) 252111'
+  }
 }: DashboardBidangViewProps) {
   
   const [activeTab, setActiveTab] = useState<'summary' | 'delegation'>('summary');
+  const [isReportModalOpen, setIsReportModalOpen] = useState<boolean>(false);
   const [delegatingIndicator, setDelegatingIndicator] = useState<{ indicator: any; agreement: any } | null>(null);
   const [delegateEmployeeId, setDelegateEmployeeId] = useState('');
   const [delegatedIndicatorName, setDelegatedIndicatorName] = useState('');
@@ -520,12 +547,23 @@ export default function DashboardBidangView({
             </div>
           </div>
 
-          <div className="bg-slate-950/40 p-4 rounded-2xl border border-slate-800 flex flex-col md:items-end">
-            <span className="text-[10px] font-bold text-slate-400 uppercase font-mono">Dashboard Bidang Aktif</span>
-            <span className="text-sm font-extrabold text-indigo-400 mt-0.5 tracking-wide">
-              {activeDivision.toUpperCase()}
-            </span>
-            <span className="text-[9px] text-slate-500 font-mono mt-1">Tahun Anggaran 2026</span>
+          <div className="bg-slate-950/40 p-4 rounded-2xl border border-slate-800 flex flex-col md:items-end gap-2">
+            <div>
+              <span className="text-[10px] font-bold text-slate-400 uppercase font-mono block md:text-right">Dashboard Bidang Aktif</span>
+              <span className="text-sm font-extrabold text-indigo-400 mt-0.5 tracking-wide block md:text-right">
+                {activeDivision.toUpperCase()}
+              </span>
+              <span className="text-[9px] text-slate-500 font-mono mt-0.5 block md:text-right">Tahun Anggaran 2026</span>
+            </div>
+
+            <button
+              onClick={() => setIsReportModalOpen(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-bold transition-all shadow-xs cursor-pointer"
+              title="Cetak atau Export Laporan Kinerja Bidang & Seluruh Satker ke PDF"
+            >
+              <Download className="w-3.5 h-3.5" />
+              <span>Export Laporan / PDF</span>
+            </button>
           </div>
         </div>
       </div>
@@ -1222,6 +1260,16 @@ export default function DashboardBidangView({
         targetValue={newsModalConfig.targetValue}
         achievementValue={newsModalConfig.achievementValue}
         assignedToName={newsModalConfig.assignedToName}
+      />
+
+      {/* Quick Report & PDF Export Modal */}
+      <QuickReportModal
+        isOpen={isReportModalOpen}
+        onClose={() => setIsReportModalOpen(false)}
+        agreements={agreements}
+        identity={identity}
+        settings={settings}
+        defaultYear={2026}
       />
 
     </div>
