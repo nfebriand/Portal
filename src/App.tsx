@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Employee, AppSettings, InstitutionalIdentity, CriticalNotification, PerformanceAgreement, CooperationContract, ReporterTarget, NewsReport } from './types';
 import { syncNewsAchievements } from './utils/syncNewsAchievements';
+import { syncCompetencyAchievements, isCompetencyIndicator } from './utils/syncCompetencyAchievements';
 import DashboardView from './components/DashboardView';
 import EmployeeAdminView from './components/EmployeeAdminView';
 import AppAdminView from './components/AppAdminView';
@@ -20,7 +21,9 @@ import {
   saveCollectionList, 
   deleteDocument,
   isSystemSeeded,
-  markSystemSeeded
+  markSystemSeeded,
+  subscribeToCollection,
+  subscribeToDocument
 } from './lib/firebaseSync';
 import { 
   Radio, 
@@ -53,13 +56,37 @@ const INITIAL_EMPLOYEES: Employee[] = [
     nik: '3171011503750002',
     nip: '197503151998031001',
     nama: 'Heru Prasetyo',
+    tempatLahir: 'Jakarta',
+    tanggalLahir: '1975-03-15',
     gelarDepan: 'Drs.',
     gelarBelakang: 'M.Si.',
+    alamat: 'Jl. Kramat Raya No. 12, Senen, Jakarta Pusat',
+    noHp: '08119876543',
+    surel: 'heru.prasetyo@rri.go.id',
+    golDarah: 'O',
+    jabatan: 'ketua bidang',
+    jenisJabatan: 'struktural',
+    status: 'aktif',
     jenjangPendidikan: 'S2',
     divisi: 'Pemberitaan',
     jenisKelamin: 'Laki-laki',
-    alamat: 'Jl. Kramat Raya No. 12, Senen, Jakarta Pusat',
-    noHp: '08119876543',
+    loginRole: 'Ketua Tim',
+    username: '197503151998031001',
+    password: 'password123',
+    isLoginActive: true,
+    riwayatPendidikan: [
+      { id: 'edu-1', jenjang: 'S2', institusi: 'Universitas Indonesia', jurusan: 'Ilmu Komunikasi', tahunLulus: 2008, nomorIjazah: 'UI/IKOM/2008/045', gelar: 'M.Si.' },
+      { id: 'edu-2', jenjang: 'S1', institusi: 'Universitas Padjadjaran', jurusan: 'Jurnalistik', tahunLulus: 1998, nomorIjazah: 'UNPAD/JUR/1998/120', gelar: 'Drs.' }
+    ],
+    riwayatPelatihan: [
+      { id: 'tr-1', namaPelatihan: 'Pelatihan Kepemimpinan Administrator (PKA)', penyelenggara: 'Lembaga Administrasi Negara (LAN)', tanggalMulai: '2026-02-10', tanggalSelesai: '2026-03-05', durasiJam: 24, tahun: 2026, nomorSertifikat: 'LAN-PKA-2026-089', status: 'Lulus', kategori: 'Manajerial' },
+      { id: 'tr-2', namaPelatihan: 'Workshop Manajemen Redaksi Multimedia Terintegrasi', penyelenggara: 'Pusdiklat RRI', tanggalMulai: '2026-05-12', tanggalSelesai: '2026-05-15', durasiJam: 20, tahun: 2026, nomorSertifikat: 'RRI-NEWS-2026-112', status: 'Lulus', kategori: 'Teknis' },
+      { id: 'tr-3', namaPelatihan: 'Bimtek Jurnalisme Investigasi & Data', penyelenggara: 'Dewan Pers', tanggalMulai: '2025-08-10', tanggalSelesai: '2025-08-14', durasiJam: 42, tahun: 2025, nomorSertifikat: 'DP-INV-2025-045', status: 'Lulus', kategori: 'Teknis' }
+    ],
+    kompetensi: [
+      { id: 'comp-1', namaKompetensi: 'Manajemen Redaksi & Pemberitaan Penyiaran', kategori: 'Teknis', tingkatKemahiran: 'Ahli', sertifikasi: 'Sertifikasi Wartawan Utama - Dewan Pers', tahunPerolehan: 2021 },
+      { id: 'comp-2', namaKompetensi: 'Kepemimpinan Strategis & Pengambilan Keputusan', kategori: 'Manajerial', tingkatKemahiran: 'Lanjutan' }
+    ],
     foto: 'https://images.unsplash.com/photo-1560250097-0b93528c311a?w=150&h=150&fit=crop&crop=faces',
     ttdElektronik: MOCK_TTD_1,
     createdAt: new Date().toISOString()
@@ -69,13 +96,35 @@ const INITIAL_EMPLOYEES: Employee[] = [
     nik: '3273104508920001',
     nip: '199208052015042003',
     nama: 'Siti Rahmawati',
+    tempatLahir: 'Bandung',
+    tanggalLahir: '1992-08-05',
     gelarDepan: '',
     gelarBelakang: 'S.I.Kom.',
+    alamat: 'Jl. Dago Asri No. 45, Coblong, Bandung',
+    noHp: '08129876541',
+    surel: 'siti.rahmawati@rri.go.id',
+    golDarah: 'A',
+    jabatan: 'ketua bidang',
+    jenisJabatan: 'struktural',
+    status: 'aktif',
     jenjangPendidikan: 'S1',
     divisi: 'Konten Media Baru',
     jenisKelamin: 'Perempuan',
-    alamat: 'Jl. Dago Asri No. 45, Coblong, Bandung',
-    noHp: '08129876541',
+    loginRole: 'Ketua Tim',
+    username: '199208052015042003',
+    password: 'password123',
+    isLoginActive: true,
+    riwayatPendidikan: [
+      { id: 'edu-3', jenjang: 'S1', institusi: 'Universitas Padjadjaran', jurusan: 'Ilmu Komunikasi', tahunLulus: 2014, nomorIjazah: 'UNPAD/2014/991', gelar: 'S.I.Kom.' }
+    ],
+    riwayatPelatihan: [
+      { id: 'tr-4', namaPelatihan: 'Social Media Strategy & AI Content Creation', penyelenggara: 'Kemenkominfo Digital Talent', tanggalMulai: '2026-03-01', tanggalSelesai: '2026-03-10', durasiJam: 32, tahun: 2026, nomorSertifikat: 'DTS-2026-0341', status: 'Lulus', kategori: 'Teknis' },
+      { id: 'tr-5', namaPelatihan: 'Podcast Production & Audio Post-Engineering', penyelenggara: 'Pusdiklat RRI', tanggalMulai: '2026-06-02', tanggalSelesai: '2026-06-04', durasiJam: 16, tahun: 2026, nomorSertifikat: 'RRI-POD-2026-78', status: 'Lulus', kategori: 'Teknis' }
+    ],
+    kompetensi: [
+      { id: 'comp-3', namaKompetensi: 'Strategi Distribusi Konten Multi-Platform', kategori: 'Digital & IT', tingkatKemahiran: 'Ahli', sertifikasi: 'Google Digital Marketing Certified', tahunPerolehan: 2023 },
+      { id: 'comp-4', namaKompetensi: 'Audio Production & Podcast Engineering', kategori: 'Teknis', tingkatKemahiran: 'Lanjutan' }
+    ],
     foto: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150&h=150&fit=crop&crop=faces',
     ttdElektronik: MOCK_TTD_2,
     createdAt: new Date().toISOString()
@@ -85,13 +134,36 @@ const INITIAL_EMPLOYEES: Employee[] = [
     nik: '3174092211830005',
     nip: '198311222008121002',
     nama: 'Andi Wijaya',
+    tempatLahir: 'Jakarta Selatan',
+    tanggalLahir: '1983-11-22',
     gelarDepan: 'Ir.',
     gelarBelakang: 'M.T.',
+    alamat: 'Jl. Radio Dalam Raya No. 102, Kebayoran Baru, Jakarta Selatan',
+    noHp: '08139876542',
+    surel: 'andi.wijaya@rri.go.id',
+    golDarah: 'B',
+    jabatan: 'ketua bidang',
+    jenisJabatan: 'struktural',
+    status: 'aktif',
     jenjangPendidikan: 'S2',
     divisi: 'Teknologi dan Media Baru',
     jenisKelamin: 'Laki-laki',
-    alamat: 'Jl. Radio Dalam Raya No. 102, Kebayoran Baru, Jakarta Selatan',
-    noHp: '08139876542',
+    loginRole: 'Ketua Tim',
+    username: '198311222008121002',
+    password: 'password123',
+    isLoginActive: true,
+    riwayatPendidikan: [
+      { id: 'edu-4', jenjang: 'S2', institusi: 'Institut Teknologi Bandung (ITB)', jurusan: 'Teknik Elektro Penyiaran', tahunLulus: 2012, nomorIjazah: 'ITB/TE/2012/551', gelar: 'M.T.' },
+      { id: 'edu-5', jenjang: 'S1', institusi: 'Institut Teknologi Bandung (ITB)', jurusan: 'Teknik Telekomunikasi', tahunLulus: 2006, nomorIjazah: 'ITB/TT/2006/332', gelar: 'S.T.' }
+    ],
+    riwayatPelatihan: [
+      { id: 'tr-6', namaPelatihan: 'Pemeliharaan dan Troubleshooting Pemancar FM & DRM', penyelenggara: 'Balai Diklat Industri Kominfo', tanggalMulai: '2026-01-15', tanggalSelesai: '2026-01-20', durasiJam: 40, tahun: 2026, nomorSertifikat: 'BDI-2026-908', status: 'Lulus', kategori: 'Teknis' },
+      { id: 'tr-7', namaPelatihan: 'Cybersecurity Awareness & Network Hardening', penyelenggara: 'BSSN', tanggalMulai: '2026-04-10', tanggalSelesai: '2026-04-12', durasiJam: 16, tahun: 2026, nomorSertifikat: 'BSSN-2026-112', status: 'Lulus', kategori: 'Digital & IT' }
+    ],
+    kompetensi: [
+      { id: 'comp-5', namaKompetensi: 'Teknik Transmisi & Pemancar Frekuensi Radio', kategori: 'Teknis', tingkatKemahiran: 'Ahli', sertifikasi: 'Sertifikasi Insinyur Penyiaran Profesional (IPPI)', tahunPerolehan: 2020 },
+      { id: 'comp-6', namaKompetensi: 'Infrastruktur Jaringan & Server Penyiaran', kategori: 'Digital & IT', tingkatKemahiran: 'Lanjutan' }
+    ],
     foto: 'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?w=150&h=150&fit=crop&crop=faces',
     ttdElektronik: MOCK_TTD_3,
     createdAt: new Date().toISOString()
@@ -101,13 +173,33 @@ const INITIAL_EMPLOYEES: Employee[] = [
     nik: '3173055204890003',
     nip: '198904122012012004',
     nama: 'Dewi Lestari',
+    tempatLahir: 'Surakarta',
+    tanggalLahir: '1989-04-12',
     gelarDepan: '',
     gelarBelakang: 'S.E.',
+    alamat: 'Jl. Palmerah Barat No. 88, Kebon Jeruk, Jakarta Barat',
+    noHp: '08159876544',
+    surel: 'dewi.lestari@rri.go.id',
+    golDarah: 'AB',
+    jabatan: 'admin bidang',
+    jenisJabatan: 'fungsional',
+    status: 'aktif',
     jenjangPendidikan: 'S1',
     divisi: 'Tata Usaha / Umum',
     jenisKelamin: 'Perempuan',
-    alamat: 'Jl. Palmerah Barat No. 88, Kebon Jeruk, Jakarta Barat',
-    noHp: '08159876544',
+    loginRole: 'Admin Tim',
+    username: '198904122012012004',
+    password: 'password123',
+    isLoginActive: true,
+    riwayatPendidikan: [
+      { id: 'edu-6', jenjang: 'S1', institusi: 'Universitas Sebelas Maret (UNS)', jurusan: 'Akuntansi', tahunLulus: 2011, nomorIjazah: 'UNS/AKT/2011/409', gelar: 'S.E.' }
+    ],
+    riwayatPelatihan: [
+      { id: 'tr-8', namaPelatihan: 'Bimtek Pengelolaan Keuangan Negara & SAKIP', penyelenggara: 'Kementerian Keuangan RI', tanggalMulai: '2026-03-01', tanggalSelesai: '2026-03-03', durasiJam: 20, tahun: 2026, nomorSertifikat: 'KEMENKEU-2026-871', status: 'Lulus', kategori: 'Teknis' }
+    ],
+    kompetensi: [
+      { id: 'comp-7', namaKompetensi: 'Penyusunan Laporan Keuangan SAKIP & SIMAK BMN', kategori: 'Teknis', tingkatKemahiran: 'Lanjutan', sertifikasi: 'Sertifikasi Bendahara Pengeluaran (BNSP)', tahunPerolehan: 2022 }
+    ],
     foto: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&h=150&fit=crop&crop=faces',
     ttdElektronik: MOCK_TTD_4,
     createdAt: new Date().toISOString()
@@ -117,15 +209,104 @@ const INITIAL_EMPLOYEES: Employee[] = [
     nik: '3578021010900004',
     nip: '199010102013031002',
     nama: 'Rizky Syahputra',
+    tempatLahir: 'Surabaya',
+    tanggalLahir: '1990-10-10',
     gelarDepan: '',
     gelarBelakang: 'A.Md.',
+    alamat: 'Jl. Dharmahusada Indah No. 15, Gubeng, Surabaya',
+    noHp: '08179876545',
+    surel: 'rizky.syahputra@rri.go.id',
+    golDarah: 'O',
+    jabatan: 'pengelola',
+    jenisJabatan: 'fungsional',
+    status: 'aktif',
     jenjangPendidikan: 'D3',
     divisi: 'Layanan Pengembangan Usaha',
     jenisKelamin: 'Laki-laki',
-    alamat: 'Jl. Dharmahusada Indah No. 15, Gubeng, Surabaya',
-    noHp: '08179876545',
+    loginRole: 'Staff',
+    username: '199010102013031002',
+    password: 'password123',
+    isLoginActive: true,
+    riwayatPendidikan: [
+      { id: 'edu-7', jenjang: 'D3', institusi: 'Politeknik Negeri Surabaya', jurusan: 'Manajemen Pemasaran', tahunLulus: 2012, nomorIjazah: 'PNS/MP/2012/102', gelar: 'A.Md.' }
+    ],
+    riwayatPelatihan: [
+      { id: 'tr-9', namaPelatihan: 'Optimalisasi PNBP & Kerjasama Kemitraan Strategis', penyelenggara: 'Pusdiklat Keuangan', tanggalMulai: '2026-02-15', tanggalSelesai: '2026-02-18', durasiJam: 28, tahun: 2026, nomorSertifikat: 'PNBP-2026-118', status: 'Lulus', kategori: 'Teknis' },
+      { id: 'tr-10', namaPelatihan: 'Pelayanan Publik Prima (Service Excellence)', penyelenggara: 'Kemenpan RB', tanggalMulai: '2026-05-20', tanggalSelesai: '2026-05-22', durasiJam: 16, tahun: 2026, nomorSertifikat: 'PANRB-2026-90', status: 'Lulus', kategori: 'Sosial Kultural' }
+    ],
+    kompetensi: [
+      { id: 'comp-8', namaKompetensi: 'Negosiasi Kontrak Bisnis & Kemitraan Penyiaran', kategori: 'Teknis', tingkatKemahiran: 'Menengah' }
+    ],
     foto: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&h=150&fit=crop&crop=faces',
     ttdElektronik: MOCK_TTD_5,
+    createdAt: new Date().toISOString()
+  },
+  {
+    id: 'emp-6',
+    nik: '1871021405880007',
+    nip: '198805142010122003',
+    nama: 'Rina Kartika',
+    tempatLahir: 'Bandar Lampung',
+    tanggalLahir: '1988-05-14',
+    gelarDepan: '',
+    gelarBelakang: 'S.Sos.',
+    alamat: 'Jl. Raden Intan No. 74, Enggal, Bandar Lampung',
+    noHp: '08127788990',
+    surel: 'rina.kartika@rri.go.id',
+    golDarah: 'B',
+    jabatan: 'ketua bidang',
+    jenisJabatan: 'struktural',
+    status: 'aktif',
+    jenjangPendidikan: 'S1',
+    divisi: 'Siaran',
+    jenisKelamin: 'Perempuan',
+    loginRole: 'Ketua Tim',
+    username: '198805142010122003',
+    password: 'password123',
+    isLoginActive: true,
+    riwayatPendidikan: [
+      { id: 'edu-8', jenjang: 'S1', institusi: 'Universitas Lampung (UNILA)', jurusan: 'Ilmu Komunikasi', tahunLulus: 2010, nomorIjazah: 'UNILA/KOM/2010/331', gelar: 'S.Sos.' }
+    ],
+    riwayatPelatihan: [
+      { id: 'tr-11', namaPelatihan: 'Kurasi Format Siaran Radio Modern & Program RRI Pro', penyelenggara: 'Pusdiklat RRI', tanggalMulai: '2026-01-20', tanggalSelesai: '2026-01-25', durasiJam: 40, tahun: 2026, nomorSertifikat: 'RRI-PRO-2026-01', status: 'Lulus', kategori: 'Teknis' }
+    ],
+    kompetensi: [
+      { id: 'comp-9', namaKompetensi: 'Format Programming & Music Directing Penyiaran Radio', kategori: 'Teknis', tingkatKemahiran: 'Ahli', sertifikasi: 'Sertifikasi BNSP Penyiar Madya', tahunPerolehan: 2019 }
+    ],
+    createdAt: new Date().toISOString()
+  },
+  {
+    id: 'emp-7',
+    nik: '1871032509930002',
+    nip: '199309252019021004',
+    nama: 'Bagus Pratama',
+    tempatLahir: 'Metro',
+    tanggalLahir: '1993-09-25',
+    gelarDepan: '',
+    gelarBelakang: 'S.Kom.',
+    alamat: 'Jl. Teuku Umar No. 120, Kedaton, Bandar Lampung',
+    noHp: '08526912345',
+    surel: 'bagus.pratama@rri.go.id',
+    golDarah: 'A',
+    jabatan: 'staf',
+    jenisJabatan: 'fungsional',
+    status: 'aktif',
+    jenjangPendidikan: 'S1',
+    divisi: 'Teknologi dan Media Baru',
+    jenisKelamin: 'Laki-laki',
+    loginRole: 'Staff',
+    username: '199309252019021004',
+    password: 'password123',
+    isLoginActive: true,
+    riwayatPendidikan: [
+      { id: 'edu-9', jenjang: 'S1', institusi: 'Institut Informatika dan Bisnis Darmajaya', jurusan: 'Teknik Informatika', tahunLulus: 2016, nomorIjazah: 'DJ/TI/2016/512', gelar: 'S.Kom.' }
+    ],
+    riwayatPelatihan: [
+      { id: 'tr-12', namaPelatihan: 'Full-stack Web & Application Development for Broadcast Portal', penyelenggara: 'Digitalent Kominfo', tanggalMulai: '2026-03-10', tanggalSelesai: '2026-03-24', durasiJam: 48, tahun: 2026, nomorSertifikat: 'DTS-2026-8991', status: 'Lulus', kategori: 'Digital & IT' }
+    ],
+    kompetensi: [
+      { id: 'comp-10', namaKompetensi: 'Pengembangan Aplikasi Web & Integrasi API Penyiaran', kategori: 'Digital & IT', tingkatKemahiran: 'Lanjutan' }
+    ],
     createdAt: new Date().toISOString()
   }
 ];
@@ -221,7 +402,7 @@ const INITIAL_AGREEMENTS: PerformanceAgreement[] = [
         indicatorName: "Tingkat Keandalan Laporan Administrasi & Keuangan",
         target: "100",
         unit: "%",
-        weight: 50,
+        weight: 35,
         achievement: 95,
         parentIndicatorId: "ind-3"
       },
@@ -230,9 +411,19 @@ const INITIAL_AGREEMENTS: PerformanceAgreement[] = [
         indicatorName: "Ketersediaan Logistik & Prasarana Penyiaran",
         target: "98",
         unit: "%",
-        weight: 50,
+        weight: 35,
         achievement: 98,
         parentIndicatorId: "ind-3"
+      },
+      {
+        id: "ind-tu-kompetensi",
+        indicatorName: "Persentase pelaksanaan pengembangan kompetensi pegawai",
+        target: "100",
+        unit: "%",
+        weight: 30,
+        achievement: 0,
+        parentIndicatorId: "ind-3",
+        trajectoryType: "constant"
       }
     ],
     status: "Aktif",
@@ -559,6 +750,8 @@ const recalculateCascade = (
   currentReporterTargets: ReporterTarget[] = [],
   currentEmployees: Employee[] = []
 ) => {
+  const emps = currentEmployees.length > 0 ? currentEmployees : INITIAL_EMPLOYEES;
+
   // 1. Calculate total PNBP for linked indicator 'ind-11'
   const totalPnbpForInd11 = currentContracts
     .filter(c => c.linkedIndicatorId === 'ind-11')
@@ -575,12 +768,15 @@ const recalculateCascade = (
     return { ...ag, objectives };
   });
 
-  // 3. Sync news reports counts & monthlyAchievements (12 months) and perform full cascade rollup across Level 1, Level 2, Level 3
+  // 3. Sync Competency & 40 JP training compliance to "Persentase pelaksanaan pengembangan kompetensi pegawai"
+  updated = syncCompetencyAchievements(emps, updated);
+
+  // 4. Sync news reports counts & monthlyAchievements (12 months) and perform full cascade rollup across Level 1, Level 2, Level 3
   updated = syncNewsAchievements(
     currentNewsReports, 
     updated, 
     currentReporterTargets, 
-    currentEmployees.length > 0 ? currentEmployees : INITIAL_EMPLOYEES
+    emps
   );
 
   return updated;
@@ -703,10 +899,19 @@ export default function App() {
     localStorage.removeItem('swara_current_user');
   };
 
-  // Load from Firestore on initialization
+  // Load from Firestore on initialization & real-time live synchronization
   useEffect(() => {
+    let unsubscribeEmployees: (() => void) | undefined;
+    let unsubscribeSettings: (() => void) | undefined;
+    let unsubscribeIdentity: (() => void) | undefined;
+    let unsubscribeNotifs: (() => void) | undefined;
+    let unsubscribeContracts: (() => void) | undefined;
+    let unsubscribeTargets: (() => void) | undefined;
+    let unsubscribeReports: (() => void) | undefined;
+
     async function loadData() {
       try {
+        setIsSyncing(true);
         const seeded = await isSystemSeeded();
         
         let fireEmployees: Employee[];
@@ -719,24 +924,14 @@ export default function App() {
         let fireAgreements: PerformanceAgreement[];
 
         if (!seeded) {
-          // Check if local cache has any newsReports/contracts/etc. so we never accidentally overwrite them
-          let localReports: NewsReport[] = [];
-          try {
-            const cached = localStorage.getItem('swara_cache_col_newsReports');
-            if (cached) {
-              const parsed = JSON.parse(cached);
-              if (Array.isArray(parsed) && parsed.length > 0) localReports = parsed;
-            }
-          } catch (e) {}
-
-          // First time database initialization: seed arrays for dynamic entities with INITIAL values
+          // Brand new empty database initialization
           fireEmployees = INITIAL_EMPLOYEES;
           fireSettings = INITIAL_SETTINGS;
           fireIdentity = INITIAL_IDENTITY;
           fireNotifications = [];
           fireContracts = [];
           fireTargets = [];
-          fireReports = localReports;
+          fireReports = [];
           fireAgreements = INITIAL_AGREEMENTS;
 
           await saveCollectionList('employees', INITIAL_EMPLOYEES);
@@ -745,17 +940,12 @@ export default function App() {
           await saveCollectionList('notifications', []);
           await saveCollectionList('contracts', []);
           await saveCollectionList('reporterTargets', []);
-          if (localReports.length > 0) {
-            await saveCollectionList('newsReports', localReports);
-          } else {
-            await saveCollectionList('newsReports', []);
-          }
+          await saveCollectionList('newsReports', []);
           await saveCollectionList('agreements', INITIAL_AGREEMENTS);
           
           await markSystemSeeded();
         } else {
-          // Database is already seeded. Fetch current state. If a collection is emptied
-          // by the user, keep it empty instead of falling back to default dummy data.
+          // Live Firestore database is already seeded. Fetch live state directly.
           fireEmployees = await fetchCollection<Employee>('employees', INITIAL_EMPLOYEES);
           fireSettings = await fetchDocument<AppSettings>('settings', 'current', INITIAL_SETTINGS);
           fireIdentity = await fetchDocument<InstitutionalIdentity>('identity', 'current', INITIAL_IDENTITY);
@@ -766,7 +956,7 @@ export default function App() {
           fireAgreements = await fetchCollection<PerformanceAgreement>('agreements', INITIAL_AGREEMENTS);
         }
 
-        // Actively sanitize fireAgreements to permanently eliminate dummy "Optimalisasi Realisasi Penerimaan Negara Bukan Pajak (PNBP)" / ind-15-pnbp
+        // Sanitize agreements
         let hadPnbpDummy = false;
         fireAgreements = fireAgreements.map((ag) => {
           const hasPnbp = ag.objectives.some(o => 
@@ -786,7 +976,6 @@ export default function App() {
               )
               .map(o => o.parentIndicatorId === 'ind-15-pnbp' ? { ...o, parentIndicatorId: 'ind-1' } : o);
 
-            // If Level 1 (Kepala Stasiun) has the 4 standard strategic indicators, restore official weights
             if (ag.level === 'Kepala Stasiun' && filteredObjectives.length === 4) {
               filteredObjectives = filteredObjectives.map(o => {
                 if (o.id === 'ind-1' || o.id === 'ind-2') return { ...o, weight: 30 };
@@ -803,14 +992,36 @@ export default function App() {
           return ag;
         });
 
-        // If stale dummy data existed in Firestore, persist cleaned agreements to database
-        if (hadPnbpDummy) {
+        let hadTuCompetencyAdded = false;
+        fireAgreements = fireAgreements.map(ag => {
+          if (ag.level === 'Kabid Tata Usaha' && !ag.objectives.some(o => isCompetencyIndicator(o))) {
+            hadTuCompetencyAdded = true;
+            return {
+              ...ag,
+              objectives: [
+                ...ag.objectives.map(o => ({ ...o, weight: o.id === 'ind-5' || o.id === 'ind-6' ? 35 : o.weight })),
+                {
+                  id: "ind-tu-kompetensi",
+                  indicatorName: "Persentase pelaksanaan pengembangan kompetensi pegawai",
+                  target: "100",
+                  unit: "%",
+                  weight: 30,
+                  achievement: 0,
+                  parentIndicatorId: "ind-3",
+                  trajectoryType: "constant"
+                }
+              ]
+            };
+          }
+          return ag;
+        });
+
+        if (hadPnbpDummy || hadTuCompetencyAdded) {
           saveCollectionList('agreements', fireAgreements).catch(err => 
             console.warn("Notice: Cleaned agreements sync to live database:", err)
           );
         }
 
-        // Migrate employee division field values if needed
         const migratedEmployees = fireEmployees.map((emp) => {
           if ((emp.divisi as any) === 'Program Acara') emp.divisi = 'Konten Media Baru';
           if ((emp.divisi as any) === 'Teknik') emp.divisi = 'Teknologi dan Media Baru';
@@ -818,7 +1029,7 @@ export default function App() {
           return emp;
         });
 
-        // Perform initial cascade check
+        // Calculate initial cascade rollup
         const initialCascaded = recalculateCascade(fireAgreements, fireContracts, fireReports, fireTargets, migratedEmployees);
 
         setEmployees(migratedEmployees);
@@ -830,21 +1041,73 @@ export default function App() {
         setNewsReports(fireReports);
         setAgreements(initialCascaded);
 
-        // Mirror locally for instant loading and reliability
+        // Attach live Firestore real-time listeners
+        unsubscribeEmployees = subscribeToCollection<Employee>('employees', (liveEmployees) => {
+          if (liveEmployees) {
+            const migrated = liveEmployees.map(emp => {
+              if ((emp.divisi as any) === 'Program Acara') emp.divisi = 'Konten Media Baru';
+              if ((emp.divisi as any) === 'Teknik') emp.divisi = 'Teknologi dan Media Baru';
+              if ((emp.divisi as any) === 'Layanan Publik') emp.divisi = 'Layanan Pengembangan Usaha';
+              return emp;
+            });
+            setEmployees(migrated);
+          }
+        });
+
+        unsubscribeSettings = subscribeToDocument<AppSettings>('settings', 'current', (liveSettings) => {
+          if (liveSettings) setSettings(liveSettings);
+        });
+
+        unsubscribeIdentity = subscribeToDocument<InstitutionalIdentity>('identity', 'current', (liveIdentity) => {
+          if (liveIdentity) setIdentity(liveIdentity);
+        });
+
+        unsubscribeNotifs = subscribeToCollection<CriticalNotification>('notifications', (liveNotifs) => {
+          if (liveNotifs) setNotifications(liveNotifs);
+        });
+
+        unsubscribeContracts = subscribeToCollection<CooperationContract>('contracts', (liveContracts) => {
+          if (liveContracts) setContracts(liveContracts);
+        });
+
+        unsubscribeTargets = subscribeToCollection<ReporterTarget>('reporterTargets', (liveTargets) => {
+          if (liveTargets) setReporterTargets(liveTargets);
+        });
+
+        unsubscribeReports = subscribeToCollection<NewsReport>('newsReports', (liveReports) => {
+          if (liveReports) setNewsReports(liveReports);
+        });
 
       } catch (err) {
-        console.error("Critical error during cloud sync:", err);
+        console.error("Critical error during live Firestore database sync:", err);
       } finally {
         setIsSyncing(false);
       }
     }
+
     loadData();
+
+    return () => {
+      if (unsubscribeEmployees) unsubscribeEmployees();
+      if (unsubscribeSettings) unsubscribeSettings();
+      if (unsubscribeIdentity) unsubscribeIdentity();
+      if (unsubscribeNotifs) unsubscribeNotifs();
+      if (unsubscribeContracts) unsubscribeContracts();
+      if (unsubscribeTargets) unsubscribeTargets();
+      if (unsubscribeReports) unsubscribeReports();
+    };
   }, []);
 
   // Sync helpers
   const handleUpdateEmployees = async (newEmployees: Employee[]) => {
     setEmployees(newEmployees);
     await saveCollectionList('employees', newEmployees);
+
+    // Auto calculate 40 JP competency compliance and cascade to PK
+    const autoSyncedAgreements = syncCompetencyAchievements(newEmployees, agreements);
+    const cascaded = recalculateCascade(autoSyncedAgreements, contracts, newsReports, reporterTargets, newEmployees);
+    setAgreements(cascaded);
+    await saveCollectionList('agreements', cascaded);
   };
 
   const handleUpdateSettings = async (newSettings: AppSettings) => {
@@ -1067,20 +1330,20 @@ export default function App() {
   };
 
   // CRUD Operations for Employees
-  const addEmployee = (emp: Employee) => {
+  const addEmployee = async (emp: Employee) => {
     const updated = [emp, ...employees];
-    handleUpdateEmployees(updated);
+    await handleUpdateEmployees(updated);
   };
 
-  const updateEmployee = (emp: Employee) => {
+  const updateEmployee = async (emp: Employee) => {
     const updated = employees.map(e => e.id === emp.id ? emp : e);
-    handleUpdateEmployees(updated);
+    await handleUpdateEmployees(updated);
   };
 
   const deleteEmployee = async (id: string) => {
-    if (window.confirm("Apakah Anda yakin ingin menghapus data pegawai ini?")) {
+    if (window.confirm("Apakah Anda yakin ingin menghapus data pegawai ini dari database live?")) {
       const updated = employees.filter(e => e.id !== id);
-      setEmployees(updated);
+      await handleUpdateEmployees(updated);
       await deleteDocument('employees', id);
     }
   };

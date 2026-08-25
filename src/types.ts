@@ -1,21 +1,73 @@
+export interface EducationHistory {
+  id: string;
+  jenjang: 'SMA' | 'SMK' | 'D1' | 'D2' | 'D3' | 'D4' | 'S1' | 'S2' | 'S3';
+  institusi: string;
+  jurusan: string;
+  tahunLulus: number;
+  nomorIjazah?: string;
+  gelar?: string;
+}
+
+export interface TrainingHistory {
+  id: string;
+  namaPelatihan: string;
+  penyelenggara: string;
+  tanggalMulai: string;
+  tanggalSelesai: string;
+  durasiJam: number; // Durasi Jam Pelajaran (JP) / Jam Pelatihan
+  tahun: number;
+  nomorSertifikat?: string;
+  status: 'Lulus' | 'Selesai' | 'Sedang Berjalan';
+  kategori?: 'Teknis' | 'Manajerial' | 'Fungsional' | 'Sosial Kultural' | 'Digital & IT';
+  jenisPerhitungan?: 'JP' | 'Non JP'; // Opsi JP / Non JP: jika JP maka dihitung dalam kewajiban 40 jam/tahun
+}
+
+export interface EmployeeCompetency {
+  id: string;
+  namaKompetensi: string;
+  kategori: 'Teknis' | 'Manajerial' | 'Sosial Kultural' | 'Digital & IT';
+  tingkatKemahiran: 'Dasar' | 'Menengah' | 'Lanjutan' | 'Ahli';
+  sertifikasi?: string;
+  tahunPerolehan?: number;
+}
+
 export interface Employee {
   id: string;
   nik: string;
   nip: string;
   nama: string;
+  tempatLahir?: string;
+  tanggalLahir?: string;
   gelarDepan: string;
   gelarBelakang: string;
+  alamat: string;
+  noHp: string;
+  surel?: string; // Email Pegawai
+  golDarah?: 'A' | 'B' | 'AB' | 'O' | '-' | 'A+' | 'B+' | 'AB+' | 'O+' | 'A-' | 'B-' | 'AB-' | 'O-';
+  jabatan?: 'staf' | 'pengelola' | 'admin bidang' | 'ketua bidang' | 'kepala satker' | 'Staf' | 'Pengelola' | 'Admin Bidang' | 'Ketua Bidang' | 'Kepala Satker';
+  jenisJabatan?: 'fungsional' | 'struktural' | 'Fungsional' | 'Struktural';
+  status?: 'aktif' | 'pindah' | 'keluar' | 'Aktif' | 'Pindah' | 'Keluar';
   jenjangPendidikan: 'SMA' | 'D3' | 'S1' | 'S2' | 'S3';
   divisi: 'Tata Usaha / Umum' | 'Siaran' | 'Pemberitaan' | 'Teknologi dan Media Baru' | 'Konten Media Baru' | 'Layanan Pengembangan Usaha';
   jenisKelamin: 'Laki-laki' | 'Perempuan';
-  alamat: string;
-  noHp: string;
-  foto: string; // Base64 Data URL or standard preset avatar SVG/URL
-  ttdElektronik: string; // Base64 Data URL of signature
-  createdAt: string;
-  role?: 'Staff' | 'Ketua Bidang' | 'Superadmin';
-  isEditor?: boolean;
+  
+  // Riwayat & Kompetensi
+  riwayatPendidikan?: EducationHistory[];
+  riwayatPelatihan?: TrainingHistory[];
+  kompetensi?: EmployeeCompetency[];
+
+  // Pengaturan Login
+  loginRole?: 'Super Admin' | 'Kepala Satker' | 'Ketua Tim' | 'Admin Tim' | 'Staff';
+  username?: string;
   password?: string;
+  isLoginActive?: boolean;
+
+  // Legacy fields (optional)
+  foto?: string;
+  ttdElektronik?: string;
+  createdAt: string;
+  role?: 'Staff' | 'Ketua Bidang' | 'Superadmin' | 'Kepala';
+  isEditor?: boolean;
 }
 
 export interface AppSettings {

@@ -1,5 +1,6 @@
-import { AlertTriangle, X, Eye, ArrowRight, ShieldAlert, CheckCircle2, TrendingDown } from 'lucide-react';
+import { AlertTriangle, X, ArrowRight, ShieldAlert, CheckCircle2 } from 'lucide-react';
 import { getGaugeColorByPercentage } from '../utils/colors';
+import IndicatorTitleDisplay from './IndicatorTitleDisplay';
 
 export interface RedFlagIndicatorItem {
   id: string;
@@ -111,9 +112,11 @@ export default function RedFlagIndicatorsModal({
                           PIC: {item.assignedToName}
                         </span>
                       </div>
-                      <h4 className="text-sm font-extrabold text-slate-800 leading-snug">
-                        {item.indicatorName}
-                      </h4>
+                      <IndicatorTitleDisplay
+                        title={item.indicatorName}
+                        className="text-sm font-extrabold text-slate-800 leading-snug block"
+                        subClassName="text-xs text-rose-700/80 font-semibold block mt-0.5"
+                      />
                     </div>
 
                     {/* Percentage Badge */}

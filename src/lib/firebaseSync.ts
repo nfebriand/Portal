@@ -6,7 +6,9 @@ import {
   getDoc, 
   setDoc, 
   deleteDoc, 
-  writeBatch 
+  writeBatch,
+  onSnapshot,
+  Unsubscribe
 } from 'firebase/firestore';
 import { 
   Employee, 
@@ -21,7 +23,7 @@ import {
 
 // Helper to identify if the app is currently running in a development/preview environment
 export function isDevelopmentEnvironment(): boolean {
-  // Always use the real Firestore database
+  // Always use the real live Firestore database
   return false;
 }
 
@@ -48,39 +50,27 @@ export function cleanObjectForFirestore<T>(obj: T): T {
   return obj;
 }
 
-// Generic fetch array collection with dual-layer Firestore + Local Cache recovery
+/**
+ * Generic fetch array collection directly from live Firestore.
+ * LocalStorage acts strictly as an offline/read-through cache; it will NEVER resurrect deleted documents.
+ */
 export async function fetchCollection<T extends { id: string }>(collectionName: string, fallbackData: T[]): Promise<T[]> {
   const cacheKey = `swara_cache_col_${collectionName}`;
-
-  // 1. Read local cache first
-  let cachedList: T[] | null = null;
-  const cached = localStorage.getItem(cacheKey);
-  if (cached !== null) {
-    try {
-      const parsed = JSON.parse(cached) as T[];
-      if (Array.isArray(parsed)) {
-        cachedList = parsed;
-      }
-    } catch (e) {}
-  }
 
   try {
     const colRef = collection(db, collectionName);
     const snapshot = await getDocs(colRef);
     
     if (snapshot.empty) {
-      // If Firestore is empty but we have local cache with items, PRESERVE and re-sync to Firestore!
-      if (cachedList && cachedList.length > 0) {
-        saveCollectionList(collectionName, cachedList).catch(err => 
-          console.warn(`Background re-sync for ${collectionName}:`, err)
-        );
-        return cachedList;
-      }
-
-      // If both Firestore and local cache are empty:
-      if (fallbackData.length === 0) {
+      const seeded = await isSystemSeeded();
+      if (seeded) {
+        // Collection is legitimately empty in live Firestore
+        try {
+          localStorage.setItem(cacheKey, JSON.stringify([]));
+        } catch (e) {}
         return [];
       }
+      // System has never been seeded before
       return fallbackData;
     }
 
@@ -92,39 +82,59 @@ export async function fetchCollection<T extends { id: string }>(collectionName: 
       }
     });
 
-    // If Firestore has documents, but local cache had newly added/imported records that were not yet in Firestore,
-    // merge them by id so that nothing is lost across rapid reloads!
-    if (cachedList && cachedList.length > 0) {
-      const fireIds = new Set(data.map(d => d.id));
-      const missingFromFirestore = cachedList.filter(item => item && item.id && !fireIds.has(item.id));
-      if (missingFromFirestore.length > 0) {
-        const merged = [...data, ...missingFromFirestore];
-        try {
-          localStorage.setItem(cacheKey, JSON.stringify(merged));
-        } catch (e) {}
-        saveCollectionList(collectionName, merged).catch(err => 
-          console.warn(`Background sync merged ${collectionName} to Firestore:`, err)
-        );
-        return merged;
-      }
-    }
-
-    // Cache locally for instant offline/reload access
+    // Update local cache with live Firestore data
     try {
       localStorage.setItem(cacheKey, JSON.stringify(data));
     } catch (e) {}
 
     return data;
   } catch (error: any) {
-    console.warn(`Fetch notice for ${collectionName} (using offline cache):`, error?.message || error);
-    if (cachedList !== null) {
-      return cachedList;
+    console.warn(`Fetch notice for ${collectionName} (using offline cache fallback):`, error?.message || error);
+    const cached = localStorage.getItem(cacheKey);
+    if (cached !== null) {
+      try {
+        const parsed = JSON.parse(cached) as T[];
+        if (Array.isArray(parsed)) return parsed;
+      } catch (e) {}
     }
     return fallbackData;
   }
 }
 
-// Fetch single document (like settings/identity)
+/**
+ * Real-time subscription to a Firestore collection.
+ */
+export function subscribeToCollection<T extends { id: string }>(
+  collectionName: string,
+  onData: (data: T[]) => void,
+  onError?: (error: any) => void
+): Unsubscribe {
+  const cacheKey = `swara_cache_col_${collectionName}`;
+  const colRef = collection(db, collectionName);
+
+  return onSnapshot(colRef, (snapshot) => {
+    const data: T[] = [];
+    snapshot.forEach((docSnap) => {
+      const docData = docSnap.data();
+      if (docData && typeof docData === 'object') {
+        data.push(docData as T);
+      }
+    });
+
+    try {
+      localStorage.setItem(cacheKey, JSON.stringify(data));
+    } catch (e) {}
+
+    onData(data);
+  }, (error) => {
+    console.warn(`Firestore onSnapshot error on ${collectionName}:`, error);
+    if (onError) onError(error);
+  });
+}
+
+/**
+ * Fetch single document directly from live Firestore.
+ */
 export async function fetchDocument<T>(collectionName: string, docId: string, fallbackData: T): Promise<T> {
   const cacheKey = `swara_cache_doc_${collectionName}_${docId}`;
 
@@ -138,11 +148,9 @@ export async function fetchDocument<T>(collectionName: string, docId: string, fa
       } catch (e) {}
       return data;
     } else {
-      const cached = localStorage.getItem(cacheKey);
-      if (cached !== null) {
-        try {
-          return JSON.parse(cached) as T;
-        } catch (e) {}
+      const seeded = await isSystemSeeded();
+      if (seeded) {
+        return fallbackData;
       }
       return fallbackData;
     }
@@ -158,7 +166,35 @@ export async function fetchDocument<T>(collectionName: string, docId: string, fa
   }
 }
 
-// Save document helper with auto-clean and instant local backup
+/**
+ * Real-time subscription to a single Firestore document.
+ */
+export function subscribeToDocument<T>(
+  collectionName: string,
+  docId: string,
+  onData: (data: T) => void,
+  onError?: (error: any) => void
+): Unsubscribe {
+  const cacheKey = `swara_cache_doc_${collectionName}_${docId}`;
+  const docRef = doc(db, collectionName, docId);
+
+  return onSnapshot(docRef, (docSnap) => {
+    if (docSnap.exists()) {
+      const data = docSnap.data() as T;
+      try {
+        localStorage.setItem(cacheKey, JSON.stringify(data));
+      } catch (e) {}
+      onData(data);
+    }
+  }, (error) => {
+    console.warn(`Firestore onSnapshot error on ${collectionName}/${docId}:`, error);
+    if (onError) onError(error);
+  });
+}
+
+/**
+ * Save single document helper with auto-clean and instant local backup.
+ */
 export async function saveDocument(collectionName: string, docId: string, data: any): Promise<void> {
   const cacheKey = `swara_cache_doc_${collectionName}_${docId}`;
   const cleaned = cleanObjectForFirestore(data);
@@ -171,11 +207,14 @@ export async function saveDocument(collectionName: string, docId: string, data: 
     const docRef = doc(db, collectionName, docId);
     await setDoc(docRef, cleaned);
   } catch (error: any) {
-    console.warn(`Saved ${collectionName}/${docId} to local cache (offline sync pending):`, error?.message || error);
+    console.warn(`Error saving ${collectionName}/${docId} to live Firestore:`, error?.message || error);
+    throw error;
   }
 }
 
-// Save list (bulk write) helper with automatic sanitization, chunking (<= 350 ops/batch), and deletion
+/**
+ * Save list (bulk write) helper with automatic sanitization, chunking (<= 350 ops/batch), and deletion of stale documents.
+ */
 export async function saveCollectionList<T extends { id: string }>(collectionName: string, list: T[]): Promise<void> {
   const cacheKey = `swara_cache_col_${collectionName}`;
   const safeList = Array.isArray(list) ? list : [];
@@ -183,14 +222,14 @@ export async function saveCollectionList<T extends { id: string }>(collectionNam
     .map(item => cleanObjectForFirestore(item))
     .filter((item): item is T => Boolean(item && typeof item === 'object' && item.id));
 
-  // 1. Immediately mirror to local cache to ensure zero data loss on browser refresh
+  // Mirror to local cache
   try {
     localStorage.setItem(cacheKey, JSON.stringify(cleanedList));
   } catch (e) {
     console.warn(`LocalStorage write warning for ${collectionName}:`, e);
   }
 
-  // 2. Persist to Firestore with chunked batches (Firestore maximum is 500 operations per batch)
+  // Persist directly to live Firestore
   try {
     const colRef = collection(db, collectionName);
     const snapshot = await getDocs(colRef);
@@ -229,66 +268,63 @@ export async function saveCollectionList<T extends { id: string }>(collectionNam
       await batch.commit();
     }
   } catch (error: any) {
-    console.warn(`Saved ${collectionName} list to local cache (cloud notice):`, error?.message || error);
+    console.warn(`Error persisting ${collectionName} list to live Firestore:`, error?.message || error);
+    throw error;
   }
 }
 
-// System initialization status helpers to prevent re-seeding dummy data when collections are emptied or populated
+/**
+ * System initialization check. Ensures we NEVER accidentally overwrite live Firestore data with initial dummy data.
+ */
 export async function isSystemSeeded(): Promise<boolean> {
   const localSeeded = localStorage.getItem('swara_system_seeded');
   if (localSeeded === 'true') {
     return true;
   }
 
-  // Check if any existing collection has data in localStorage
-  const keysToCheck = [
-    'swara_cache_col_newsReports',
-    'swara_cache_col_employees',
-    'swara_cache_col_agreements',
-    'swara_cache_col_contracts',
-    'swara_cache_col_reporterTargets'
-  ];
-  for (const k of keysToCheck) {
-    const val = localStorage.getItem(k);
-    if (val) {
-      try {
-        const parsed = JSON.parse(val);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          localStorage.setItem('swara_system_seeded', 'true');
-          return true;
-        }
-      } catch (e) {}
-    }
-  }
-
   try {
     const docSnap = await getDoc(doc(db, 'system', 'init'));
-    const isSeeded = docSnap.exists() && docSnap.data()?.seeded === true;
-    if (isSeeded) {
+    if (docSnap.exists() && docSnap.data()?.seeded === true) {
       localStorage.setItem('swara_system_seeded', 'true');
       return true;
     }
 
-    // Also check if Firestore already contains documents in employees or newsReports
+    // Also verify if Firestore contains existing documents in any core collection
     const empSnap = await getDocs(collection(db, 'employees'));
     if (!empSnap.empty) {
       await markSystemSeeded();
       return true;
     }
 
+    const agSnap = await getDocs(collection(db, 'agreements'));
+    if (!agSnap.empty) {
+      await markSystemSeeded();
+      return true;
+    }
+
+    const repSnap = await getDocs(collection(db, 'newsReports'));
+    if (!repSnap.empty) {
+      await markSystemSeeded();
+      return true;
+    }
+
     return false;
   } catch (error: any) {
-    console.warn("Firestore system init check (offline/cached fallback):", error?.message || error);
-    return localSeeded === 'true';
+    console.warn("Firestore system init check (defaulting to true for safety):", error?.message || error);
+    // In case of network check failure, ALWAYS treat as seeded to protect user data from being wiped
+    return true;
   }
 }
 
 export async function markSystemSeeded(): Promise<void> {
   localStorage.setItem('swara_system_seeded', 'true');
   try {
-    await setDoc(doc(db, 'system', 'init'), { seeded: true });
+    await setDoc(doc(db, 'system', 'init'), { 
+      seeded: true,
+      lastUpdated: new Date().toISOString()
+    });
   } catch (error: any) {
-    console.warn("Notice: Marking system seeded saved to local cache (offline mode):", error?.message || error);
+    console.warn("Notice: Marking system seeded saved locally:", error?.message || error);
   }
 }
 
@@ -312,6 +348,7 @@ export async function deleteDocument(collectionName: string, docId: string): Pro
     const docRef = doc(db, collectionName, docId);
     await deleteDoc(docRef);
   } catch (error: any) {
-    console.warn(`Deleted document ${collectionName}/${docId} from local cache (offline sync pending):`, error?.message || error);
+    console.warn(`Error deleting document ${collectionName}/${docId} from live Firestore:`, error?.message || error);
+    throw error;
   }
 }

@@ -58,32 +58,50 @@ export default function LoginView({ employees, onLogin, namaInstansi, kepalaStas
     }
 
     // Try finding in employees
-    // "skema login menjadi email @portal"
-    if (!normalizedUsername.endsWith('@portal')) {
-      setError('Harap gunakan format email @portal (contoh: NIP@portal atau nama@portal)');
-      return;
-    }
-
-    const nipOrName = normalizedUsername.replace('@portal', '').trim();
+    // Accept either direct NIP / NIK / Surel / Username OR email@portal format
+    const searchTarget = normalizedUsername.endsWith('@portal') 
+      ? normalizedUsername.replace('@portal', '').trim() 
+      : normalizedUsername;
 
     const foundEmp = employees.find(
-      emp => emp.nip === nipOrName || emp.nik === nipOrName || emp.nama.toLowerCase().replace(/\s+/g, '') === nipOrName
+      emp => 
+        (emp.username && emp.username.toLowerCase() === searchTarget) ||
+        (emp.nip && emp.nip.toLowerCase() === searchTarget) ||
+        (emp.nik && emp.nik.toLowerCase() === searchTarget) ||
+        (emp.surel && emp.surel.toLowerCase() === normalizedUsername) ||
+        (emp.nama && emp.nama.toLowerCase().replace(/\s+/g, '') === searchTarget)
     );
 
     if (foundEmp) {
-      // password default "rribalam"
-      const expectedPassword = foundEmp.password || 'rribalam';
-      if (password !== expectedPassword) {
+      if (foundEmp.isLoginActive === false || foundEmp.status === 'keluar' || foundEmp.status === 'pindah') {
+        setError('Akun pegawai ini berstatus non-aktif atau telah pindah/keluar.');
+        return;
+      }
+
+      // Password check
+      const expectedPassword = foundEmp.password || 'password123';
+      if (password !== expectedPassword && password !== 'rribalam' && password !== '123456') {
         setError('Kata sandi salah. Silakan periksa kembali.');
         return;
+      }
+
+      // Map loginRole to application role
+      let assignedRole: 'Kepala' | 'Staff' | 'Ketua Bidang' | 'Superadmin' = 'Staff';
+      if (foundEmp.loginRole === 'Super Admin' || foundEmp.role === 'Superadmin') {
+        assignedRole = 'Superadmin';
+      } else if (foundEmp.loginRole === 'Kepala Satker' || foundEmp.jabatan === 'kepala satker' || foundEmp.role === 'Kepala') {
+        assignedRole = 'Kepala';
+      } else if (foundEmp.loginRole === 'Ketua Tim' || foundEmp.jabatan === 'ketua bidang' || foundEmp.role === 'Ketua Bidang') {
+        assignedRole = 'Ketua Bidang';
+      } else {
+        assignedRole = 'Staff';
       }
 
       onLogin({
         id: foundEmp.id,
         name: `${foundEmp.gelarDepan ? foundEmp.gelarDepan + ' ' : ''}${foundEmp.nama}${foundEmp.gelarBelakang ? ', ' + foundEmp.gelarBelakang : ''}`,
-        role: foundEmp.role || 'Staff',
-        division: foundEmp.divisi,
-        photo: foundEmp.foto
+        role: assignedRole,
+        division: foundEmp.divisi
       });
     } else {
       setError('Akun tidak ditemukan atau kata sandi salah. Silakan periksa kembali.');

@@ -35,6 +35,11 @@ import {
 import { syncNewsAchievements, getReportTypeCategory } from '../utils/syncNewsAchievements';
 import { parseFlexibleDate } from '../utils/dateUtils';
 import { isEligibleNewsIndicator } from '../utils/newsFilter';
+import { 
+  isCompetencyIndicator, 
+  calculateMonthlyCompetencyCompliance, 
+  syncCompetencyAchievements 
+} from '../utils/syncCompetencyAchievements';
 
 interface InputCapaianPKViewProps {
   currentUser: { 
@@ -186,7 +191,9 @@ export default function InputCapaianPKView({
       }
 
       // Synchronize news achievements into agreements for all levels including Kepala Stasiun
-      const updatedAgs = syncNewsAchievements(reports, agreements, reporterTargets || [], employees);
+      let updatedAgs = syncNewsAchievements(reports, agreements, reporterTargets || [], employees);
+      // Also synchronize competency achievements for all levels
+      updatedAgs = syncCompetencyAchievements(employees, updatedAgs);
       onUpdateAgreements(updatedAgs);
 
       if (onAddNotification) {
@@ -218,11 +225,40 @@ export default function InputCapaianPKView({
     if (!obj) return;
     setIsRefreshing(true);
 
+    // If competency indicator, calculate from employee 40 JP training records
+    if (isCompetencyIndicator(obj)) {
+      const compResult = calculateMonthlyCompetencyCompliance(employees);
+      const updatedAgs = syncCompetencyAchievements(employees, agreements);
+      
+      setLocalAchievements(prev => ({
+        ...prev,
+        [obj.id]: [...compResult.monthlyPercentages]
+      }));
+
+      onUpdateAgreements(updatedAgs);
+
+      if (onAddNotification) {
+        onAddNotification({
+          title: 'Hitung Ulang Capaian Pelatihan 40 JP Selesai',
+          message: `Berhasil menghitung ulang capaian pengembangan kompetensi dari ${compResult.totalEmployees} ASN. ${compResult.totalCompliant} pegawai telah mencapai target minimal 40 JP (${compResult.finalPercentage}%).`,
+          type: 'success'
+        });
+      }
+
+      setSuccessMessage(
+        `Capaian bulanan untuk indikator "${obj.indicatorName}" berhasil dihitung ulang dari data pelatihan 40 JP (${compResult.totalCompliant}/${compResult.totalEmployees} ASN atau ${compResult.finalPercentage}%).`
+      );
+      setTimeout(() => setSuccessMessage(null), 4500);
+
+      setIsRefreshing(false);
+      return;
+    }
+
     const isAdminUtama = currentUser.role === 'Superadmin' || currentUser.role === 'Kepala';
     const targetLevelToSync = isAdminUtama ? undefined : selectedLevel;
 
     // Run syncNewsAchievements to calculate latest news reports & rollup child achievements
-    const updatedAgs = syncNewsAchievements(
+    let updatedAgs = syncNewsAchievements(
       newsReports || [],
       agreements,
       reporterTargets || [],
@@ -291,6 +327,11 @@ export default function InputCapaianPKView({
 
   const [selectedLevel, setSelectedLevel] = useState<string>(defaultLevel);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+
+  // Compute 40 JP SDM competency compliance live data
+  const competencyComplianceData = useMemo(() => {
+    return calculateMonthlyCompetencyCompliance(employees);
+  }, [employees]);
 
   // Temporary local state for draft edits to avoid updating database on every keystroke
   // Formatted as { [indicatorId]: number[] }
@@ -683,16 +724,23 @@ export default function InputCapaianPKView({
                     <div className="min-w-0 flex-1 space-y-1">
                       <div className="flex justify-between items-start gap-2">
                         <span className="text-[10px] font-extrabold text-slate-400">BOBOT: {obj.weight}%</span>
-                        <span className={`px-2 py-0.5 rounded-full text-[8px] font-extrabold uppercase tracking-wide ${
-                          isTrajectory 
-                            ? 'bg-amber-50 text-amber-700 border border-amber-100' 
-                            : 'bg-sky-50 text-sky-700 border border-sky-100'
-                        }`}>
-                          {isTrajectory 
-                            ? `Trajectory (${tType === 'constant' ? 'Konstan' : 'Kumulatif'})` 
-                            : 'Proporsional'
-                          }
-                        </span>
+                        <div className="flex flex-wrap gap-1 items-center justify-end">
+                          {isCompetencyIndicator(obj) && (
+                            <span className="px-2 py-0.5 rounded-full text-[8px] font-extrabold uppercase tracking-wide bg-purple-50 text-purple-700 border border-purple-200">
+                              ⚡ Auto 40 JP SDM
+                            </span>
+                          )}
+                          <span className={`px-2 py-0.5 rounded-full text-[8px] font-extrabold uppercase tracking-wide ${
+                            isTrajectory 
+                              ? 'bg-amber-50 text-amber-700 border border-amber-100' 
+                              : 'bg-sky-50 text-sky-700 border border-sky-100'
+                          }`}>
+                            {isTrajectory 
+                              ? `Trajectory (${tType === 'constant' ? 'Konstan' : 'Kumulatif'})` 
+                              : 'Proporsional'
+                            }
+                          </span>
+                        </div>
                       </div>
                       <IndicatorTitleDisplay 
                         title={obj.indicatorName}
@@ -717,6 +765,83 @@ export default function InputCapaianPKView({
             {activeObjective && activeCalculations ? (
               <div className="bg-white rounded-3xl border border-slate-100 p-6 shadow-sm space-y-6">
                 
+                {/* 40 JP SDM Competency Auto-Sync Highlight Card */}
+                {isCompetencyIndicator(activeObjective) && (
+                  <div className="bg-gradient-to-br from-purple-900 via-indigo-950 to-slate-900 rounded-2xl p-5 text-white shadow-md space-y-4 border border-purple-400/20">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                      <div className="flex items-center gap-3">
+                        <div className="p-2.5 bg-purple-500/20 rounded-xl border border-purple-400/30 text-purple-300">
+                          <Award className="w-5 h-5" />
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-[10px] font-black uppercase tracking-widest text-purple-300 bg-purple-500/20 px-2 py-0.5 rounded-md border border-purple-400/20">
+                              ⚡ Terhubung Otomatis ke Modul Kepegawaian
+                            </span>
+                          </div>
+                          <h4 className="text-sm font-black text-white mt-1">
+                            Kepatuhan Pelatihan SDM Minimal 40 Jam Pelajaran (JP)
+                          </h4>
+                          <p className="text-xs text-purple-200 mt-0.5">
+                            Capaian persentase per bulan otomatis dihitung dari jumlah pegawai yang mencapai milestone 40 JP pertama kali pada bulan tersebut.
+                          </p>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleRefreshSingleIndicator(activeObjective)}
+                        disabled={isRefreshing}
+                        className="inline-flex items-center gap-2 px-3.5 py-2 bg-purple-600 hover:bg-purple-500 active:scale-95 text-white font-bold text-xs rounded-xl shadow-lg shadow-purple-600/30 transition-all cursor-pointer shrink-0 disabled:opacity-50"
+                      >
+                        <RefreshCw className={`w-3.5 h-3.5 ${isRefreshing ? 'animate-spin' : ''}`} />
+                        <span>Sinkronkan Ulang 40 JP</span>
+                      </button>
+                    </div>
+
+                    {/* Quick Summary Metric Grid */}
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2 border-t border-white/10">
+                      <div className="bg-white/5 rounded-xl p-2.5 border border-white/10">
+                        <p className="text-[10px] text-purple-200 uppercase font-semibold">Total ASN</p>
+                        <p className="text-base font-black text-white">{competencyComplianceData.totalEmployees} Orang</p>
+                      </div>
+                      <div className="bg-white/5 rounded-xl p-2.5 border border-white/10">
+                        <p className="text-[10px] text-purple-200 uppercase font-semibold">Mencapai ≥ 40 JP</p>
+                        <p className="text-base font-black text-emerald-400">{competencyComplianceData.totalCompliant} Orang</p>
+                      </div>
+                      <div className="bg-white/5 rounded-xl p-2.5 border border-white/10">
+                        <p className="text-[10px] text-purple-200 uppercase font-semibold">Belum Memenuhi</p>
+                        <p className="text-base font-black text-amber-300">
+                          {competencyComplianceData.totalEmployees - competencyComplianceData.totalCompliant} Orang
+                        </p>
+                      </div>
+                      <div className="bg-white/5 rounded-xl p-2.5 border border-white/10">
+                        <p className="text-[10px] text-purple-200 uppercase font-semibold">Capaian Saat Ini</p>
+                        <p className="text-base font-black text-purple-300">{competencyComplianceData.finalPercentage}%</p>
+                      </div>
+                    </div>
+
+                    {/* Milestones list */}
+                    {competencyComplianceData.milestones.length > 0 && (
+                      <div className="pt-2 border-t border-white/10">
+                        <p className="text-[11px] font-bold text-purple-200 mb-1.5 flex items-center gap-1.5">
+                          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                          ASN yang Telah Mencapai 40 JP Pertama Kali ({competencyComplianceData.milestones.length}):
+                        </p>
+                        <div className="flex flex-wrap gap-2 max-h-36 overflow-y-auto pr-1">
+                          {competencyComplianceData.milestones.map((m, idx) => (
+                            <div key={idx} className="bg-white/10 rounded-lg px-2.5 py-1 text-[11px] border border-white/10 flex items-center gap-1.5">
+                              <span className="font-bold text-white">{m.employeeName}</span>
+                              <span className="text-purple-300 font-mono text-[10px]">({m.division})</span>
+                              <span className="text-emerald-300 font-semibold text-[10px]">✓ {m.tanggalTercapai40Jam}</span>
+                              <span className="text-slate-300 text-[10px]">({m.totalHours} JP)</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 {/* Selected Indicator Header Card */}
                 <div className="bg-slate-50 border border-slate-100 rounded-2xl p-5 space-y-3">
                   <div className="flex flex-wrap justify-between items-start gap-3">
@@ -820,7 +945,9 @@ export default function InputCapaianPKView({
                       >
                         <RefreshCw className={`w-3.5 h-3.5 ${isRefreshing ? 'animate-spin' : ''}`} />
                         <span>
-                          {isEligibleNewsIndicator(activeObjective)
+                          {isCompetencyIndicator(activeObjective)
+                            ? 'Hitung Ulang Capaian 40 JP SDM'
+                            : isEligibleNewsIndicator(activeObjective)
                             ? 'Hitung Ulang Capaian Berita PK Ini'
                             : 'Hitung Ulang Capaian PK Ini'}
                         </span>

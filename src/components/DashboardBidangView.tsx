@@ -45,6 +45,7 @@ import {
 import NewsDetailModal from './NewsDetailModal';
 import QuickReportModal from './QuickReportModal';
 import { filterNewsForIndicator, isEligibleNewsIndicator } from '../utils/newsFilter';
+import StatistikKepatuhanPelatihanBidang from './kepegawaian/StatistikKepatuhanPelatihanBidang';
 
 export interface SubTeamInfo {
   id: string;
@@ -270,7 +271,7 @@ export default function DashboardBidangView({
   }
 }: DashboardBidangViewProps) {
   
-  const [activeTab, setActiveTab] = useState<'summary' | 'delegation'>('summary');
+  const [activeTab, setActiveTab] = useState<'summary' | 'delegation' | 'pelatihan40jam'>('summary');
   const [isReportModalOpen, setIsReportModalOpen] = useState<boolean>(false);
   const [delegatingIndicator, setDelegatingIndicator] = useState<{ indicator: any; agreement: any } | null>(null);
   const [delegateEmployeeId, setDelegateEmployeeId] = useState('');
@@ -1034,6 +1035,17 @@ export default function DashboardBidangView({
           Ringkasan Kinerja Bidang
         </button>
         <button
+          onClick={() => setActiveTab('pelatihan40jam')}
+          className={`px-5 py-2.5 font-bold text-xs tracking-wider uppercase border-b-2 transition-all flex items-center gap-1.5 cursor-pointer ${
+            activeTab === 'pelatihan40jam'
+              ? 'border-indigo-600 text-indigo-600 bg-indigo-50/50'
+              : 'border-transparent text-slate-500 hover:text-slate-800'
+          }`}
+        >
+          <Award className="w-4 h-4 text-indigo-600" />
+          Kepatuhan Pelatihan 40 Jam SDM
+        </button>
+        <button
           onClick={() => setActiveTab('delegation')}
           className={`px-5 py-2.5 font-bold text-xs tracking-wider uppercase border-b-2 transition-all flex items-center gap-1.5 cursor-pointer ${
             activeTab === 'delegation'
@@ -1367,6 +1379,16 @@ export default function DashboardBidangView({
             </div>
 
           </div>
+
+          {/* KHUSUS BIDANG TATA USAHA / UMUM: STATISTIK PENCAPAIAN KEPATUHAN 40 JAM PELATIHAN SDM */}
+          {activeDivision === 'Tata Usaha / Umum' && (
+            <div className="space-y-4">
+              <StatistikKepatuhanPelatihanBidang 
+                employees={employees} 
+                selectedDivision="Tata Usaha / Umum"
+              />
+            </div>
+          )}
 
           {/* TABEL & PERFORMA STAF PELAKSANA BIDANG */}
           <div className="bg-white rounded-3xl border border-slate-200/90 shadow-sm p-6 space-y-5">
@@ -1703,6 +1725,16 @@ export default function DashboardBidangView({
               </div>
             )}
           </div>
+        </div>
+      )}
+
+      {/* TAB PELATIHAN 40 JAM SDM (6 BIDANG) */}
+      {activeTab === 'pelatihan40jam' && (
+        <div className="space-y-6 animate-in fade-in duration-200">
+          <StatistikKepatuhanPelatihanBidang 
+            employees={employees}
+            selectedDivision={activeDivision === 'Tata Usaha / Umum' ? undefined : activeDivision}
+          />
         </div>
       )}
 

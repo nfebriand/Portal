@@ -648,15 +648,18 @@ export default function DashboardView({
               }).length;
             }
           }
+        } else if (obj.monthlyAchievements && Array.isArray(obj.monthlyAchievements) && obj.monthlyAchievements.length === 12) {
+          const tType = obj.trajectoryType || (isConstant ? 'constant' : 'cumulative');
+          if (obj.trajectory && obj.trajectory.length === 12) {
+            const activeTrajectoryTarget = activeMonthIndices.reduce((sum, idx) => sum + (obj.trajectory?.[idx] ?? 0), 0);
+            scaledTarget = tType === 'constant' ? (activeTrajectoryTarget / activeMonthIndices.length) : activeTrajectoryTarget;
+          }
+          const activeReal = activeMonthIndices.reduce((sum, idx) => sum + (obj.monthlyAchievements?.[idx] ?? 0), 0);
+          computedAch = tType === 'constant' ? (activeReal / activeMonthIndices.length) : activeReal;
         } else if (obj.trajectory && obj.trajectory.length === 12) {
           const tType = obj.trajectoryType || (isConstant ? 'constant' : 'cumulative');
           const activeTrajectoryTarget = activeMonthIndices.reduce((sum, idx) => sum + (obj.trajectory?.[idx] ?? 0), 0);
           scaledTarget = tType === 'constant' ? (activeTrajectoryTarget / activeMonthIndices.length) : activeTrajectoryTarget;
-
-          if (obj.monthlyAchievements && obj.monthlyAchievements.length === 12) {
-            const activeReal = activeMonthIndices.reduce((sum, idx) => sum + (obj.monthlyAchievements?.[idx] ?? 0), 0);
-            computedAch = tType === 'constant' ? (activeReal / activeMonthIndices.length) : activeReal;
-          }
         }
 
         const tgtVal = scaledTarget > 0 ? scaledTarget : 1;
@@ -695,11 +698,16 @@ export default function DashboardView({
         });
 
         if (childObjs.length > 0) {
-          const sumPct = childObjs.reduce((acc, curr) => acc + (curr._computedPct || 0), 0);
-          const avgPct = Math.round(sumPct / childObjs.length);
-          const tgtVal = l2Obj._scaledTargetVal || parseFloat(l2Obj.target) || 100;
-          l2Obj.achievement = Math.round(((avgPct / 100) * tgtVal) * 10) / 10;
-          l2Obj._computedPct = avgPct;
+          const hasChildData = childObjs.some(c => (c.achievement > 0) || ((c._computedPct || 0) > 0));
+          const hasDirectL2Data = (l2Obj.monthlyAchievements && l2Obj.monthlyAchievements.some((v: number) => v > 0)) || (l2Obj.achievement > 0);
+
+          if (hasChildData || !hasDirectL2Data) {
+            const sumPct = childObjs.reduce((acc, curr) => acc + (curr._computedPct || 0), 0);
+            const avgPct = Math.round(sumPct / childObjs.length);
+            const tgtVal = l2Obj._scaledTargetVal || parseFloat(l2Obj.target) || 100;
+            l2Obj.achievement = Math.round(((avgPct / 100) * tgtVal) * 10) / 10;
+            l2Obj._computedPct = avgPct;
+          }
         }
       });
     });
@@ -719,11 +727,16 @@ export default function DashboardView({
         });
 
         if (childObjs.length > 0) {
-          const sumPct = childObjs.reduce((acc, curr) => acc + (curr._computedPct || 0), 0);
-          const avgPct = Math.round(sumPct / childObjs.length);
-          const tgtVal = kObj._scaledTargetVal || parseFloat(kObj.target) || 100;
-          kObj.achievement = Math.round(((avgPct / 100) * tgtVal) * 10) / 10;
-          kObj._computedPct = avgPct;
+          const hasChildData = childObjs.some(c => (c.achievement > 0) || ((c._computedPct || 0) > 0));
+          const hasDirectL1Data = (kObj.monthlyAchievements && kObj.monthlyAchievements.some((v: number) => v > 0)) || (kObj.achievement > 0);
+
+          if (hasChildData || !hasDirectL1Data) {
+            const sumPct = childObjs.reduce((acc, curr) => acc + (curr._computedPct || 0), 0);
+            const avgPct = Math.round(sumPct / childObjs.length);
+            const tgtVal = kObj._scaledTargetVal || parseFloat(kObj.target) || 100;
+            kObj.achievement = Math.round(((avgPct / 100) * tgtVal) * 10) / 10;
+            kObj._computedPct = avgPct;
+          }
         }
       });
     }
@@ -1108,53 +1121,128 @@ export default function DashboardView({
   }, [currentPeriodAgreements]);
 
   // 4. Jumlah Indikator Red-Flag / Tertinggal (Realisasi < 50% atau Kategori Merah)
+  // Strictly synchronized with the 6 operational divisions (+ Satker/Pimpinan)
   const redFlagIndicators = useMemo<RedFlagIndicatorItem[]>(() => {
     const list: RedFlagIndicatorItem[] = [];
+    const seenKeys = new Set<string>();
 
-    currentPeriodAgreements.forEach(ag => {
-      let divName = ag.level === 'Kepala Stasiun' ? 'Satker / Pimpinan'
-        : ag.level.replace('Ketua Tim ', '').replace('Kabid ', '');
+    // 1. Scan from all 6 active operational divisions (Pemberitaan, LPU, TMB, KMB, Siaran, TU)
+    activeDivisionsData.forEach(div => {
+      let divObjectives: any[] = [];
 
-      (ag.objectives || []).forEach((obj: any) => {
+      if (div.key === 'Konten Media Baru') {
+        // Konten Media Baru (KMB) includes cross-cutting shared indicators supported by KMB
+        currentPeriodAgreements.forEach(ag => {
+          (ag.objectives || []).forEach(obj => {
+            if (obj.supportedByKMB) {
+              divObjectives.push({
+                ...obj,
+                divisionName: div.name,
+                assignedToName: div.pic,
+                level: div.level,
+                agreementId: ag.id
+              });
+            }
+          });
+        });
+        if (divObjectives.length === 0 && div.agreement?.objectives) {
+          div.agreement.objectives.forEach((obj: any) => {
+            divObjectives.push({
+              ...obj,
+              divisionName: div.name,
+              assignedToName: div.pic,
+              level: div.level,
+              agreementId: div.agreement?.id
+            });
+          });
+        }
+      } else if (div.agreement?.objectives) {
+        div.agreement.objectives.forEach((obj: any) => {
+          divObjectives.push({
+            ...obj,
+            divisionName: div.name,
+            assignedToName: div.pic,
+            level: div.level,
+            agreementId: div.agreement?.id
+          });
+        });
+      }
+
+      divObjectives.forEach((obj: any) => {
+        const uniqueKey = `${obj.agreementId || div.key}-${obj.id}`;
+        if (seenKeys.has(uniqueKey)) return;
+        seenKeys.add(uniqueKey);
+
         const pct = obj._computedPct !== undefined ? obj._computedPct : 0;
         // Threshold: below 50% (kategori merah / kritis)
         if (pct < 50) {
           list.push({
-            id: `${ag.id}-${obj.id}`,
+            id: uniqueKey,
             indicatorName: obj.indicatorName,
-            divisionName: divName,
-            assignedToName: ag.assignedToName || 'Penanggung Jawab',
-            level: ag.level,
+            divisionName: obj.divisionName || div.name,
+            assignedToName: obj.assignedToName || div.pic,
+            level: obj.level || div.level,
             target: typeof obj.target === 'string' ? obj.target : `${obj.target} ${obj.unit || ''}`,
-            achievement: obj.achievement || 0,
+            achievement: obj.achievement !== undefined ? obj.achievement : 0,
             unit: obj.unit || '',
             percentage: pct,
-            agreementId: ag.id,
+            agreementId: obj.agreementId || div.agreement?.id,
             rawObjective: obj
           });
         }
       });
     });
 
+    // 2. Also check Level 1 (Kepala Stasiun / Satker) if any root indicator is < 50%
+    const kepalaAg = currentPeriodAgreements.find(a => a.level === 'Kepala Stasiun');
+    if (kepalaAg && kepalaAg.objectives) {
+      kepalaAg.objectives.forEach((obj: any) => {
+        const uniqueKey = `${kepalaAg.id}-${obj.id}`;
+        if (seenKeys.has(uniqueKey)) return;
+        seenKeys.add(uniqueKey);
+
+        const pct = obj._computedPct !== undefined ? obj._computedPct : 0;
+        if (pct < 50) {
+          list.push({
+            id: uniqueKey,
+            indicatorName: obj.indicatorName,
+            divisionName: 'Satker / Pimpinan',
+            assignedToName: kepalaAg.assignedToName || 'Kepala Stasiun',
+            level: kepalaAg.level,
+            target: typeof obj.target === 'string' ? obj.target : `${obj.target} ${obj.unit || ''}`,
+            achievement: obj.achievement !== undefined ? obj.achievement : 0,
+            unit: obj.unit || '',
+            percentage: pct,
+            agreementId: kepalaAg.id,
+            rawObjective: obj
+          });
+        }
+      });
+    }
+
     return list;
-  }, [currentPeriodAgreements]);
+  }, [activeDivisionsData, currentPeriodAgreements]);
 
   const handleNavigateToDivisionFromRedFlag = (item: RedFlagIndicatorItem) => {
     const divName = (item.divisionName || '').toLowerCase();
     if (divName.includes('pemberitaan')) {
       setSelectedKpiDivision('Pemberitaan');
-    } else if (divName.includes('lpu') || divName.includes('layanan pengembangan')) {
+    } else if (divName.includes('lpu') || divName.includes('layanan pengembangan') || divName.includes('layanan')) {
       setSelectedKpiDivision('Layanan Pengembangan Usaha');
     } else if (divName.includes('tmb') || divName.includes('teknik') || divName.includes('teknologi')) {
       setSelectedKpiDivision('Teknologi dan Media Baru');
-    } else if (divName.includes('kmb') || divName.includes('konten media baru')) {
+    } else if (divName.includes('kmb') || divName.includes('konten media baru') || divName.includes('konten')) {
       setSelectedKpiDivision('Konten Media Baru');
     } else if (divName.includes('siaran')) {
       setSelectedKpiDivision('Siaran');
-    } else if (divName.includes('tu') || divName.includes('tata usaha')) {
+    } else if (divName.includes('tu') || divName.includes('tata usaha') || divName.includes('umum')) {
       setSelectedKpiDivision('Tata Usaha / Umum');
     }
     setDrillDownActive(true);
+    const el = document.getElementById('capaian-bidang-section') || document.getElementById('trend-pimpinan-section');
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth' });
+    }
   };
 
   const triggerAlertSimulation = () => {
