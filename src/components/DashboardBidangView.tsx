@@ -1,4 +1,5 @@
 import React from 'react';
+import { IndicatorTitleDisplay } from './IndicatorTitleDisplay';
 import { getGaugeColorByPercentage } from "../utils/colors";
 import { useMemo, useState } from 'react';
 import { ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
@@ -1208,9 +1209,11 @@ export default function DashboardBidangView({
                             {mode === 'akumulatif' ? 'Akumulatif' : mode === 'triwulanan' ? 'Q1-Q4' : mode === 'bulanan_tahunan' ? 'Bln vs Thn' : 'Gauge'}
                           </span>
                         </div>
-                        <span className="text-xs md:text-sm font-bold text-slate-800 leading-snug line-clamp-2 block" title={obj.indicatorName}>
-                          {obj.indicatorName}
-                        </span>
+                        <IndicatorTitleDisplay 
+                          title={obj.indicatorName}
+                          className="text-xs md:text-sm font-bold text-slate-800 leading-snug block"
+                          subClassName="text-[10px] text-slate-500 font-normal block mt-0.5"
+                        />
                       </div>
 
                       {/* MODE 1: AKUMULATIF BULANAN */}

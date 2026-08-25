@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import { IndicatorTitleDisplay } from './IndicatorTitleDisplay';
 import { 
   Employee, 
   PerformanceAgreement, 
@@ -693,11 +694,13 @@ export default function InputCapaianPKView({
                           }
                         </span>
                       </div>
-                      <h4 className={`text-xs font-bold leading-snug truncate ${
-                        isActive ? 'text-slate-900 font-extrabold' : 'text-slate-700'
-                      }`} title={obj.indicatorName}>
-                        {obj.indicatorName}
-                      </h4>
+                      <IndicatorTitleDisplay 
+                        title={obj.indicatorName}
+                        className={`text-xs font-bold leading-snug block truncate ${
+                          isActive ? 'text-slate-900 font-extrabold' : 'text-slate-700'
+                        }`}
+                        subClassName="text-[10px] text-slate-500 font-medium block truncate mt-0.5"
+                      />
                       <p className="text-[10px] font-bold text-slate-400">
                         Target: <span className="text-slate-600 font-extrabold">{obj.target} {obj.unit}</span>
                       </p>
@@ -721,9 +724,11 @@ export default function InputCapaianPKView({
                       <span className="text-[10px] font-extrabold text-indigo-600 bg-indigo-50 border border-indigo-100/60 rounded-md px-2.5 py-1">
                         INDIKATOR AKTIF
                       </span>
-                      <h3 className="text-sm font-black text-slate-800 leading-snug mt-2">
-                        {activeObjective.indicatorName}
-                      </h3>
+                      <IndicatorTitleDisplay 
+                        title={activeObjective.indicatorName}
+                        className="text-sm font-black text-slate-800 leading-snug block mt-2"
+                        subClassName="text-xs text-slate-500 font-normal block mt-1"
+                      />
                     </div>
                     <div className="text-right">
                       <span className="text-[10px] font-extrabold text-slate-400 block uppercase">Bobot</span>

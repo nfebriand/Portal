@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import { IndicatorTitleDisplay } from './IndicatorTitleDisplay';
 import { 
   Target, 
   GitFork, 
@@ -1517,7 +1518,11 @@ export default function PerformanceAgreementView({
                             </div>
                           ) : (
                             <div className="flex items-center gap-2 group">
-                              <h4 className="text-xs font-bold text-slate-800 leading-normal">{node.root.indicatorName}</h4>
+                              <IndicatorTitleDisplay 
+                                title={node.root.indicatorName} 
+                                className="text-xs font-bold text-slate-800 leading-normal"
+                                subClassName="text-[10px] text-slate-500 font-normal block mt-0.5"
+                              />
                               {canEditAgreement('Kepala Stasiun') && (
                                 <button
                                   onClick={() => {
@@ -1828,7 +1833,11 @@ export default function PerformanceAgreementView({
                                         </div>
                                       ) : (
                                         <div className="flex items-center gap-1.5 group">
-                                          <h5 className="text-xs font-bold text-slate-700 leading-normal">{l2.indicator.indicatorName}</h5>
+                                          <IndicatorTitleDisplay 
+                                            title={l2.indicator.indicatorName} 
+                                            className="text-xs font-bold text-slate-700 leading-normal"
+                                            subClassName="text-[10px] text-slate-500 font-normal block mt-0.5"
+                                          />
                                           {canEditAgreement(l2.agreement.level) && (
                                             <button
                                               onClick={() => {
@@ -2145,7 +2154,11 @@ export default function PerformanceAgreementView({
                                                 </div>
                                               ) : (
                                                 <div className="flex items-center gap-1.5 group">
-                                                  <h6 className="font-semibold text-slate-700">{l3.indicator.indicatorName}</h6>
+                                                  <IndicatorTitleDisplay 
+                                                    title={l3.indicator.indicatorName} 
+                                                    className="font-semibold text-slate-700"
+                                                    subClassName="text-[10px] text-slate-500 font-normal block mt-0.5"
+                                                  />
                                                   {canEditAgreement('Pegawai') && (
                                                     <button
                                                       onClick={() => {
@@ -2561,7 +2574,11 @@ export default function PerformanceAgreementView({
                               <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[9px] font-extrabold uppercase bg-indigo-100 text-indigo-800 border border-indigo-200 font-mono tracking-wide">
                                 IKP PIMPINAN (LEVEL 1)
                               </span>
-                              <h4 className="text-xs font-bold text-slate-800 leading-relaxed">{rootObj.indicatorName}</h4>
+                              <IndicatorTitleDisplay 
+                                title={rootObj.indicatorName} 
+                                className="text-xs font-bold text-slate-800 leading-relaxed block"
+                                subClassName="text-[10px] text-slate-500 font-normal block mt-0.5"
+                              />
                               <p className="text-[10px] text-slate-400 flex items-center gap-2">
                                 <span>Target: <span className="font-extrabold text-slate-700">{rootObj._scaledTargetString || rootObj.target} {rootObj.unit}</span></span>
                                 <span>•</span>
@@ -2657,7 +2674,11 @@ export default function PerformanceAgreementView({
                                               {l2Ag.assignedToName} ({l2Ag.level})
                                             </span>
                                           </div>
-                                          <p className="text-xs font-bold text-slate-700 leading-normal mt-1">{l2Obj.indicatorName}</p>
+                                          <IndicatorTitleDisplay 
+                                            title={l2Obj.indicatorName} 
+                                            className="text-xs font-bold text-slate-700 leading-normal block mt-1"
+                                            subClassName="text-[10px] text-slate-500 font-normal block mt-0.5"
+                                          />
                                           
                                           <div className="flex items-center gap-2 text-[10px] text-slate-400 mt-1">
                                             <span>Target: <span className="font-extrabold text-slate-600">{l2Obj._scaledTargetString || l2Obj.target} {l2Obj.unit}</span></span>
@@ -2713,7 +2734,11 @@ export default function PerformanceAgreementView({
                                                         <User className="w-3 h-3 text-slate-400" />
                                                         <span className="font-extrabold text-slate-700 truncate">{l3Ag.assignedToName}</span>
                                                       </div>
-                                                      <p className="text-[10px] text-slate-500 leading-tight truncate mt-0.5">{l3Obj.indicatorName}</p>
+                                                      <IndicatorTitleDisplay 
+                                                        title={l3Obj.indicatorName} 
+                                                        className="text-[10px] text-slate-600 font-semibold leading-tight block mt-0.5"
+                                                        subClassName="text-[9px] text-slate-400 font-normal block"
+                                                      />
                                                       <div className="text-[9px] text-slate-400 mt-1 flex items-center gap-1">
                                                         <span>Target: <span className="font-extrabold text-slate-500">{l3Obj._scaledTargetString || l3Obj.target} {l3Obj.unit}</span></span>
                                                         <span>•</span>

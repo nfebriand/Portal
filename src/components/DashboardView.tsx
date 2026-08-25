@@ -1,3 +1,4 @@
+import { IndicatorTitleDisplay } from './IndicatorTitleDisplay';
 import bgPemberitaan from "../assets/images/bg_pemberitaan_1786536281249.jpg";
 import bgTmb from "../assets/images/bg_tmb_1786536298066.jpg";
 import bgLpu from "../assets/images/bg_lpu_1786536319133.jpg";
@@ -1986,9 +1987,11 @@ export default function DashboardView({
                                cardMode === 'bulanan_tahunan' ? 'Bulanan vs Tahunan' : 'Gauge'}
                             </span>
                           </div>
-                          <span className="text-xs font-bold text-slate-800 leading-snug line-clamp-2 block" title={obj.indicatorName}>
-                            {obj.indicatorName}
-                          </span>
+                          <IndicatorTitleDisplay 
+                            title={obj.indicatorName}
+                            className="text-xs font-bold text-slate-800 leading-snug block"
+                            subClassName="text-[10px] text-slate-500 font-normal block mt-0.5"
+                          />
 
                           {/* Keterangan Nama PIC & Asal Bidang (Khusus KMB / Cross-Cutting) */}
                           {(selectedDivData?.key === 'Konten Media Baru' || obj.originDivision) && (

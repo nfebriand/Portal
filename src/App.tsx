@@ -245,12 +245,21 @@ const INITIAL_AGREEMENTS: PerformanceAgreement[] = [
     assignedToName: "Rina Kartika, S.Sos.",
     objectives: [
       {
-        id: "ind-7",
-        indicatorName: "Kualitas Konten On-Air Program RRI Bandar Lampung",
-        target: "88",
-        unit: "Skor",
-        weight: 100,
-        achievement: 86,
+        id: "ind-7-1",
+        indicatorName: "Persentase konten siaran yang menunjang program Prioritas Presiden",
+        target: "100",
+        unit: "%",
+        weight: 50,
+        achievement: 88,
+        parentIndicatorId: "ind-1"
+      },
+      {
+        id: "ind-7-2",
+        indicatorName: "Jumlah kelompok masyarakat yang dilibatkan dalam siaran",
+        target: "24",
+        unit: "Kelompok",
+        weight: 50,
+        achievement: 18,
         parentIndicatorId: "ind-1"
       }
     ],
