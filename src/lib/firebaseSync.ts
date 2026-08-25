@@ -231,19 +231,23 @@ export async function saveCollectionList<T extends { id: string }>(collectionNam
 
   // Persist directly to live Firestore
   try {
-    const colRef = collection(db, collectionName);
-    const snapshot = await getDocs(colRef);
-    const existingIds = snapshot.docs.map(docSnap => docSnap.id);
     const listIds = new Set(cleanedList.map(item => String(item.id)));
-
     const operations: { type: 'delete' | 'set'; id: string; data?: any }[] = [];
 
-    // Delete documents that are no longer in the list
-    existingIds.forEach((id) => {
-      if (!listIds.has(id)) {
-        operations.push({ type: 'delete', id });
-      }
-    });
+    try {
+      const colRef = collection(db, collectionName);
+      const snapshot = await getDocs(colRef);
+      const existingIds = snapshot.docs.map(docSnap => docSnap.id);
+
+      // Delete documents that are no longer in the list
+      existingIds.forEach((id) => {
+        if (!listIds.has(id)) {
+          operations.push({ type: 'delete', id });
+        }
+      });
+    } catch (fetchErr) {
+      console.warn(`Non-blocking warning fetching existing IDs for ${collectionName}:`, fetchErr);
+    }
 
     // Write/Update current items
     cleanedList.forEach((item) => {

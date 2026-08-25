@@ -44,7 +44,13 @@ export function calculateMonthlyCompetencyCompliance(
   employees: Employee[],
   year: number = new Date().getFullYear()
 ): CompetencyComplianceResult {
-  const totalEmployees = employees.length;
+  const safeList = Array.isArray(employees) ? employees : [];
+  const activeEmployees = safeList.filter(emp => {
+    const st = (emp.status || 'aktif').toLowerCase();
+    return st !== 'keluar' && st !== 'pindah';
+  });
+
+  const totalEmployees = activeEmployees.length > 0 ? activeEmployees.length : safeList.length;
 
   if (totalEmployees === 0) {
     return {
@@ -59,14 +65,15 @@ export function calculateMonthlyCompetencyCompliance(
 
   const milestones: CompetencyComplianceResult['milestones'] = [];
 
-  employees.forEach(emp => {
+  activeEmployees.forEach(emp => {
     const annualMap = computeEmployeeAnnualTrainings(emp);
     const summary = annualMap[year];
 
-    if (summary && summary.isCompliant && summary.tanggalTercapai40Jam) {
+    if (summary && summary.isCompliant) {
+      const dateString = summary.tanggalTercapai40Jam || `${year}-12-31`;
       let mIdx = 0;
       try {
-        const d = new Date(summary.tanggalTercapai40Jam);
+        const d = new Date(dateString);
         if (!isNaN(d.getTime())) {
           mIdx = Math.max(0, Math.min(11, d.getMonth()));
         }
@@ -78,8 +85,8 @@ export function calculateMonthlyCompetencyCompliance(
         employeeId: emp.id,
         employeeName: emp.nama,
         division: emp.divisi || 'Tata Usaha / Umum',
-        tanggalTercapai40Jam: summary.tanggalTercapai40Jam,
-        pelatihanTercapai40Jam: summary.pelatihanTercapai40Jam || '-',
+        tanggalTercapai40Jam: dateString,
+        pelatihanTercapai40Jam: summary.pelatihanTercapai40Jam || 'Pelatihan Terverifikasi 40 JP',
         monthIndex: mIdx,
         totalHours: summary.totalHours
       });
@@ -96,11 +103,11 @@ export function calculateMonthlyCompetencyCompliance(
     // Count how many distinct employees reached 40 JP at or before month m
     const count = milestones.filter(item => item.monthIndex <= m).length;
     monthlyCounts[m] = count;
-    monthlyPercentages[m] = Math.round((count / totalEmployees) * 100);
+    monthlyPercentages[m] = Math.min(100, Math.round((count / totalEmployees) * 100));
   }
 
   const totalCompliant = milestones.length;
-  const finalPercentage = totalEmployees > 0 ? Math.round((totalCompliant / totalEmployees) * 100) : 0;
+  const finalPercentage = totalEmployees > 0 ? Math.min(100, Math.round((totalCompliant / totalEmployees) * 100)) : 0;
 
   return {
     monthlyPercentages,

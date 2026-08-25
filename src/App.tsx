@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Employee, AppSettings, InstitutionalIdentity, CriticalNotification, PerformanceAgreement, CooperationContract, ReporterTarget, NewsReport } from './types';
 import { syncNewsAchievements } from './utils/syncNewsAchievements';
 import { syncCompetencyAchievements, isCompetencyIndicator } from './utils/syncCompetencyAchievements';
+import { mapEmployeeToAppRole } from './utils/roleHelper';
 import DashboardView from './components/DashboardView';
 import EmployeeAdminView from './components/EmployeeAdminView';
 import AppAdminView from './components/AppAdminView';
@@ -1051,6 +1052,40 @@ export default function App() {
               return emp;
             });
             setEmployees(migrated);
+
+            // Re-cascade competency training compliance
+            setAgreements(prevAgreements => {
+              const autoSynced = syncCompetencyAchievements(migrated, prevAgreements);
+              return recalculateCascade(autoSynced, contracts, newsReports, reporterTargets, migrated);
+            });
+
+            // Synchronize active session if current logged-in employee was updated in database
+            const savedUserStr = localStorage.getItem('swara_current_user');
+            if (savedUserStr) {
+              try {
+                const parsedUser = JSON.parse(savedUserStr);
+                if (parsedUser && parsedUser.id !== 'superadmin' && parsedUser.id !== 'kepala') {
+                  const matchEmp = migrated.find(e => e.id === parsedUser.id);
+                  if (matchEmp) {
+                    if (matchEmp.isLoginActive === false || (matchEmp.status && matchEmp.status.toLowerCase() !== 'aktif')) {
+                      handleLogout();
+                    } else {
+                      const updatedRole = mapEmployeeToAppRole(matchEmp);
+                      const fullName = `${matchEmp.gelarDepan ? matchEmp.gelarDepan + ' ' : ''}${matchEmp.nama}${matchEmp.gelarBelakang ? ', ' + matchEmp.gelarBelakang : ''}`;
+                      const updatedUser = {
+                        ...parsedUser,
+                        name: fullName,
+                        role: updatedRole,
+                        division: matchEmp.divisi,
+                        photo: matchEmp.foto
+                      };
+                      setCurrentUser(updatedUser);
+                      localStorage.setItem('swara_current_user', JSON.stringify(updatedUser));
+                    }
+                  }
+                }
+              } catch (e) {}
+            }
           }
         });
 
@@ -1108,6 +1143,28 @@ export default function App() {
     const cascaded = recalculateCascade(autoSyncedAgreements, contracts, newsReports, reporterTargets, newEmployees);
     setAgreements(cascaded);
     await saveCollectionList('agreements', cascaded);
+
+    // Synchronize active session if current logged in user was modified
+    if (currentUser && currentUser.id !== 'superadmin' && currentUser.id !== 'kepala') {
+      const matchEmp = newEmployees.find(e => e.id === currentUser.id);
+      if (matchEmp) {
+        if (matchEmp.isLoginActive === false || (matchEmp.status && matchEmp.status.toLowerCase() !== 'aktif')) {
+          handleLogout();
+        } else {
+          const updatedRole = mapEmployeeToAppRole(matchEmp);
+          const fullName = `${matchEmp.gelarDepan ? matchEmp.gelarDepan + ' ' : ''}${matchEmp.nama}${matchEmp.gelarBelakang ? ', ' + matchEmp.gelarBelakang : ''}`;
+          const updatedUser = {
+            ...currentUser,
+            name: fullName,
+            role: updatedRole,
+            division: matchEmp.divisi,
+            photo: matchEmp.foto
+          };
+          setCurrentUser(updatedUser);
+          localStorage.setItem('swara_current_user', JSON.stringify(updatedUser));
+        }
+      }
+    }
   };
 
   const handleUpdateSettings = async (newSettings: AppSettings) => {

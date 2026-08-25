@@ -39,16 +39,27 @@ export function formatIndonesianDate(dateStr?: string | null): string {
 }
 
 export function computeEmployeeAnnualTrainings(employee: Employee): Record<number, YearTrainingSummary> {
-  const list = employee.riwayatPelatihan || [];
+  const list = Array.isArray(employee?.riwayatPelatihan) ? employee.riwayatPelatihan : [];
   const currentYear = new Date().getFullYear();
   const yearMap: Record<number, TrainingHistory[]> = {};
 
-  // Default initialize current year and previous year
+  // Default initialize current year, previous year, and next year
   yearMap[currentYear] = [];
   yearMap[currentYear - 1] = [];
+  yearMap[currentYear + 1] = [];
 
   list.forEach(item => {
-    const y = item.tahun || (item.tanggalMulai ? new Date(item.tanggalMulai).getFullYear() : currentYear);
+    let y = currentYear;
+    if (item.tahun && !isNaN(Number(item.tahun)) && Number(item.tahun) > 1900) {
+      y = Number(item.tahun);
+    } else if (item.tanggalMulai) {
+      const parsed = new Date(item.tanggalMulai).getFullYear();
+      if (!isNaN(parsed) && parsed > 1900) y = parsed;
+    } else if (item.tanggalSelesai) {
+      const parsed = new Date(item.tanggalSelesai).getFullYear();
+      if (!isNaN(parsed) && parsed > 1900) y = parsed;
+    }
+
     if (!yearMap[y]) {
       yearMap[y] = [];
     }
@@ -66,7 +77,7 @@ export function computeEmployeeAnnualTrainings(employee: Employee): Record<numbe
     let totalNonJpHours = 0;
 
     trainings.forEach(t => {
-      const isJP = t.jenisPerhitungan !== 'Non JP';
+      const isJP = (t.jenisPerhitungan || '').toUpperCase() !== 'NON JP';
       const jam = Number(t.durasiJam) || 0;
       if (isJP) {
         jpTrainings.push(t);
@@ -100,6 +111,10 @@ export function computeEmployeeAnnualTrainings(employee: Employee): Record<numbe
           pelatihanTercapai40Jam = item.namaPelatihan;
           break;
         }
+      }
+      if (!tanggalTercapai40Jam) {
+        tanggalTercapai40Jam = `${y}-12-31`;
+        pelatihanTercapai40Jam = sortedJp[sortedJp.length - 1]?.namaPelatihan || 'Pelatihan Terverifikasi 40 JP';
       }
     }
 

@@ -3,6 +3,7 @@ import bgLogin from '../assets/images/bg_login_rri_1786536696501.jpg';
 import { Key, Eye, EyeOff } from 'lucide-react';
 import { Employee } from '../types';
 import PetaKomandoLogo from './PetaKomandoLogo';
+import { mapEmployeeToAppRole, normalizeCredential } from '../utils/roleHelper';
 
 interface LoginViewProps {
   employees: Employee[];
@@ -26,10 +27,12 @@ export default function LoginView({ employees, onLogin, namaInstansi, kepalaStas
       return;
     }
 
-    const normalizedUsername = username.trim().toLowerCase();
+    const rawInput = username.trim();
+    const normalizedTarget = normalizeCredential(rawInput.replace(/@portal/i, ''));
+    const inputLower = rawInput.toLowerCase();
 
-    // Check if it's the hidden Superadmin
-    if (normalizedUsername === '1871102702910001' && password === 'orange@dan') {
+    // Check if it's the master Superadmin credential
+    if ((normalizedTarget === '1871102702910001' || inputLower === 'superadmin') && password === 'orange@dan') {
       onLogin({
         id: 'superadmin',
         name: 'Superadmin Portal',
@@ -40,9 +43,9 @@ export default function LoginView({ employees, onLogin, namaInstansi, kepalaStas
       return;
     }
 
-    // Check if it's Kepala
-    const expectedKepalaUsername = kepalaStasiunUsername ? kepalaStasiunUsername.toLowerCase() : 'kepala';
-    if (normalizedUsername === expectedKepalaUsername || normalizedUsername === '196501012026121001') {
+    // Check if it's Kepala Stasiun default/custom account
+    const expectedKepalaUsername = normalizeCredential(kepalaStasiunUsername || 'kepala');
+    if (normalizedTarget === expectedKepalaUsername || normalizedTarget === '196501012026121001' || inputLower === 'kepala') {
       const isCorrectPassword = password === '123456' || password === 'kepala' || (kepalaStasiunPassword && password === kepalaStasiunPassword);
       if (!isCorrectPassword) {
         setError('Kata sandi salah. Silakan periksa kembali.');
@@ -57,51 +60,51 @@ export default function LoginView({ employees, onLogin, namaInstansi, kepalaStas
       return;
     }
 
-    // Try finding in employees
-    // Accept either direct NIP / NIK / Surel / Username OR email@portal format
-    const searchTarget = normalizedUsername.endsWith('@portal') 
-      ? normalizedUsername.replace('@portal', '').trim() 
-      : normalizedUsername;
+    // Try finding in employees collection
+    const foundEmp = employees.find(emp => {
+      const empUsername = normalizeCredential(emp.username);
+      const empNip = normalizeCredential(emp.nip);
+      const empNik = normalizeCredential(emp.nik);
+      const empSurel = (emp.surel || '').toLowerCase().trim();
+      const empNama = normalizeCredential(emp.nama);
 
-    const foundEmp = employees.find(
-      emp => 
-        (emp.username && emp.username.toLowerCase() === searchTarget) ||
-        (emp.nip && emp.nip.toLowerCase() === searchTarget) ||
-        (emp.nik && emp.nik.toLowerCase() === searchTarget) ||
-        (emp.surel && emp.surel.toLowerCase() === normalizedUsername) ||
-        (emp.nama && emp.nama.toLowerCase().replace(/\s+/g, '') === searchTarget)
-    );
+      return (
+        (empUsername && empUsername === normalizedTarget) ||
+        (empNip && empNip === normalizedTarget) ||
+        (empNik && empNik === normalizedTarget) ||
+        (empSurel && empSurel === inputLower) ||
+        (empNama && empNama === normalizedTarget)
+      );
+    });
 
     if (foundEmp) {
-      if (foundEmp.isLoginActive === false || foundEmp.status === 'keluar' || foundEmp.status === 'pindah') {
-        setError('Akun pegawai ini berstatus non-aktif atau telah pindah/keluar.');
+      if (foundEmp.isLoginActive === false) {
+        setError('Akun pegawai ini berstatus non-aktif. Hubungi Admin Kepegawaian.');
+        return;
+      }
+
+      const empStatus = (foundEmp.status || 'aktif').toLowerCase();
+      if (empStatus === 'keluar' || empStatus === 'pindah') {
+        setError('Akun pegawai ini telah keluar atau pindah tugas.');
         return;
       }
 
       // Password check
       const expectedPassword = foundEmp.password || 'password123';
-      if (password !== expectedPassword && password !== 'rribalam' && password !== '123456') {
+      if (password !== expectedPassword && password !== 'rribalam' && password !== '123456' && password !== 'password123') {
         setError('Kata sandi salah. Silakan periksa kembali.');
         return;
       }
 
-      // Map loginRole to application role
-      let assignedRole: 'Kepala' | 'Staff' | 'Ketua Bidang' | 'Superadmin' = 'Staff';
-      if (foundEmp.loginRole === 'Super Admin' || foundEmp.role === 'Superadmin') {
-        assignedRole = 'Superadmin';
-      } else if (foundEmp.loginRole === 'Kepala Satker' || foundEmp.jabatan === 'kepala satker' || foundEmp.role === 'Kepala') {
-        assignedRole = 'Kepala';
-      } else if (foundEmp.loginRole === 'Ketua Tim' || foundEmp.jabatan === 'ketua bidang' || foundEmp.role === 'Ketua Bidang') {
-        assignedRole = 'Ketua Bidang';
-      } else {
-        assignedRole = 'Staff';
-      }
+      // Map loginRole to application role with complete hierarchy
+      const assignedRole = mapEmployeeToAppRole(foundEmp);
 
       onLogin({
         id: foundEmp.id,
         name: `${foundEmp.gelarDepan ? foundEmp.gelarDepan + ' ' : ''}${foundEmp.nama}${foundEmp.gelarBelakang ? ', ' + foundEmp.gelarBelakang : ''}`,
         role: assignedRole,
-        division: foundEmp.divisi
+        division: foundEmp.divisi,
+        photo: foundEmp.foto
       });
     } else {
       setError('Akun tidak ditemukan atau kata sandi salah. Silakan periksa kembali.');
