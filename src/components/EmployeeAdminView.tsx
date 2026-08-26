@@ -3,7 +3,9 @@ import { Employee } from '../types';
 import RekapitulasiKepegawaian from './kepegawaian/RekapitulasiKepegawaian';
 import EmployeeModalForm from './kepegawaian/EmployeeModalForm';
 import EmployeeDetailDrawer from './kepegawaian/EmployeeDetailDrawer';
+import StaffPersonalProfileView from './kepegawaian/StaffPersonalProfileView';
 import { computeEmployeeAnnualTrainings, formatIndonesianDate } from './kepegawaian/PelatihanTahunanTracker';
+import { getKepegawaianPermissions } from '../utils/roleHelper';
 import { 
   BarChart3, 
   Users, 
@@ -24,7 +26,9 @@ import {
   AlertCircle,
   Download,
   Layers,
-  Sparkles
+  Sparkles,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react';
 
 interface EmployeeAdminViewProps {
@@ -37,6 +41,7 @@ interface EmployeeAdminViewProps {
     name: string;
     role: 'Kepala' | 'Staff' | 'Ketua Bidang' | 'Superadmin';
     division?: string;
+    loginRole?: string;
   } | null;
 }
 
@@ -48,10 +53,33 @@ export default function EmployeeAdminView({
   currentUser
 }: EmployeeAdminViewProps) {
   const currentYear = new Date().getFullYear();
+  const PAGE_SIZE = 20;
+
+  // Resolve matching employee record for currentUser if any
+  const currentEmployeeRecord = useMemo(() => {
+    if (!currentUser) return null;
+    return employees.find(e => 
+      e.id === currentUser.id ||
+      (e.nip && currentUser.id && e.nip.replace(/\s+/g, '') === currentUser.id.replace(/\s+/g, '')) ||
+      (e.nik && currentUser.id && e.nik.replace(/\s+/g, '') === currentUser.id.replace(/\s+/g, '')) ||
+      (currentUser.name && e.nama.toLowerCase().trim() === currentUser.name.toLowerCase().trim())
+    ) || null;
+  }, [employees, currentUser]);
+
+  // Compute Granular RBAC Permissions
+  const permissions = useMemo(() => {
+    return getKepegawaianPermissions(currentUser, currentEmployeeRecord);
+  }, [currentUser, currentEmployeeRecord]);
 
   // 1. Primary Navigation Sub-menu: 'rekapitulasi' | 'pengaturan' | 'pelatihan40jam'
-  // Default is 'rekapitulasi' as explicitly requested!
+  // Default is 'rekapitulasi'
   const [activeSubMenu, setActiveSubMenu] = useState<'rekapitulasi' | 'pengaturan' | 'pelatihan40jam'>('rekapitulasi');
+
+  // Pagination States for Pengaturan Table
+  const [employeeListPage, setEmployeeListPage] = useState(1);
+
+  // Pagination States for Training Matrix Table
+  const [matrixListPage, setMatrixListPage] = useState(1);
 
   // Selected Employee for Detail Drawer & Modal Form
   const [selectedDrawerEmp, setSelectedDrawerEmp] = useState<Employee | null>(null);
@@ -100,6 +128,13 @@ export default function EmployeeAdminView({
     });
   }, [employees, searchQuery, selectedDivFilter, selectedJabatanFilter, selectedJalurFilter, selectedStatusFilter]);
 
+  // Paginated Employees (Max 20 per page)
+  const totalEmployeePages = Math.max(1, Math.ceil(filteredEmployees.length / PAGE_SIZE));
+  const paginatedEmployees = useMemo(() => {
+    const start = (employeeListPage - 1) * PAGE_SIZE;
+    return filteredEmployees.slice(start, start + PAGE_SIZE);
+  }, [filteredEmployees, employeeListPage]);
+
   // Filtered List for Pelatihan 40 Jam Matrix Tab
   const trainingMatrixList = useMemo(() => {
     return employees.map(emp => {
@@ -133,6 +168,13 @@ export default function EmployeeAdminView({
     });
   }, [employees, matrixYear, searchQuery, selectedDivFilter, matrixComplianceFilter]);
 
+  // Paginated Training Matrix List (Max 20 per page)
+  const totalMatrixPages = Math.max(1, Math.ceil(trainingMatrixList.length / PAGE_SIZE));
+  const paginatedTrainingMatrixList = useMemo(() => {
+    const start = (matrixListPage - 1) * PAGE_SIZE;
+    return trainingMatrixList.slice(start, start + PAGE_SIZE);
+  }, [trainingMatrixList, matrixListPage]);
+
   // Action: Open Modal for Add
   const handleOpenAddModal = () => {
     setEditingEmployee(null);
@@ -165,6 +207,34 @@ export default function EmployeeAdminView({
     }
   };
 
+  // SPECIAL CASE: ROLE STAFF
+  // Role Staff: Dapat melihat profil sendiri / data sendiri
+  if (permissions.resolvedRole === 'Staff') {
+    const staffTargetEmp = currentEmployeeRecord || employees[0] || {
+      id: currentUser?.id || 'staff-1',
+      nik: currentUser?.id || '1871000000000000',
+      nip: currentUser?.id || '198501012010011001',
+      nama: currentUser?.name || 'Pegawai Swara',
+      tempatLahir: 'Bandar Lampung',
+      tanggalLahir: '1990-01-01',
+      jenisKelamin: 'Laki-laki',
+      agama: 'Islam',
+      golonganDarah: 'O',
+      pangkatGolongan: 'Penata Muda (III/a)',
+      jabatan: 'Staf',
+      jenisJabatan: 'Fungsional',
+      divisi: currentUser?.division || 'Tata Usaha / Umum',
+      status: 'aktif',
+      jenjangPendidikan: 'S1',
+      riwayatPendidikan: [],
+      riwayatPelatihan: [],
+      kompetensi: [],
+      pelatihanTahunan: []
+    };
+
+    return <StaffPersonalProfileView employee={staffTargetEmp} />;
+  }
+
   return (
     <div className="space-y-6">
       
@@ -173,23 +243,28 @@ export default function EmployeeAdminView({
         <div>
           <div className="flex items-center gap-2">
             <span className="text-[10px] font-extrabold uppercase tracking-widest text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-md font-mono border border-indigo-100">
-              MODUL ADMINISTRASI KEPEGAWAIAN
+              MODUL KEPEGAWAIAN
             </span>
-            <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md font-mono border border-emerald-200">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-              DATABASE LIVE FIRESTORE
+            <span className="inline-flex items-center gap-1 text-[10px] font-bold text-slate-700 bg-slate-100 px-2 py-0.5 rounded-md font-mono border border-slate-200">
+              <ShieldCheck className="w-3 h-3 text-indigo-600" />
+              AKSES: {permissions.resolvedRole.toUpperCase()}
             </span>
           </div>
           <h2 className="text-xl font-black text-slate-900 mt-1">
-            Manajemen Sumber Daya Manusia Terpadu
+            {permissions.resolvedRole === 'Kepala Satker' 
+              ? 'Rekapitulasi Sumber Daya Manusia' 
+              : 'Manajemen Sumber Daya Manusia Terpadu'}
           </h2>
           <p className="text-xs text-slate-500 mt-0.5">
-            Kelola data identitas, pendidikan, kompetensi, pelatihan 40 jam/tahun, dan kredensial user login.
+            {permissions.resolvedRole === 'Kepala Satker'
+              ? 'Ringkasan komprehensif data pegawai, kualifikasi, komposisi formasi, dan kepatuhan pelatihan 40 jam.'
+              : 'Kelola data identitas, pendidikan, kompetensi, pelatihan 40 jam/tahun, dan kredensial user login.'}
           </p>
         </div>
 
         {/* Sub-Navigation Buttons */}
         <div className="flex items-center gap-1.5 bg-slate-100 p-1.5 rounded-2xl border border-slate-200 self-stretch sm:self-auto overflow-x-auto">
+          {/* Tab 1: Rekapitulasi (Always visible to Kepala Satker, Kepala Bidang, Admin Bidang, Superadmin) */}
           <button
             onClick={() => setActiveSubMenu('rekapitulasi')}
             className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold transition-all shrink-0 cursor-pointer ${
@@ -202,44 +277,54 @@ export default function EmployeeAdminView({
             <span>Rekapitulasi Kepegawaian</span>
           </button>
 
-          <button
-            onClick={() => setActiveSubMenu('pengaturan')}
-            className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold transition-all shrink-0 cursor-pointer ${
-              activeSubMenu === 'pengaturan'
-                ? 'bg-white text-indigo-700 shadow-xs font-black'
-                : 'text-slate-600 hover:text-slate-900'
-            }`}
-          >
-            <Briefcase className="w-4 h-4 text-indigo-600" />
-            <span>Pengaturan Pegawai ({employees.length})</span>
-          </button>
+          {/* Tab 2: Pengaturan Pegawai (Hidden for Kepala Satker, Visible for Kepala Bidang, Admin Bidang, Superadmin) */}
+          {permissions.canViewPengaturanTab && (
+            <button
+              onClick={() => setActiveSubMenu('pengaturan')}
+              className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold transition-all shrink-0 cursor-pointer ${
+                activeSubMenu === 'pengaturan'
+                  ? 'bg-white text-indigo-700 shadow-xs font-black'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              <Briefcase className="w-4 h-4 text-indigo-600" />
+              <span>Pengaturan Pegawai ({employees.length})</span>
+            </button>
+          )}
 
-          <button
-            onClick={() => setActiveSubMenu('pelatihan40jam')}
-            className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold transition-all shrink-0 cursor-pointer ${
-              activeSubMenu === 'pelatihan40jam'
-                ? 'bg-white text-indigo-700 shadow-xs font-black'
-                : 'text-slate-600 hover:text-slate-900'
-            }`}
-          >
-            <Award className="w-4 h-4 text-indigo-600" />
-            <span>Kepatuhan Pelatihan 40 Jam</span>
-          </button>
+          {/* Tab 3: Kepatuhan Pelatihan 40 Jam (Hidden for Kepala Satker, Visible for Kepala Bidang, Admin Bidang, Superadmin) */}
+          {permissions.canViewMatriksTab && (
+            <button
+              onClick={() => setActiveSubMenu('pelatihan40jam')}
+              className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold transition-all shrink-0 cursor-pointer ${
+                activeSubMenu === 'pelatihan40jam'
+                  ? 'bg-white text-indigo-700 shadow-xs font-black'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              <Award className="w-4 h-4 text-indigo-600" />
+              <span>Kepatuhan Pelatihan 40 Jam</span>
+            </button>
+          )}
         </div>
       </div>
 
       {/* VIEW 1: REKAPITULASI KEPEGAWAIAN (DEFAULT VIEW) */}
-      {activeSubMenu === 'rekapitulasi' && (
+      {(activeSubMenu === 'rekapitulasi' || !permissions.canViewPengaturanTab) && (
         <RekapitulasiKepegawaian
           employees={employees}
           onSelectEmployee={(emp) => setSelectedDrawerEmp(emp)}
           onOpenAddModal={handleOpenAddModal}
-          onNavigateToSettingsTab={() => setActiveSubMenu('pengaturan')}
+          onNavigateToSettingsTab={() => {
+            if (permissions.canViewPengaturanTab) {
+              setActiveSubMenu('pengaturan');
+            }
+          }}
         />
       )}
 
       {/* VIEW 2: PENGATURAN PEGAWAI (DATABASE & PENGATURAN LENGKAP) */}
-      {activeSubMenu === 'pengaturan' && (
+      {activeSubMenu === 'pengaturan' && permissions.canViewPengaturanTab && (
         <div className="space-y-4">
           
           {/* Operations Bar */}
@@ -248,20 +333,26 @@ export default function EmployeeAdminView({
             {/* Search and Filters */}
             <div className="flex flex-wrap items-center gap-2.5 flex-1">
               <div className="relative min-w-[200px] flex-1 sm:flex-initial">
-                <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
                 <input
                   type="text"
-                  placeholder="Cari nama, NIP, NIK, surel..."
+                  placeholder="Cari nama, NIP, NIK, jabatan..."
                   value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-8 pr-3 py-1.5 text-xs text-slate-800 focus:bg-white focus:outline-hidden focus:border-indigo-600"
+                  onChange={(e) => {
+                    setSearchQuery(e.target.value);
+                    setEmployeeListPage(1);
+                  }}
+                  className="w-full pl-9 pr-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:bg-white focus:outline-hidden focus:ring-2 focus:ring-indigo-500/20"
                 />
               </div>
 
-              {/* Filter Divisi */}
+              {/* Filter Bidang */}
               <select
                 value={selectedDivFilter}
-                onChange={(e) => setSelectedDivFilter(e.target.value)}
+                onChange={(e) => {
+                  setSelectedDivFilter(e.target.value);
+                  setEmployeeListPage(1);
+                }}
                 className="bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1.5 text-xs text-slate-700 focus:bg-white focus:outline-hidden"
               >
                 <option value="Semua">Semua Bidang</option>
@@ -276,21 +367,27 @@ export default function EmployeeAdminView({
               {/* Filter Jabatan */}
               <select
                 value={selectedJabatanFilter}
-                onChange={(e) => setSelectedJabatanFilter(e.target.value)}
+                onChange={(e) => {
+                  setSelectedJabatanFilter(e.target.value);
+                  setEmployeeListPage(1);
+                }}
                 className="bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1.5 text-xs text-slate-700 focus:bg-white focus:outline-hidden"
               >
                 <option value="Semua">Semua Jabatan</option>
-                <option value="staf">Staf</option>
-                <option value="pengelola">Pengelola</option>
-                <option value="admin bidang">Admin Bidang</option>
-                <option value="ketua bidang">Ketua Bidang</option>
                 <option value="kepala satker">Kepala Satker</option>
+                <option value="ketua bidang">Ketua Bidang</option>
+                <option value="admin bidang">Admin Bidang</option>
+                <option value="pengelola">Pengelola</option>
+                <option value="staf">Staf</option>
               </select>
 
               {/* Filter Jalur */}
               <select
                 value={selectedJalurFilter}
-                onChange={(e) => setSelectedJalurFilter(e.target.value)}
+                onChange={(e) => {
+                  setSelectedJalurFilter(e.target.value);
+                  setEmployeeListPage(1);
+                }}
                 className="bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1.5 text-xs text-slate-700 focus:bg-white focus:outline-hidden"
               >
                 <option value="Semua">Semua Jalur</option>
@@ -301,7 +398,10 @@ export default function EmployeeAdminView({
               {/* Filter Status */}
               <select
                 value={selectedStatusFilter}
-                onChange={(e) => setSelectedStatusFilter(e.target.value)}
+                onChange={(e) => {
+                  setSelectedStatusFilter(e.target.value);
+                  setEmployeeListPage(1);
+                }}
                 className="bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1.5 text-xs text-slate-700 focus:bg-white focus:outline-hidden"
               >
                 <option value="Semua">Semua Status</option>
@@ -311,18 +411,20 @@ export default function EmployeeAdminView({
               </select>
             </div>
 
-            {/* Add Employee Button */}
-            <button
-              onClick={handleOpenAddModal}
-              className="flex items-center justify-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-bold transition-all shadow-md shadow-indigo-600/20 shrink-0 cursor-pointer"
-            >
-              <UserPlus className="w-4 h-4" />
-              <span>Tambah Pegawai Baru</span>
-            </button>
+            {/* Add Employee Button (Admin Bidang & Superadmin only) */}
+            {permissions.canAddEmployee && (
+              <button
+                onClick={handleOpenAddModal}
+                className="flex items-center justify-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-bold transition-all shadow-md shadow-indigo-600/20 shrink-0 cursor-pointer"
+              >
+                <UserPlus className="w-4 h-4" />
+                <span>Tambah Pegawai Baru</span>
+              </button>
+            )}
 
           </div>
 
-          {/* Employee Database Table */}
+          {/* Employee Database Table (Paginated Max 20/page) */}
           <div className="bg-white rounded-2xl border border-slate-200/80 shadow-2xs overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs border-collapse">
@@ -339,14 +441,14 @@ export default function EmployeeAdminView({
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {filteredEmployees.length === 0 ? (
+                  {paginatedEmployees.length === 0 ? (
                     <tr>
                       <td colSpan={8} className="text-center py-12 text-slate-400 italic">
                         Tidak ada data pegawai yang cocok dengan filter yang dipilih.
                       </td>
                     </tr>
                   ) : (
-                    filteredEmployees.map((emp) => (
+                    paginatedEmployees.map((emp) => (
                       <tr
                         key={emp.id}
                         className="hover:bg-slate-50/80 transition-colors"
@@ -413,30 +515,39 @@ export default function EmployeeAdminView({
                           </span>
                         </td>
 
-                        {/* Actions */}
+                        {/* Actions based on RBAC */}
                         <td className="px-4 py-3 text-right">
                           <div className="flex items-center justify-end gap-1">
+                            {/* View Detail Profile Drawer */}
                             <button
                               onClick={() => setSelectedDrawerEmp(emp)}
-                              className="p-1.5 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
-                              title="Lihat Detail Lengkap"
+                              className="p-1.5 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors cursor-pointer"
+                              title="Lihat Profil Pegawai"
                             >
                               <Eye className="w-3.5 h-3.5" />
                             </button>
-                            <button
-                              onClick={() => handleOpenEditModal(emp)}
-                              className="p-1.5 text-slate-500 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"
-                              title="Edit Pengaturan Pegawai"
-                            >
-                              <Edit3 className="w-3.5 h-3.5" />
-                            </button>
-                            <button
-                              onClick={() => setDeletingEmpId(emp.id)}
-                              className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
-                              title="Hapus Pegawai"
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </button>
+
+                            {/* Edit Employee (Kepala Bidang, Admin Bidang, Superadmin) */}
+                            {permissions.canEditEmployee && (
+                              <button
+                                onClick={() => handleOpenEditModal(emp)}
+                                className="p-1.5 text-slate-500 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors cursor-pointer"
+                                title="Edit Pengaturan Pegawai"
+                              >
+                                <Edit3 className="w-3.5 h-3.5" />
+                              </button>
+                            )}
+
+                            {/* Delete Employee (Admin Bidang & Superadmin only - Kepala Bidang CANNOT delete) */}
+                            {permissions.canDeleteEmployee && (
+                              <button
+                                onClick={() => setDeletingEmpId(emp.id)}
+                                className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
+                                title="Hapus Pegawai"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            )}
                           </div>
                         </td>
                       </tr>
@@ -445,13 +556,43 @@ export default function EmployeeAdminView({
                 </tbody>
               </table>
             </div>
+
+            {/* Pagination Controls for Employee Table (Max 20/page) */}
+            {totalEmployeePages > 1 && (
+              <div className="p-4 border-t border-slate-100 flex flex-col sm:flex-row justify-between items-center gap-3 bg-slate-50/50 text-xs">
+                <p className="text-slate-500 text-[11px]">
+                  Menampilkan {((employeeListPage - 1) * PAGE_SIZE) + 1} - {Math.min(employeeListPage * PAGE_SIZE, filteredEmployees.length)} dari {filteredEmployees.length} pegawai
+                </p>
+                <div className="flex items-center gap-1.5">
+                  <button
+                    onClick={() => setEmployeeListPage(p => Math.max(1, p - 1))}
+                    disabled={employeeListPage === 1}
+                    className="px-3 py-1.5 text-xs font-semibold rounded-xl border border-slate-200 bg-white text-slate-700 disabled:opacity-40 hover:bg-slate-50 flex items-center gap-1 cursor-pointer shadow-2xs"
+                  >
+                    <ChevronLeft className="w-3.5 h-3.5" /> Sebelumnya
+                  </button>
+
+                  <span className="px-2.5 py-1 text-xs font-bold text-slate-700 font-mono">
+                    {employeeListPage} / {totalEmployeePages}
+                  </span>
+
+                  <button
+                    onClick={() => setEmployeeListPage(p => Math.min(totalEmployeePages, p + 1))}
+                    disabled={employeeListPage === totalEmployeePages}
+                    className="px-3 py-1.5 text-xs font-semibold rounded-xl border border-slate-200 bg-white text-slate-700 disabled:opacity-40 hover:bg-slate-50 flex items-center gap-1 cursor-pointer shadow-2xs"
+                  >
+                    Berikutnya <ChevronRight className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
 
         </div>
       )}
 
       {/* VIEW 3: KEPATUHAN PELATIHAN 40 JAM PER TAHUN MATRIX */}
-      {activeSubMenu === 'pelatihan40jam' && (
+      {activeSubMenu === 'pelatihan40jam' && permissions.canViewMatriksTab && (
         <div className="space-y-4">
           
           {/* Header Controls for Matrix */}
@@ -472,8 +613,11 @@ export default function EmployeeAdminView({
                 {[currentYear, currentYear - 1, currentYear - 2].map(yr => (
                   <button
                     key={yr}
-                    onClick={() => setMatrixYear(yr)}
-                    className={`px-3 py-1 text-xs font-bold rounded-lg transition-all ${
+                    onClick={() => {
+                      setMatrixYear(yr);
+                      setMatrixListPage(1);
+                    }}
+                    className={`px-3 py-1 text-xs font-bold rounded-lg transition-all cursor-pointer ${
                       matrixYear === yr
                         ? 'bg-indigo-600 text-white shadow-xs'
                         : 'text-slate-600 hover:text-slate-900'
@@ -487,7 +631,10 @@ export default function EmployeeAdminView({
               {/* Filter Compliance */}
               <select
                 value={matrixComplianceFilter}
-                onChange={(e) => setMatrixComplianceFilter(e.target.value as any)}
+                onChange={(e) => {
+                  setMatrixComplianceFilter(e.target.value as any);
+                  setMatrixListPage(1);
+                }}
                 className="bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1.5 text-xs text-slate-700 focus:bg-white focus:outline-hidden"
               >
                 <option value="Semua">Semua Status Kepatuhan</option>
@@ -497,7 +644,7 @@ export default function EmployeeAdminView({
             </div>
           </div>
 
-          {/* Matrix Grid */}
+          {/* Matrix Grid (Paginated Max 20/page) */}
           <div className="bg-white rounded-2xl border border-slate-200/80 shadow-2xs overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs border-collapse">
@@ -514,14 +661,14 @@ export default function EmployeeAdminView({
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {trainingMatrixList.length === 0 ? (
+                  {paginatedTrainingMatrixList.length === 0 ? (
                     <tr>
                       <td colSpan={8} className="text-center py-12 text-slate-400 italic">
                         Tidak ada data pelatihan pada tahun {matrixYear} yang cocok dengan filter.
                       </td>
                     </tr>
                   ) : (
-                    trainingMatrixList.map(({ emp, yearData }) => (
+                    paginatedTrainingMatrixList.map(({ emp, yearData }) => (
                       <tr
                         key={emp.id}
                         className="hover:bg-slate-50 transition-colors"
@@ -604,6 +751,36 @@ export default function EmployeeAdminView({
                 </tbody>
               </table>
             </div>
+
+            {/* Pagination Controls for Training Matrix Table (Max 20/page) */}
+            {totalMatrixPages > 1 && (
+              <div className="p-4 border-t border-slate-100 flex flex-col sm:flex-row justify-between items-center gap-3 bg-slate-50/50 text-xs">
+                <p className="text-slate-500 text-[11px]">
+                  Menampilkan {((matrixListPage - 1) * PAGE_SIZE) + 1} - {Math.min(matrixListPage * PAGE_SIZE, trainingMatrixList.length)} dari {trainingMatrixList.length} pegawai
+                </p>
+                <div className="flex items-center gap-1.5">
+                  <button
+                    onClick={() => setMatrixListPage(p => Math.max(1, p - 1))}
+                    disabled={matrixListPage === 1}
+                    className="px-3 py-1.5 text-xs font-semibold rounded-xl border border-slate-200 bg-white text-slate-700 disabled:opacity-40 hover:bg-slate-50 flex items-center gap-1 cursor-pointer shadow-2xs"
+                  >
+                    <ChevronLeft className="w-3.5 h-3.5" /> Sebelumnya
+                  </button>
+
+                  <span className="px-2.5 py-1 text-xs font-bold text-slate-700 font-mono">
+                    {matrixListPage} / {totalMatrixPages}
+                  </span>
+
+                  <button
+                    onClick={() => setMatrixListPage(p => Math.min(totalMatrixPages, p + 1))}
+                    disabled={matrixListPage === totalMatrixPages}
+                    className="px-3 py-1.5 text-xs font-semibold rounded-xl border border-slate-200 bg-white text-slate-700 disabled:opacity-40 hover:bg-slate-50 flex items-center gap-1 cursor-pointer shadow-2xs"
+                  >
+                    Berikutnya <ChevronRight className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
 
         </div>
@@ -616,6 +793,7 @@ export default function EmployeeAdminView({
         employee={editingEmployee}
         onSave={handleSaveModal}
         currentUser={currentUser}
+        canDelete={permissions.canDeleteTraining}
       />
 
       {/* Employee Detail Drawer */}
@@ -623,6 +801,7 @@ export default function EmployeeAdminView({
         isOpen={!!selectedDrawerEmp}
         onClose={() => setSelectedDrawerEmp(null)}
         employee={selectedDrawerEmp}
+        canEdit={permissions.canEditEmployee}
         onEdit={(emp) => {
           setSelectedDrawerEmp(null);
           handleOpenEditModal(emp);

@@ -50,6 +50,8 @@ export interface Employee {
   jenjangPendidikan: 'SMA' | 'D3' | 'S1' | 'S2' | 'S3';
   divisi: 'Tata Usaha / Umum' | 'Siaran' | 'Pemberitaan' | 'Teknologi dan Media Baru' | 'Konten Media Baru' | 'Layanan Pengembangan Usaha';
   jenisKelamin: 'Laki-laki' | 'Perempuan';
+  agama?: string;
+  pangkatGolongan?: string;
   
   // Riwayat & Kompetensi
   riwayatPendidikan?: EducationHistory[];

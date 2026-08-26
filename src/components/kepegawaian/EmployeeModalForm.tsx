@@ -19,15 +19,17 @@ import {
   Edit3, 
   Eye, 
   EyeOff, 
-  AlertCircle,
-  Sparkles,
-  Layers,
-  Calendar,
-  Building2,
-  Mail,
-  Phone,
-  MapPin,
-  Heart
+  AlertCircle, 
+  Sparkles, 
+  Layers, 
+  Calendar, 
+  Building2, 
+  Mail, 
+  Phone, 
+  MapPin, 
+  Heart,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react';
 
 interface EmployeeModalFormProps {
@@ -36,6 +38,7 @@ interface EmployeeModalFormProps {
   employee: Employee | null; // If null => create new employee
   onSave: (employee: Employee) => void;
   currentUser?: any;
+  canDelete?: boolean;
 }
 
 export default function EmployeeModalForm({
@@ -43,12 +46,19 @@ export default function EmployeeModalForm({
   onClose,
   employee,
   onSave,
-  currentUser
+  currentUser,
+  canDelete = true
 }: EmployeeModalFormProps) {
   const currentYear = new Date().getFullYear();
 
   // Active Tab within modal (1 through 6)
   const [activeFormTab, setActiveFormTab] = useState<number>(1);
+
+  // Pagination for sublists in modal (Max 20 items per page)
+  const [modalEduPage, setModalEduPage] = useState<number>(1);
+  const [modalTrPage, setModalTrPage] = useState<number>(1);
+  const [modalCompPage, setModalCompPage] = useState<number>(1);
+  const modalItemsPerPage = 20;
 
   // Tab 1: Identitas Pegawai
   const [nama, setNama] = useState('');
@@ -170,8 +180,29 @@ export default function EmployeeModalForm({
       setIsLoginActive(true);
     }
     setActiveFormTab(1);
+    setModalEduPage(1);
+    setModalTrPage(1);
+    setModalCompPage(1);
     setFormErrors({});
   }, [employee, isOpen]);
+
+  const totalModalEduPages = Math.max(1, Math.ceil(riwayatPendidikan.length / modalItemsPerPage));
+  const paginatedModalEdu = useMemo(() => {
+    const start = (modalEduPage - 1) * modalItemsPerPage;
+    return riwayatPendidikan.slice(start, start + modalItemsPerPage);
+  }, [riwayatPendidikan, modalEduPage, modalItemsPerPage]);
+
+  const totalModalTrPages = Math.max(1, Math.ceil(riwayatPelatihan.length / modalItemsPerPage));
+  const paginatedModalTr = useMemo(() => {
+    const start = (modalTrPage - 1) * modalItemsPerPage;
+    return riwayatPelatihan.slice(start, start + modalItemsPerPage);
+  }, [riwayatPelatihan, modalTrPage, modalItemsPerPage]);
+
+  const totalModalCompPages = Math.max(1, Math.ceil(kompetensiList.length / modalItemsPerPage));
+  const paginatedModalComp = useMemo(() => {
+    const start = (modalCompPage - 1) * modalItemsPerPage;
+    return kompetensiList.slice(start, start + modalItemsPerPage);
+  }, [kompetensiList, modalCompPage, modalItemsPerPage]);
 
   // Construct dummy temp employee object for real-time calculation in tab 5
   const tempEmployeeForCalculation: Employee = useMemo(() => {
@@ -797,7 +828,7 @@ export default function EmployeeModalForm({
                 </div>
               ) : (
                 <div className="space-y-2.5">
-                  {riwayatPendidikan.map((edu) => (
+                  {paginatedModalEdu.map((edu) => (
                     <div
                       key={edu.id}
                       className="p-3.5 bg-white border border-slate-200 rounded-2xl flex justify-between items-center shadow-2xs"
@@ -819,16 +850,45 @@ export default function EmployeeModalForm({
                         )}
                       </div>
 
-                      <button
-                        type="button"
-                        onClick={() => handleDeleteEducation(edu.id)}
-                        className="p-2 text-rose-500 hover:bg-rose-50 rounded-xl transition-colors"
-                        title="Hapus"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
+                      {canDelete && (
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteEducation(edu.id)}
+                          className="p-2 text-rose-500 hover:bg-rose-50 rounded-xl transition-colors cursor-pointer"
+                          title="Hapus"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      )}
                     </div>
                   ))}
+
+                  {/* Pagination Controls for Edu */}
+                  {totalModalEduPages > 1 && (
+                    <div className="flex items-center justify-between pt-2 border-t border-slate-200 text-xs">
+                      <p className="text-[11px] text-slate-500">
+                        Hal. {modalEduPage} dari {totalModalEduPages} ({riwayatPendidikan.length} total)
+                      </p>
+                      <div className="flex items-center gap-1">
+                        <button
+                          type="button"
+                          onClick={() => setModalEduPage(p => Math.max(1, p - 1))}
+                          disabled={modalEduPage === 1}
+                          className="px-2.5 py-1 text-xs font-semibold rounded-lg border border-slate-200 bg-white text-slate-700 disabled:opacity-40 hover:bg-slate-50 flex items-center gap-1 cursor-pointer"
+                        >
+                          <ChevronLeft className="w-3 h-3" /> Prev
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setModalEduPage(p => Math.min(totalModalEduPages, p + 1))}
+                          disabled={modalEduPage === totalModalEduPages}
+                          className="px-2.5 py-1 text-xs font-semibold rounded-lg border border-slate-200 bg-white text-slate-700 disabled:opacity-40 hover:bg-slate-50 flex items-center gap-1 cursor-pointer"
+                        >
+                          Next <ChevronRight className="w-3 h-3" />
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -1000,7 +1060,7 @@ export default function EmployeeModalForm({
                 </div>
               ) : (
                 <div className="space-y-2.5">
-                  {riwayatPelatihan.map((tr) => {
+                  {paginatedModalTr.map((tr) => {
                     const isJP = tr.jenisPerhitungan !== 'Non JP';
                     return (
                       <div
@@ -1033,17 +1093,46 @@ export default function EmployeeModalForm({
                           )}
                         </div>
 
-                        <button
-                          type="button"
-                          onClick={() => handleDeleteTraining(tr.id)}
-                          className="p-2 text-rose-500 hover:bg-rose-50 rounded-xl transition-colors"
-                          title="Hapus"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
+                        {canDelete && (
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteTraining(tr.id)}
+                            className="p-2 text-rose-500 hover:bg-rose-50 rounded-xl transition-colors cursor-pointer"
+                            title="Hapus"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        )}
                       </div>
                     );
                   })}
+
+                  {/* Pagination Controls for Training */}
+                  {totalModalTrPages > 1 && (
+                    <div className="flex items-center justify-between pt-2 border-t border-slate-200 text-xs">
+                      <p className="text-[11px] text-slate-500">
+                        Hal. {modalTrPage} dari {totalModalTrPages} ({riwayatPelatihan.length} total)
+                      </p>
+                      <div className="flex items-center gap-1">
+                        <button
+                          type="button"
+                          onClick={() => setModalTrPage(p => Math.max(1, p - 1))}
+                          disabled={modalTrPage === 1}
+                          className="px-2.5 py-1 text-xs font-semibold rounded-lg border border-slate-200 bg-white text-slate-700 disabled:opacity-40 hover:bg-slate-50 flex items-center gap-1 cursor-pointer"
+                        >
+                          <ChevronLeft className="w-3 h-3" /> Prev
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setModalTrPage(p => Math.min(totalModalTrPages, p + 1))}
+                          disabled={modalTrPage === totalModalTrPages}
+                          className="px-2.5 py-1 text-xs font-semibold rounded-lg border border-slate-200 bg-white text-slate-700 disabled:opacity-40 hover:bg-slate-50 flex items-center gap-1 cursor-pointer"
+                        >
+                          Next <ChevronRight className="w-3 h-3" />
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -1160,40 +1249,71 @@ export default function EmployeeModalForm({
                   Belum ada data kompetensi. Klik "Tambah Kompetensi" di atas.
                 </div>
               ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {kompetensiList.map((comp) => (
-                    <div
-                      key={comp.id}
-                      className="p-3.5 bg-white border border-slate-200 rounded-2xl flex justify-between items-start shadow-2xs"
-                    >
-                      <div className="space-y-1">
-                        <div className="flex items-center gap-1.5 flex-wrap">
-                          <span className="font-bold text-slate-800 text-xs">{comp.namaKompetensi}</span>
-                          <span className="px-2 py-0.5 rounded bg-indigo-50 text-indigo-700 font-extrabold text-[10px]">
-                            {comp.tingkatKemahiran}
-                          </span>
-                        </div>
-                        <p className="text-[10px] text-slate-500">
-                          Kategori: {comp.kategori}
-                        </p>
-                        {comp.sertifikasi && (
-                          <p className="text-[10px] text-emerald-700 font-semibold flex items-center gap-1">
-                            <Award className="w-3 h-3" />
-                            {comp.sertifikasi} ({comp.tahunPerolehan || '-'})
+                <div className="space-y-2.5">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {paginatedModalComp.map((comp) => (
+                      <div
+                        key={comp.id}
+                        className="p-3.5 bg-white border border-slate-200 rounded-2xl flex justify-between items-start shadow-2xs"
+                      >
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <span className="font-bold text-slate-800 text-xs">{comp.namaKompetensi}</span>
+                            <span className="px-2 py-0.5 rounded bg-indigo-50 text-indigo-700 font-extrabold text-[10px]">
+                              {comp.tingkatKemahiran}
+                            </span>
+                          </div>
+                          <p className="text-[10px] text-slate-500">
+                            Kategori: {comp.kategori}
                           </p>
+                          {comp.sertifikasi && (
+                            <p className="text-[10px] text-emerald-700 font-semibold flex items-center gap-1">
+                              <Award className="w-3 h-3" />
+                              {comp.sertifikasi} ({comp.tahunPerolehan || '-'})
+                            </p>
+                          )}
+                        </div>
+
+                        {canDelete && (
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteCompetency(comp.id)}
+                            className="p-1.5 text-rose-500 hover:bg-rose-50 rounded-xl transition-colors cursor-pointer"
+                            title="Hapus"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
                         )}
                       </div>
+                    ))}
+                  </div>
 
-                      <button
-                        type="button"
-                        onClick={() => handleDeleteCompetency(comp.id)}
-                        className="p-1.5 text-rose-500 hover:bg-rose-50 rounded-xl transition-colors"
-                        title="Hapus"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
+                  {/* Pagination Controls for Competency */}
+                  {totalModalCompPages > 1 && (
+                    <div className="flex items-center justify-between pt-2 border-t border-slate-200 text-xs">
+                      <p className="text-[11px] text-slate-500">
+                        Hal. {modalCompPage} dari {totalModalCompPages} ({kompetensiList.length} total)
+                      </p>
+                      <div className="flex items-center gap-1">
+                        <button
+                          type="button"
+                          onClick={() => setModalCompPage(p => Math.max(1, p - 1))}
+                          disabled={modalCompPage === 1}
+                          className="px-2.5 py-1 text-xs font-semibold rounded-lg border border-slate-200 bg-white text-slate-700 disabled:opacity-40 hover:bg-slate-50 flex items-center gap-1 cursor-pointer"
+                        >
+                          <ChevronLeft className="w-3 h-3" /> Prev
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setModalCompPage(p => Math.min(totalModalCompPages, p + 1))}
+                          disabled={modalCompPage === totalModalCompPages}
+                          className="px-2.5 py-1 text-xs font-semibold rounded-lg border border-slate-200 bg-white text-slate-700 disabled:opacity-40 hover:bg-slate-50 flex items-center gap-1 cursor-pointer"
+                        >
+                          Next <ChevronRight className="w-3 h-3" />
+                        </button>
+                      </div>
                     </div>
-                  ))}
+                  )}
                 </div>
               )}
             </div>

@@ -1561,20 +1561,24 @@ export default function App() {
           </button>
           )}
 
-          {/* Administrasi Kepegawaian (Kepala or Tata Usaha) */}
-          {currentUser.role !== 'Superadmin' && currentUser.role !== 'Kepala' && currentUser.division === 'Tata Usaha / Umum' && (
-            <button
-              onClick={() => setActiveTab('kepegawaian')}
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-semibold tracking-wide transition-all ${
-                activeTab === 'kepegawaian' 
-                  ? 'bg-indigo-600 text-white shadow-xs shadow-indigo-600/25' 
-                  : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
-              }`}
-            >
-              <Users className="w-4 h-4" />
-              Administrasi Kepegawaian
-            </button>
-          )}
+          {/* Menu Kepegawaian / Profil Pegawai (Accessible according to RBAC) */}
+          <button
+            onClick={() => setActiveTab('kepegawaian')}
+            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-semibold tracking-wide transition-all cursor-pointer ${
+              activeTab === 'kepegawaian' 
+                ? 'bg-indigo-600 text-white shadow-xs shadow-indigo-600/25' 
+                : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
+            }`}
+          >
+            <Users className="w-4 h-4" />
+            <span>
+              {currentUser.role === 'Kepala' 
+                ? 'Rekapitulasi Kepegawaian' 
+                : currentUser.role === 'Staff' 
+                ? 'Profil Pegawai Saya' 
+                : 'Administrasi Kepegawaian'}
+            </span>
+          </button>
 
           {/* Perjanjian Kinerja (Kepala only) */}
           {currentUser.role === 'Kepala' && (
@@ -1726,17 +1730,22 @@ export default function App() {
           </button>
           )}
 
-          {currentUser.role !== 'Superadmin' && currentUser.role !== 'Kepala' && currentUser.division === 'Tata Usaha / Umum' && (
-            <button
-              onClick={() => { setActiveTab('kepegawaian'); setIsMobileMenuOpen(false); }}
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-semibold tracking-wide transition-colors ${
-                activeTab === 'kepegawaian' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:bg-slate-800'
-              }`}
-            >
-              <Users className="w-4 h-4" />
-              Administrasi Kepegawaian
-            </button>
-          )}
+          {/* Menu Kepegawaian / Profil Pegawai (Accessible according to RBAC) */}
+          <button
+            onClick={() => { setActiveTab('kepegawaian'); setIsMobileMenuOpen(false); }}
+            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-semibold tracking-wide transition-colors ${
+              activeTab === 'kepegawaian' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:bg-slate-800'
+            }`}
+          >
+            <Users className="w-4 h-4" />
+            <span>
+              {currentUser.role === 'Kepala' 
+                ? 'Rekapitulasi Kepegawaian' 
+                : currentUser.role === 'Staff' 
+                ? 'Profil Pegawai Saya' 
+                : 'Administrasi Kepegawaian'}
+            </span>
+          </button>
 
           {/* Perjanjian Kinerja (PK) */}
           {currentUser.role === 'Kepala' && (

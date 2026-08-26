@@ -40,6 +40,8 @@ export default function EmployeeDetailDrawer({
 }: EmployeeDetailDrawerProps) {
   const [activeTab, setActiveTab] = useState<number>(1);
   const [trainingPage, setTrainingPage] = useState<number>(1);
+  const [eduPage, setEduPage] = useState<number>(1);
+  const [compPage, setCompPage] = useState<number>(1);
   const itemsPerPage = 20;
 
   const trainings = employee?.riwayatPelatihan || [];
@@ -48,6 +50,20 @@ export default function EmployeeDetailDrawer({
     const start = (trainingPage - 1) * itemsPerPage;
     return trainings.slice(start, start + itemsPerPage);
   }, [trainings, trainingPage, itemsPerPage]);
+
+  const educations = employee?.riwayatPendidikan || [];
+  const totalEduPages = Math.max(1, Math.ceil(educations.length / itemsPerPage));
+  const paginatedEducations = useMemo(() => {
+    const start = (eduPage - 1) * itemsPerPage;
+    return educations.slice(start, start + itemsPerPage);
+  }, [educations, eduPage, itemsPerPage]);
+
+  const competencies = employee?.kompetensi || [];
+  const totalCompPages = Math.max(1, Math.ceil(competencies.length / itemsPerPage));
+  const paginatedCompetencies = useMemo(() => {
+    const start = (compPage - 1) * itemsPerPage;
+    return competencies.slice(start, start + itemsPerPage);
+  }, [competencies, compPage, itemsPerPage]);
 
   if (!isOpen || !employee) return null;
 
@@ -198,30 +214,59 @@ export default function EmployeeDetailDrawer({
             <div className="space-y-3">
               <h5 className="text-xs font-bold uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
                 <GraduationCap className="w-4 h-4 text-indigo-600" />
-                Riwayat Pendidikan Formal ({employee.riwayatPendidikan?.length || 0})
+                Riwayat Pendidikan Formal ({educations.length})
               </h5>
 
-              {(!employee.riwayatPendidikan || employee.riwayatPendidikan.length === 0) ? (
+              {educations.length === 0 ? (
                 <p className="text-xs text-slate-400 italic p-6 text-center bg-slate-50 rounded-xl">
                   Belum ada data riwayat pendidikan.
                 </p>
               ) : (
-                employee.riwayatPendidikan.map((edu, i) => (
-                  <div key={edu.id || i} className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl space-y-1">
-                    <div className="flex items-center gap-2">
-                      <span className="px-2 py-0.5 rounded-md bg-indigo-100 text-indigo-800 font-extrabold text-[10px]">
-                        {edu.jenjang}
-                      </span>
-                      <span className="font-bold text-slate-800 text-xs">{edu.institusi}</span>
+                <div className="space-y-2.5">
+                  {paginatedEducations.map((edu, i) => (
+                    <div key={edu.id || i} className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl space-y-1">
+                      <div className="flex items-center gap-2">
+                        <span className="px-2 py-0.5 rounded-md bg-indigo-100 text-indigo-800 font-extrabold text-[10px]">
+                          {edu.jenjang}
+                        </span>
+                        <span className="font-bold text-slate-800 text-xs">{edu.institusi}</span>
+                      </div>
+                      <p className="text-[11px] text-slate-600">
+                        <strong>Jurusan:</strong> {edu.jurusan} {edu.gelar ? `(${edu.gelar})` : ''} • <strong>Lulus:</strong> {edu.tahunLulus}
+                      </p>
+                      {edu.nomorIjazah && (
+                        <p className="text-[10px] text-slate-400 font-mono">No. Ijazah: {edu.nomorIjazah}</p>
+                      )}
                     </div>
-                    <p className="text-[11px] text-slate-600">
-                      <strong>Jurusan:</strong> {edu.jurusan} {edu.gelar ? `(${edu.gelar})` : ''} • <strong>Lulus:</strong> {edu.tahunLulus}
-                    </p>
-                    {edu.nomorIjazah && (
-                      <p className="text-[10px] text-slate-400 font-mono">No. Ijazah: {edu.nomorIjazah}</p>
-                    )}
-                  </div>
-                ))
+                  ))}
+
+                  {/* Pagination for Education */}
+                  {totalEduPages > 1 && (
+                    <div className="flex items-center justify-between pt-2 border-t border-slate-200 text-xs">
+                      <p className="text-[11px] text-slate-500">
+                        Hal. {eduPage} dari {totalEduPages} ({educations.length} total)
+                      </p>
+                      <div className="flex items-center gap-1">
+                        <button
+                          type="button"
+                          onClick={() => setEduPage(p => Math.max(1, p - 1))}
+                          disabled={eduPage === 1}
+                          className="px-2.5 py-1 text-xs font-semibold rounded-lg border border-slate-200 bg-white text-slate-700 disabled:opacity-40 hover:bg-slate-50 flex items-center gap-1"
+                        >
+                          <ChevronLeft className="w-3 h-3" /> Prev
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setEduPage(p => Math.min(totalEduPages, p + 1))}
+                          disabled={eduPage === totalEduPages}
+                          className="px-2.5 py-1 text-xs font-semibold rounded-lg border border-slate-200 bg-white text-slate-700 disabled:opacity-40 hover:bg-slate-50 flex items-center gap-1"
+                        >
+                          Next <ChevronRight className="w-3 h-3" />
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
               )}
             </div>
           )}
@@ -304,31 +349,60 @@ export default function EmployeeDetailDrawer({
             <div className="space-y-3">
               <h5 className="text-xs font-bold uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
                 <Sparkles className="w-4 h-4 text-indigo-600" />
-                Daftar Kompetensi Keahlian ({employee.kompetensi?.length || 0})
+                Daftar Kompetensi Keahlian ({competencies.length})
               </h5>
 
-              {(!employee.kompetensi || employee.kompetensi.length === 0) ? (
+              {competencies.length === 0 ? (
                 <p className="text-xs text-slate-400 italic p-6 text-center bg-slate-50 rounded-xl">
                   Belum ada data kompetensi.
                 </p>
               ) : (
-                <div className="grid grid-cols-1 gap-2.5">
-                  {employee.kompetensi.map((c, i) => (
-                    <div key={c.id || i} className="p-3 bg-slate-50 border border-slate-200 rounded-xl flex justify-between items-start">
-                      <div>
-                        <span className="font-bold text-slate-800 text-xs block">{c.namaKompetensi}</span>
-                        <span className="text-[10px] text-slate-500">Kategori: {c.kategori}</span>
-                        {c.sertifikasi && (
-                          <p className="text-[10px] text-emerald-700 font-semibold mt-0.5">
-                            Sertifikasi: {c.sertifikasi} ({c.tahunPerolehan || '-'})
-                          </p>
-                        )}
+                <div className="space-y-2.5">
+                  <div className="grid grid-cols-1 gap-2.5">
+                    {paginatedCompetencies.map((c, i) => (
+                      <div key={c.id || i} className="p-3 bg-slate-50 border border-slate-200 rounded-xl flex justify-between items-start">
+                        <div>
+                          <span className="font-bold text-slate-800 text-xs block">{c.namaKompetensi}</span>
+                          <span className="text-[10px] text-slate-500">Kategori: {c.kategori}</span>
+                          {c.sertifikasi && (
+                            <p className="text-[10px] text-emerald-700 font-semibold mt-0.5">
+                              Sertifikasi: {c.sertifikasi} ({c.tahunPerolehan || '-'})
+                            </p>
+                          )}
+                        </div>
+                        <span className="px-2 py-0.5 rounded bg-indigo-100 text-indigo-800 font-bold text-[10px]">
+                          {c.tingkatKemahiran}
+                        </span>
                       </div>
-                      <span className="px-2 py-0.5 rounded bg-indigo-100 text-indigo-800 font-bold text-[10px]">
-                        {c.tingkatKemahiran}
-                      </span>
+                    ))}
+                  </div>
+
+                  {/* Pagination for Competency */}
+                  {totalCompPages > 1 && (
+                    <div className="flex items-center justify-between pt-2 border-t border-slate-200 text-xs">
+                      <p className="text-[11px] text-slate-500">
+                        Hal. {compPage} dari {totalCompPages} ({competencies.length} total)
+                      </p>
+                      <div className="flex items-center gap-1">
+                        <button
+                          type="button"
+                          onClick={() => setCompPage(p => Math.max(1, p - 1))}
+                          disabled={compPage === 1}
+                          className="px-2.5 py-1 text-xs font-semibold rounded-lg border border-slate-200 bg-white text-slate-700 disabled:opacity-40 hover:bg-slate-50 flex items-center gap-1"
+                        >
+                          <ChevronLeft className="w-3 h-3" /> Prev
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setCompPage(p => Math.min(totalCompPages, p + 1))}
+                          disabled={compPage === totalCompPages}
+                          className="px-2.5 py-1 text-xs font-semibold rounded-lg border border-slate-200 bg-white text-slate-700 disabled:opacity-40 hover:bg-slate-50 flex items-center gap-1"
+                        >
+                          Next <ChevronRight className="w-3 h-3" />
+                        </button>
+                      </div>
                     </div>
-                  ))}
+                  )}
                 </div>
               )}
             </div>
