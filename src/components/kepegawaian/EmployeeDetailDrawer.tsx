@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Employee } from '../../types';
 import PelatihanTahunanTracker from './PelatihanTahunanTracker';
 import { 
@@ -18,7 +18,9 @@ import {
   ShieldCheck, 
   Briefcase,
   Layers,
-  Building2
+  Building2,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react';
 
 interface EmployeeDetailDrawerProps {
@@ -26,15 +28,26 @@ interface EmployeeDetailDrawerProps {
   isOpen: boolean;
   onClose: () => void;
   onEdit: (employee: Employee) => void;
+  canEdit?: boolean;
 }
 
 export default function EmployeeDetailDrawer({
   employee,
   isOpen,
   onClose,
-  onEdit
+  onEdit,
+  canEdit = true
 }: EmployeeDetailDrawerProps) {
   const [activeTab, setActiveTab] = useState<number>(1);
+  const [trainingPage, setTrainingPage] = useState<number>(1);
+  const itemsPerPage = 20;
+
+  const trainings = employee?.riwayatPelatihan || [];
+  const totalTrainingPages = Math.max(1, Math.ceil(trainings.length / itemsPerPage));
+  const paginatedTrainings = useMemo(() => {
+    const start = (trainingPage - 1) * itemsPerPage;
+    return trainings.slice(start, start + itemsPerPage);
+  }, [trainings, trainingPage, itemsPerPage]);
 
   if (!isOpen || !employee) return null;
 
@@ -70,16 +83,18 @@ export default function EmployeeDetailDrawer({
           </div>
 
           <div className="flex items-center gap-2">
-            <button
-              onClick={() => onEdit(employee)}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-bold transition-all shadow-md shadow-indigo-600/30"
-            >
-              <Edit3 className="w-3.5 h-3.5" />
-              <span>Edit Data</span>
-            </button>
+            {canEdit && (
+              <button
+                onClick={() => onEdit(employee)}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-bold transition-all shadow-md shadow-indigo-600/30 cursor-pointer"
+              >
+                <Edit3 className="w-3.5 h-3.5" />
+                <span>Edit Data</span>
+              </button>
+            )}
             <button
               onClick={onClose}
-              className="p-1.5 bg-slate-800 text-slate-400 hover:text-white rounded-xl transition-colors"
+              className="p-1.5 bg-slate-800 text-slate-400 hover:text-white rounded-xl transition-colors cursor-pointer"
             >
               <X className="w-5 h-5" />
             </button>
@@ -216,41 +231,70 @@ export default function EmployeeDetailDrawer({
             <div className="space-y-3">
               <h5 className="text-xs font-bold uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
                 <Award className="w-4 h-4 text-indigo-600" />
-                Riwayat Pelatihan / Diklat ({employee.riwayatPelatihan?.length || 0})
+                Riwayat Pelatihan / Diklat ({trainings.length})
               </h5>
 
-              {(!employee.riwayatPelatihan || employee.riwayatPelatihan.length === 0) ? (
+              {trainings.length === 0 ? (
                 <p className="text-xs text-slate-400 italic p-6 text-center bg-slate-50 rounded-xl">
                   Belum ada data riwayat pelatihan.
                 </p>
               ) : (
-                employee.riwayatPelatihan.map((tr, i) => {
-                  const isJP = tr.jenisPerhitungan !== 'Non JP';
-                  return (
-                    <div key={tr.id || i} className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl space-y-1">
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="font-bold text-slate-800 text-xs">{tr.namaPelatihan}</span>
-                        <div className="flex items-center gap-1.5 shrink-0">
-                          {isJP ? (
-                            <span className="px-2 py-0.5 rounded bg-indigo-100 text-indigo-800 font-extrabold text-[10px] border border-indigo-200">
-                              {tr.durasiJam} JP (Dihitung 40 Jam)
-                            </span>
-                          ) : (
-                            <span className="px-2 py-0.5 rounded bg-slate-200 text-slate-700 font-bold text-[10px] border border-slate-300">
-                              {tr.durasiJam} Jam (Non JP)
-                            </span>
-                          )}
+                <div className="space-y-2.5">
+                  {paginatedTrainings.map((tr, i) => {
+                    const isJP = tr.jenisPerhitungan !== 'Non JP';
+                    return (
+                      <div key={tr.id || i} className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl space-y-1">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="font-bold text-slate-800 text-xs">{tr.namaPelatihan}</span>
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            {isJP ? (
+                              <span className="px-2 py-0.5 rounded bg-indigo-100 text-indigo-800 font-extrabold text-[10px] border border-indigo-200">
+                                {tr.durasiJam} JP (Dihitung 40 Jam)
+                              </span>
+                            ) : (
+                              <span className="px-2 py-0.5 rounded bg-slate-200 text-slate-700 font-bold text-[10px] border border-slate-300">
+                                {tr.durasiJam} Jam (Non JP)
+                              </span>
+                            )}
+                          </div>
                         </div>
+                        <p className="text-[11px] text-slate-600">
+                          <strong>Penyelenggara:</strong> {tr.penyelenggara} • <strong>Tahun:</strong> {tr.tahun} ({tr.kategori || 'Teknis'})
+                        </p>
+                        {tr.nomorSertifikat && (
+                          <p className="text-[10px] text-slate-400 font-mono">No. Sertifikat: {tr.nomorSertifikat}</p>
+                        )}
                       </div>
-                      <p className="text-[11px] text-slate-600">
-                        <strong>Penyelenggara:</strong> {tr.penyelenggara} • <strong>Tahun:</strong> {tr.tahun} ({tr.kategori || 'Teknis'})
+                    );
+                  })}
+
+                  {/* Pagination Controls */}
+                  {totalTrainingPages > 1 && (
+                    <div className="flex items-center justify-between pt-2 border-t border-slate-200 text-xs">
+                      <p className="text-[11px] text-slate-500">
+                        Hal. {trainingPage} dari {totalTrainingPages} ({trainings.length} total)
                       </p>
-                      {tr.nomorSertifikat && (
-                        <p className="text-[10px] text-slate-400 font-mono">No. Sertifikat: {tr.nomorSertifikat}</p>
-                      )}
+                      <div className="flex items-center gap-1">
+                        <button
+                          type="button"
+                          onClick={() => setTrainingPage(p => Math.max(1, p - 1))}
+                          disabled={trainingPage === 1}
+                          className="px-2.5 py-1 text-xs font-semibold rounded-lg border border-slate-200 bg-white text-slate-700 disabled:opacity-40 hover:bg-slate-50 flex items-center gap-1"
+                        >
+                          <ChevronLeft className="w-3 h-3" /> Prev
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setTrainingPage(p => Math.min(totalTrainingPages, p + 1))}
+                          disabled={trainingPage === totalTrainingPages}
+                          className="px-2.5 py-1 text-xs font-semibold rounded-lg border border-slate-200 bg-white text-slate-700 disabled:opacity-40 hover:bg-slate-50 flex items-center gap-1"
+                        >
+                          Next <ChevronRight className="w-3 h-3" />
+                        </button>
+                      </div>
                     </div>
-                  );
-                })
+                  )}
+                </div>
               )}
             </div>
           )}

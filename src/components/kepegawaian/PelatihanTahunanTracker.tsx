@@ -1,6 +1,6 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { Employee, TrainingHistory } from '../../types';
-import { Award, CheckCircle2, AlertCircle, Clock, Calendar, BookOpen, Layers, Sparkles, Check } from 'lucide-react';
+import { Award, CheckCircle2, AlertCircle, Clock, Calendar, BookOpen, Layers, Sparkles, Check, ChevronLeft, ChevronRight } from 'lucide-react';
 
 interface PelatihanTahunanTrackerProps {
   employee: Employee;
@@ -173,8 +173,24 @@ export default function PelatihanTahunanTracker({
 
   const handleSelectYear = (yr: number) => {
     setInternalYear(yr);
+    setCurrentPage(1);
     if (onYearChange) onYearChange(yr);
   };
+
+  // Pagination for trainings list (Max 20 items per page)
+  const [currentPage, setCurrentPage] = useState<number>(1);
+  const itemsPerPage = 20;
+  
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [activeYear, employee]);
+
+  const totalTrainings = currentSummary.trainings.length;
+  const totalPages = Math.max(1, Math.ceil(totalTrainings / itemsPerPage));
+  const paginatedTrainings = useMemo(() => {
+    const start = (currentPage - 1) * itemsPerPage;
+    return currentSummary.trainings.slice(start, start + itemsPerPage);
+  }, [currentSummary.trainings, currentPage, itemsPerPage]);
 
   return (
     <div className="space-y-4">
@@ -331,7 +347,7 @@ export default function PelatihanTahunanTracker({
           </div>
         ) : (
           <div className="space-y-2">
-            {currentSummary.trainings.map((t, idx) => {
+            {paginatedTrainings.map((t, idx) => {
               const isJP = t.jenisPerhitungan !== 'Non JP';
               return (
                 <div
@@ -391,6 +407,51 @@ export default function PelatihanTahunanTracker({
                 </div>
               );
             })}
+
+            {/* Pagination Controls (Max 20/page) */}
+            {totalPages > 1 && (
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-2 pt-3 border-t border-slate-100 text-xs">
+                <p className="text-[11px] text-slate-500">
+                  Menampilkan <strong>{((currentPage - 1) * itemsPerPage) + 1} - {Math.min(currentPage * itemsPerPage, totalTrainings)}</strong> dari <strong>{totalTrainings}</strong> kegiatan pelatihan (Maks. 20/hal)
+                </p>
+                <div className="flex items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                    disabled={currentPage === 1}
+                    className="flex items-center gap-1 px-2.5 py-1 rounded-lg border border-slate-200 bg-white text-slate-700 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-50 transition-colors text-xs font-semibold"
+                  >
+                    <ChevronLeft className="w-3.5 h-3.5" />
+                    <span>Sebelumnya</span>
+                  </button>
+                  <div className="flex items-center gap-1 px-2">
+                    {Array.from({ length: totalPages }, (_, i) => i + 1).map(pageNum => (
+                      <button
+                        key={pageNum}
+                        type="button"
+                        onClick={() => setCurrentPage(pageNum)}
+                        className={`w-7 h-7 rounded-lg text-xs font-bold transition-colors ${
+                          currentPage === pageNum
+                            ? 'bg-indigo-600 text-white'
+                            : 'text-slate-600 hover:bg-slate-100'
+                        }`}
+                      >
+                        {pageNum}
+                      </button>
+                    ))}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                    disabled={currentPage === totalPages}
+                    className="flex items-center gap-1 px-2.5 py-1 rounded-lg border border-slate-200 bg-white text-slate-700 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-50 transition-colors text-xs font-semibold"
+                  >
+                    <span>Berikutnya</span>
+                    <ChevronRight className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>
