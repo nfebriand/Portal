@@ -308,24 +308,66 @@ export default function InputCapaianPKView({
     { value: 'Ketua Tim Layanan Pengembangan Usaha', label: `Ketua Tim Layanan Pengembangan Usaha (${identity.ketuaTimLayananNama || 'Belum Diatur'})`, division: 'Layanan Pengembangan Usaha' }
   ], [identity]);
 
-  // Determine user's active level based on division
+  const isSuperadminOrKasatker = currentUser.role === 'Superadmin' || currentUser.role === 'Kepala';
+
+  const currentEmpRecord = useMemo(() => {
+    return employees.find(e => e.id === currentUser.id || e.nip === currentUser.id || e.nik === currentUser.id);
+  }, [employees, currentUser]);
+
+  const userDivision = (currentUser.division || currentEmpRecord?.divisi || '').trim();
+  const userLoginRole = (currentUser as any).loginRole || currentEmpRecord?.loginRole;
+  const userJabatan = ((currentUser as any).jabatan || currentEmpRecord?.jabatan || '').toLowerCase();
+
+  // Access check: Only Admin Bidang / Ketua / Kasatker / Superadmin
+  const isAuthorized = useMemo(() => {
+    if (isSuperadminOrKasatker) return true;
+    if (currentUser.role === 'Ketua Bidang') return true;
+    if (userLoginRole === 'Super Admin' || userLoginRole === 'Kepala Satker' || userLoginRole === 'Ketua Tim' || userLoginRole === 'Admin Tim' || userLoginRole === 'Admin Bidang') return true;
+    if (userJabatan.includes('admin') || userJabatan.includes('ketua') || userJabatan.includes('kepala') || userJabatan.includes('pengelola')) return true;
+    if ((currentUser as any).isEditor) return true;
+    return false;
+  }, [isSuperadminOrKasatker, currentUser, userLoginRole, userJabatan]);
+
+  // Determine user's matched level based on division
+  const userMatchedLevelOption = useMemo(() => {
+    const div = userDivision.toLowerCase();
+    if (!div) return level2Options[0];
+
+    const matched = level2Options.find(opt => {
+      const optDiv = opt.division.toLowerCase();
+      const optVal = opt.value.toLowerCase();
+      return (
+        optDiv === div ||
+        optDiv.includes(div) ||
+        div.includes(optDiv) ||
+        (div.includes('tata usaha') && optDiv.includes('tata usaha')) ||
+        (div.includes('siaran') && optDiv.includes('siaran')) ||
+        (div.includes('berita') && optDiv.includes('pemberitaan')) ||
+        (div.includes('pemberitaan') && optDiv.includes('pemberitaan')) ||
+        ((div.includes('teknik') || div.includes('tmb') || div.includes('teknologi')) && optVal.includes('teknologi')) ||
+        (div.includes('konten') && optVal.includes('konten')) ||
+        ((div.includes('lpu') || div.includes('layanan') || div.includes('usaha')) && optVal.includes('layanan'))
+      );
+    });
+    return matched || level2Options[0];
+  }, [userDivision, level2Options]);
+
+  // Determine user's active level
   const defaultLevel = useMemo(() => {
-    if (currentUser.role === 'Superadmin' || currentUser.role === 'Kepala') {
+    if (isSuperadminOrKasatker) {
       return 'Ketua Tim Pemberitaan'; // Default for admin view
     }
-    
-    // Match based on division
-    const div = currentUser.division || '';
-    const matched = level2Options.find(opt => 
-      opt.division.toLowerCase().includes(div.toLowerCase()) || 
-      div.toLowerCase().includes(opt.division.toLowerCase()) ||
-      (div.toLowerCase().includes('teknik') && opt.value.toLowerCase().includes('teknologi'))
-    );
-    
-    return matched ? matched.value : 'Ketua Tim Pemberitaan';
-  }, [currentUser, level2Options]);
+    return userMatchedLevelOption ? userMatchedLevelOption.value : 'Ketua Tim Pemberitaan';
+  }, [isSuperadminOrKasatker, userMatchedLevelOption]);
 
   const [selectedLevel, setSelectedLevel] = useState<string>(defaultLevel);
+
+  // If not superadmin/kasatker, strictly enforce their division level
+  React.useEffect(() => {
+    if (!isSuperadminOrKasatker && userMatchedLevelOption) {
+      setSelectedLevel(userMatchedLevelOption.value);
+    }
+  }, [isSuperadminOrKasatker, userMatchedLevelOption]);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   // Compute 40 JP SDM competency compliance live data
@@ -571,6 +613,23 @@ export default function InputCapaianPKView({
     };
   }, [activeObjective, localAchievements, localPeriodTypes]);
 
+  if (!isAuthorized) {
+    return (
+      <div className="bg-white rounded-3xl border border-slate-200 p-12 text-center max-w-xl mx-auto my-12 shadow-sm space-y-4">
+        <div className="w-16 h-16 bg-rose-50 text-rose-600 rounded-2xl flex items-center justify-center mx-auto border border-rose-100">
+          <AlertTriangle className="w-8 h-8" />
+        </div>
+        <h2 className="text-lg font-black text-slate-800">Akses Terbatas: Input Capaian PK</h2>
+        <p className="text-xs text-slate-500 leading-relaxed max-w-md mx-auto">
+          Menu <strong>Input Capaian PK</strong> hanya dapat diakses oleh <strong>Admin Bidang</strong>, <strong>Ketua Tim/Bidang</strong>, <strong>Kepala Satker (Kasatker)</strong>, dan <strong>Superadmin</strong>.
+        </p>
+        <p className="text-[11px] text-slate-400 font-mono">
+          Akun Anda: {currentUser.name} ({userLoginRole || currentUser.role} - {userDivision || 'Umum'})
+        </p>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       {/* Header Panel */}
@@ -617,7 +676,11 @@ export default function InputCapaianPKView({
                 <div>
                   <p className="text-xs font-bold leading-tight">{currentUser.name}</p>
                   <p className="text-[9px] font-semibold text-indigo-300 font-mono mt-0.5">
-                    {currentUser.role === 'Superadmin' ? 'SUPERADMIN ACCESS' : `DIVISI ${currentUser.division || 'OPERASIONAL'}`}
+                    {currentUser.role === 'Superadmin' 
+                      ? 'SUPERADMIN ACCESS' 
+                      : currentUser.role === 'Kepala'
+                      ? 'KEPALA SATKER ACCESS'
+                      : `DIVISI ${userDivision || currentUser.division || 'OPERASIONAL'}`}
                   </p>
                 </div>
               </div>
@@ -633,7 +696,7 @@ export default function InputCapaianPKView({
             <UserCheck className="w-4 h-4 text-indigo-600" />
             <h3 className="text-xs font-black uppercase tracking-wider text-slate-700">Pilih Sasaran Perjanjian Kinerja Level 2</h3>
           </div>
-          <p className="text-[11px] text-slate-400">Sebagai administrator/kepala stasiun, Anda memiliki izin istimewa untuk mengedit capaian bulanan semua divisi.</p>
+          <p className="text-[11px] text-slate-400">Sebagai administrator/kepala stasiun (Kasatker), Anda memiliki izin istimewa untuk melihat dan mengedit capaian bulanan seluruh bidang/bagian.</p>
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5 pt-1">
             {level2Options.map(opt => (
               <button
@@ -658,14 +721,14 @@ export default function InputCapaianPKView({
               <Award className="w-5 h-5" />
             </div>
             <div>
-              <p className="text-[10px] font-extrabold text-indigo-400 uppercase tracking-wider leading-none">Dokumen Terkait Anda</p>
+              <p className="text-[10px] font-extrabold text-indigo-400 uppercase tracking-wider leading-none">Dokumen Terkait Bidang Anda</p>
               <h4 className="text-xs font-bold text-indigo-900 mt-1">{selectedLevel}</h4>
-              <p className="text-[10px] text-indigo-600 mt-0.5">Sistem membatasi input ke wilayah wewenang divisi ({currentUser.division}) Anda.</p>
+              <p className="text-[10px] text-indigo-600 mt-0.5">Sistem membatasi input capaian PK khusus untuk bidang/bagian Anda ({userDivision || currentUser.division}).</p>
             </div>
           </div>
           <div className="shrink-0 text-right">
             <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-emerald-50 text-emerald-700 border border-emerald-100 rounded-full text-[10px] font-bold">
-              <CheckCircle className="w-3.5 h-3.5" /> STATUS: DOKUMEN AKTIF
+              <CheckCircle className="w-3.5 h-3.5" /> STATUS: DOKUMEN BIDANG AKTIF
             </span>
           </div>
         </div>

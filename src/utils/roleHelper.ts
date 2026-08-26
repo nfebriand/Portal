@@ -48,12 +48,21 @@ export function mapEmployeeToAppRole(emp?: Partial<Employee> | null): 'Kepala' |
   return 'Staff';
 }
 
+export function isTataUsahaDivision(division?: string | null): boolean {
+  if (!division) return false;
+  const d = division.toLowerCase().trim();
+  return d.includes('tata usaha') || d.includes('tu') || d === 'umum' || d.includes('tu / umum');
+}
+
 /**
  * Resolves precise granular role for kepegawaian permission matrix:
- * 1. 'Kepala Satker': dapat melihat rekapitulasi kepegawaian saja
- * 2. 'Kepala Bidang': dapat melihat menu rekapitulasi kepegawaian, mengedit pengaturan pegawai, melihat profil pegawai, tidak dapat menghapus pegawai, pelatihan, kompetensi
- * 3. 'Admin Bidang' / 'Superadmin': dapat melihat menu rekapitulasi kepegawaian, mengedit pengaturan pegawai, menghapus, mengedit dan menambah
- * 4. 'Staff': dapat melihat profil sendiri / data sendiri
+ * 1. 'Superadmin': akses penuh seluruh modul kepegawaian, penambahan, pengeditan, penghapusan, 40 JP
+ * 2. 'Kepala Satker': melihat rekapitulasi kepegawaian dan statistik kepatuhan 40 jam pelatihan SDM (read-only)
+ * 3. 'Admin Bidang': jika bidang Tata Usaha -> akses rekapitulasi, pengaturan pegawai (tambah, edit, hapus), dan 40 JP
+ * 4. 'Kepala Bidang': melihat statistik kepatuhan 40 jam pelatihan SDM, melihat & mengedit pegawai bidangnya (tanpa hapus). Jika Bidang TU, juga dapat melihat rekapitulasi kepegawaian
+ * 5. 'Staff':
+ *    - Jika Bidang Tata Usaha: dapat melihat Rekapitulasi Kepegawaian (read-only), namun tidak dapat melihat menu statistik 40 JP atau pengaturan database pegawai
+ *    - Jika Bidang Lain (Non-TU): hanya dapat melihat profil pegawai sendiri ('Profil Pegawai Saya')
  */
 export function resolveKepegawaianRole(
   currentUser?: { role?: string; loginRole?: string; id?: string; division?: string } | null,
@@ -67,10 +76,6 @@ export function resolveKepegawaianRole(
 
   if (loginRole.includes('super') || appRole.includes('super') || currentUser?.id === '1871102702910001' || currentUser?.id === 'superadmin') {
     return 'Superadmin';
-  }
-
-  if (loginRole.includes('admin') || jabatan.includes('admin')) {
-    return 'Admin Bidang';
   }
 
   if (
@@ -91,22 +96,27 @@ export function resolveKepegawaianRole(
     return 'Kepala Bidang';
   }
 
+  if (loginRole.includes('admin') || jabatan.includes('admin')) {
+    return 'Admin Bidang';
+  }
+
   return 'Staff';
 }
 
 export interface KepegawaianPermissions {
   resolvedRole: ResolvedRole;
-  canViewRekapitulasi: boolean;
-  canViewPengaturanTab: boolean;
-  canViewMatriksTab: boolean;
-  canViewAllEmployees: boolean; // false for Staff (only own profile)
-  canAddEmployee: boolean;      // Admin Bidang & Superadmin only
-  canEditEmployee: boolean;     // Kepala Bidang, Admin Bidang & Superadmin
-  canDeleteEmployee: boolean;   // Admin Bidang & Superadmin only (Kepala Bidang cannot delete)
-  canDeleteTraining: boolean;   // Admin Bidang & Superadmin only (Kepala Bidang cannot delete)
-  canDeleteCompetency: boolean; // Admin Bidang & Superadmin only (Kepala Bidang cannot delete)
-  canDeleteEducation: boolean;  // Admin Bidang & Superadmin only (Kepala Bidang cannot delete)
-  canViewProfile: boolean;      // All roles
+  isTataUsaha: boolean;
+  canViewRekapitulasi: boolean; // Akses menu Rekapitulasi Kepegawaian & Kinerja SDM
+  canViewPengaturanTab: boolean; // Akses tab Pengaturan/Database Pegawai
+  canViewMatriksTab: boolean;    // Akses menu/tab Statistik Kepatuhan Pelatihan 40 Jam SDM
+  canViewAllEmployees: boolean;  // false untuk Staff Non-TU (hanya profil sendiri)
+  canAddEmployee: boolean;       // Admin Bidang TU & Superadmin
+  canEditEmployee: boolean;      // Admin Bidang TU, Superadmin, & Ketua Bidang
+  canDeleteEmployee: boolean;    // Admin Bidang TU & Superadmin
+  canDeleteTraining: boolean;    // Admin Bidang TU & Superadmin
+  canDeleteCompetency: boolean;  // Admin Bidang TU & Superadmin
+  canDeleteEducation: boolean;   // Admin Bidang TU & Superadmin
+  canViewProfile: boolean;       // Semua role
 }
 
 export function getKepegawaianPermissions(
@@ -114,14 +124,18 @@ export function getKepegawaianPermissions(
   employeeRecord?: Partial<Employee> | null
 ): KepegawaianPermissions {
   const role = resolveKepegawaianRole(currentUser, employeeRecord);
+  const division = currentUser?.division || employeeRecord?.divisi || '';
+  const isTU = isTataUsahaDivision(division);
 
   switch (role) {
     case 'Kepala Satker':
       return {
         resolvedRole: 'Kepala Satker',
+        isTataUsaha: isTU,
+        // Kasatker dapat melihat Rekapitulasi Kepegawaian & Statistik Kepatuhan 40 Jam SDM
         canViewRekapitulasi: true,
         canViewPengaturanTab: false,
-        canViewMatriksTab: false,
+        canViewMatriksTab: true, // Hak akses statistik kepatuhan 40 jam pelatihan SDM
         canViewAllEmployees: true,
         canAddEmployee: false,
         canEditEmployee: false,
@@ -132,26 +146,10 @@ export function getKepegawaianPermissions(
         canViewProfile: true, // Read-only view in drawer
       };
 
-    case 'Kepala Bidang':
-      return {
-        resolvedRole: 'Kepala Bidang',
-        canViewRekapitulasi: true,
-        canViewPengaturanTab: true,
-        canViewMatriksTab: true,
-        canViewAllEmployees: true,
-        canAddEmployee: false, // Only edit existing
-        canEditEmployee: true,
-        canDeleteEmployee: false,   // Strictly forbidden to delete
-        canDeleteTraining: false,   // Strictly forbidden to delete
-        canDeleteCompetency: false, // Strictly forbidden to delete
-        canDeleteEducation: false,  // Strictly forbidden to delete
-        canViewProfile: true,
-      };
-
-    case 'Admin Bidang':
     case 'Superadmin':
       return {
-        resolvedRole: role,
+        resolvedRole: 'Superadmin',
+        isTataUsaha: isTU,
         canViewRekapitulasi: true,
         canViewPengaturanTab: true,
         canViewMatriksTab: true,
@@ -165,22 +163,98 @@ export function getKepegawaianPermissions(
         canViewProfile: true,
       };
 
-    case 'Staff':
-    default:
+    case 'Admin Bidang':
+      if (isTU) {
+        // Admin Bidang Tata Usaha: Akses penuh Rekapitulasi, Pengaturan, & 40 JP
+        return {
+          resolvedRole: 'Admin Bidang',
+          isTataUsaha: true,
+          canViewRekapitulasi: true,
+          canViewPengaturanTab: true,
+          canViewMatriksTab: true, // Admin Bidang TU dapat melihat statistik 40 jam
+          canViewAllEmployees: true,
+          canAddEmployee: true,
+          canEditEmployee: true,
+          canDeleteEmployee: true,
+          canDeleteTraining: true,
+          canDeleteCompetency: true,
+          canDeleteEducation: true,
+          canViewProfile: true,
+        };
+      } else {
+        // Admin Bidang Non-TU: Tidak dapat akses Rekapitulasi & 40 JP statistik
+        return {
+          resolvedRole: 'Admin Bidang',
+          isTataUsaha: false,
+          canViewRekapitulasi: false,
+          canViewPengaturanTab: true,
+          canViewMatriksTab: false, // Hanya admin TU, kasatker, superadmin, ketua bidang
+          canViewAllEmployees: true,
+          canAddEmployee: false,
+          canEditEmployee: true,
+          canDeleteEmployee: false,
+          canDeleteTraining: false,
+          canDeleteCompetency: false,
+          canDeleteEducation: false,
+          canViewProfile: true,
+        };
+      }
+
+    case 'Kepala Bidang':
+      // Ketua Bidang: Dapat melihat statistik 40 jam SDM & mengedit data pegawainya
       return {
-        resolvedRole: 'Staff',
-        canViewRekapitulasi: false,
-        canViewPengaturanTab: false,
-        canViewMatriksTab: false,
-        canViewAllEmployees: false, // Only sees self
+        resolvedRole: 'Kepala Bidang',
+        isTataUsaha: isTU,
+        canViewRekapitulasi: isTU, // Rekapitulasi khusus untuk Bidang Tata Usaha, Kasatker & Superadmin
+        canViewPengaturanTab: true,
+        canViewMatriksTab: true, // Seluruh Ketua Bidang berhak melihat statistik kepatuhan 40 JP
+        canViewAllEmployees: true,
         canAddEmployee: false,
-        canEditEmployee: false,
+        canEditEmployee: true,
         canDeleteEmployee: false,
         canDeleteTraining: false,
         canDeleteCompetency: false,
         canDeleteEducation: false,
         canViewProfile: true,
       };
+
+    case 'Staff':
+    default:
+      if (isTU) {
+        // Staff Tata Usaha: Dapat melihat Rekapitulasi Kepegawaian (read-only), namun tidak dapat melihat menu statistik 40 JP
+        return {
+          resolvedRole: 'Staff',
+          isTataUsaha: true,
+          canViewRekapitulasi: true, // Staff TU memiliki akses rekapitulasi kepegawaian
+          canViewPengaturanTab: false,
+          canViewMatriksTab: false, // Staff biasa TIDAK bisa melihat menu statistik kepatuhan 40 jam
+          canViewAllEmployees: true,
+          canAddEmployee: false,
+          canEditEmployee: false,
+          canDeleteEmployee: false,
+          canDeleteTraining: false,
+          canDeleteCompetency: false,
+          canDeleteEducation: false,
+          canViewProfile: true,
+        };
+      } else {
+        // Staff Non-TU: Tidak memiliki akses ke Rekapitulasi Kepegawaian maupun Statistik 40 JP (hanya Profil Saya)
+        return {
+          resolvedRole: 'Staff',
+          isTataUsaha: false,
+          canViewRekapitulasi: false, // Staff lain tidak diberikan akses rekapitulasi
+          canViewPengaturanTab: false,
+          canViewMatriksTab: false, // Staff biasa TIDAK bisa melihat menu statistik kepatuhan 40 jam
+          canViewAllEmployees: false, // Hanya profil sendiri
+          canAddEmployee: false,
+          canEditEmployee: false,
+          canDeleteEmployee: false,
+          canDeleteTraining: false,
+          canDeleteCompetency: false,
+          canDeleteEducation: false,
+          canViewProfile: true,
+        };
+      }
   }
 }
 

@@ -20,6 +20,8 @@ export interface TrainingHistory {
   status: 'Lulus' | 'Selesai' | 'Sedang Berjalan';
   kategori?: 'Teknis' | 'Manajerial' | 'Fungsional' | 'Sosial Kultural' | 'Digital & IT';
   jenisPerhitungan?: 'JP' | 'Non JP'; // Opsi JP / Non JP: jika JP maka dihitung dalam kewajiban 40 jam/tahun
+  fileSertifikat?: string; // Foto / Berkas Sertifikat (Base64 Data URL)
+  linkSertifikat?: string; // Tautan Dokumen / Google Drive Eviden Sertifikat
 }
 
 export interface EmployeeCompetency {

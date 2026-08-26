@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Employee } from '../types';
 import RekapitulasiKepegawaian from './kepegawaian/RekapitulasiKepegawaian';
 import EmployeeModalForm from './kepegawaian/EmployeeModalForm';
@@ -71,9 +71,30 @@ export default function EmployeeAdminView({
     return getKepegawaianPermissions(currentUser, currentEmployeeRecord);
   }, [currentUser, currentEmployeeRecord]);
 
+  // Resolve default active sub menu based on RBAC permissions
+  const defaultSubMenu = useMemo(() => {
+    if (permissions.canViewRekapitulasi) return 'rekapitulasi';
+    if (permissions.canViewMatriksTab) return 'pelatihan40jam';
+    if (permissions.canViewPengaturanTab) return 'pengaturan';
+    return 'rekapitulasi';
+  }, [permissions]);
+
   // 1. Primary Navigation Sub-menu: 'rekapitulasi' | 'pengaturan' | 'pelatihan40jam'
-  // Default is 'rekapitulasi'
-  const [activeSubMenu, setActiveSubMenu] = useState<'rekapitulasi' | 'pengaturan' | 'pelatihan40jam'>('rekapitulasi');
+  const [activeSubMenu, setActiveSubMenu] = useState<'rekapitulasi' | 'pengaturan' | 'pelatihan40jam'>(defaultSubMenu);
+
+  // Sync activeSubMenu if permissions change
+  useEffect(() => {
+    if (activeSubMenu === 'rekapitulasi' && !permissions.canViewRekapitulasi) {
+      if (permissions.canViewMatriksTab) setActiveSubMenu('pelatihan40jam');
+      else if (permissions.canViewPengaturanTab) setActiveSubMenu('pengaturan');
+    } else if (activeSubMenu === 'pelatihan40jam' && !permissions.canViewMatriksTab) {
+      if (permissions.canViewRekapitulasi) setActiveSubMenu('rekapitulasi');
+      else if (permissions.canViewPengaturanTab) setActiveSubMenu('pengaturan');
+    } else if (activeSubMenu === 'pengaturan' && !permissions.canViewPengaturanTab) {
+      if (permissions.canViewRekapitulasi) setActiveSubMenu('rekapitulasi');
+      else if (permissions.canViewMatriksTab) setActiveSubMenu('pelatihan40jam');
+    }
+  }, [permissions, activeSubMenu]);
 
   // Pagination States for Pengaturan Table
   const [employeeListPage, setEmployeeListPage] = useState(1);
@@ -207,9 +228,9 @@ export default function EmployeeAdminView({
     }
   };
 
-  // SPECIAL CASE: ROLE STAFF
-  // Role Staff: Dapat melihat profil sendiri / data sendiri
-  if (permissions.resolvedRole === 'Staff') {
+  // SPECIAL CASE: ROLE STAFF Non-TU (Only sees own profile)
+  // Staff Tata Usaha can view RekapitulasiKepegawaian. Staff non-TU only sees StaffPersonalProfileView.
+  if (permissions.resolvedRole === 'Staff' && !permissions.canViewRekapitulasi) {
     const staffTargetEmp = currentEmployeeRecord || employees[0] || {
       id: currentUser?.id || 'staff-1',
       nik: currentUser?.id || '1871000000000000',
@@ -247,7 +268,7 @@ export default function EmployeeAdminView({
             </span>
             <span className="inline-flex items-center gap-1 text-[10px] font-bold text-slate-700 bg-slate-100 px-2 py-0.5 rounded-md font-mono border border-slate-200">
               <ShieldCheck className="w-3 h-3 text-indigo-600" />
-              AKSES: {permissions.resolvedRole.toUpperCase()}
+              AKSES: {permissions.resolvedRole.toUpperCase()} {permissions.isTataUsaha ? '(TU)' : ''}
             </span>
           </div>
           <h2 className="text-xl font-black text-slate-900 mt-1">
@@ -264,20 +285,22 @@ export default function EmployeeAdminView({
 
         {/* Sub-Navigation Buttons */}
         <div className="flex items-center gap-1.5 bg-slate-100 p-1.5 rounded-2xl border border-slate-200 self-stretch sm:self-auto overflow-x-auto">
-          {/* Tab 1: Rekapitulasi (Always visible to Kepala Satker, Kepala Bidang, Admin Bidang, Superadmin) */}
-          <button
-            onClick={() => setActiveSubMenu('rekapitulasi')}
-            className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold transition-all shrink-0 cursor-pointer ${
-              activeSubMenu === 'rekapitulasi'
-                ? 'bg-white text-indigo-700 shadow-xs font-black'
-                : 'text-slate-600 hover:text-slate-900'
-            }`}
-          >
-            <BarChart3 className="w-4 h-4 text-indigo-600" />
-            <span>Rekapitulasi Kepegawaian</span>
-          </button>
+          {/* Tab 1: Rekapitulasi (Visible to Superadmin, Kasatker, & Bidang Tata Usaha) */}
+          {permissions.canViewRekapitulasi && (
+            <button
+              onClick={() => setActiveSubMenu('rekapitulasi')}
+              className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold transition-all shrink-0 cursor-pointer ${
+                activeSubMenu === 'rekapitulasi'
+                  ? 'bg-white text-indigo-700 shadow-xs font-black'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              <BarChart3 className="w-4 h-4 text-indigo-600" />
+              <span>Rekapitulasi Kepegawaian</span>
+            </button>
+          )}
 
-          {/* Tab 2: Pengaturan Pegawai (Hidden for Kepala Satker, Visible for Kepala Bidang, Admin Bidang, Superadmin) */}
+          {/* Tab 2: Pengaturan Pegawai (Visible for Kepala Bidang, Admin Bidang TU, Superadmin) */}
           {permissions.canViewPengaturanTab && (
             <button
               onClick={() => setActiveSubMenu('pengaturan')}
@@ -292,7 +315,7 @@ export default function EmployeeAdminView({
             </button>
           )}
 
-          {/* Tab 3: Kepatuhan Pelatihan 40 Jam (Hidden for Kepala Satker, Visible for Kepala Bidang, Admin Bidang, Superadmin) */}
+          {/* Tab 3: Kepatuhan Pelatihan 40 Jam (Visible to Kasatker, Admin Bidang TU, Superadmin, and all Ketua Bidang) */}
           {permissions.canViewMatriksTab && (
             <button
               onClick={() => setActiveSubMenu('pelatihan40jam')}
@@ -309,8 +332,8 @@ export default function EmployeeAdminView({
         </div>
       </div>
 
-      {/* VIEW 1: REKAPITULASI KEPEGAWAIAN (DEFAULT VIEW) */}
-      {(activeSubMenu === 'rekapitulasi' || !permissions.canViewPengaturanTab) && (
+      {/* VIEW 1: REKAPITULASI KEPEGAWAIAN */}
+      {activeSubMenu === 'rekapitulasi' && permissions.canViewRekapitulasi && (
         <RekapitulasiKepegawaian
           employees={employees}
           onSelectEmployee={(emp) => setSelectedDrawerEmp(emp)}
@@ -320,6 +343,9 @@ export default function EmployeeAdminView({
               setActiveSubMenu('pengaturan');
             }
           }}
+          canAddEmployee={permissions.canAddEmployee}
+          canViewPengaturanTab={permissions.canViewPengaturanTab}
+          canViewPelatihan40Jam={permissions.canViewMatriksTab}
         />
       )}
 

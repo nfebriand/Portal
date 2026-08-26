@@ -29,7 +29,12 @@ import {
   MapPin, 
   Heart,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  Upload,
+  Link,
+  FileText,
+  ExternalLink,
+  Image as ImageIcon
 } from 'lucide-react';
 
 interface EmployeeModalFormProps {
@@ -101,6 +106,9 @@ export default function EmployeeModalForm({
   const [newTrStatus, setNewTrStatus] = useState<TrainingHistory['status']>('Selesai');
   const [newTrKategori, setNewTrKategori] = useState<TrainingHistory['kategori']>('Teknis');
   const [newTrJenisPerhitungan, setNewTrJenisPerhitungan] = useState<'JP' | 'Non JP'>('JP');
+  const [newTrFileSertifikat, setNewTrFileSertifikat] = useState<string>('');
+  const [newTrLinkSertifikat, setNewTrLinkSertifikat] = useState<string>('');
+  const [newTrFileName, setNewTrFileName] = useState<string>('');
   const [showAddTrForm, setShowAddTrForm] = useState(false);
 
   // Tab 4: Kompetensi
@@ -287,6 +295,23 @@ export default function EmployeeModalForm({
     setRiwayatPendidikan(riwayatPendidikan.filter(e => e.id !== id));
   };
 
+  // File change handler for certificate evidence
+  const handleTrFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 5 * 1024 * 1024) {
+        alert('Ukuran berkas maksimal 5MB.');
+        return;
+      }
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setNewTrFileSertifikat(reader.result as string);
+        setNewTrFileName(file.name);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
   // Add Training Handler
   const handleAddTraining = () => {
     if (!newTrNama.trim() || !newTrPenyelenggara.trim()) {
@@ -304,7 +329,9 @@ export default function EmployeeModalForm({
       nomorSertifikat: newTrNoSertifikat,
       status: newTrStatus,
       kategori: newTrKategori,
-      jenisPerhitungan: newTrJenisPerhitungan
+      jenisPerhitungan: newTrJenisPerhitungan,
+      fileSertifikat: newTrFileSertifikat || undefined,
+      linkSertifikat: newTrLinkSertifikat || undefined
     };
     setRiwayatPelatihan([...riwayatPelatihan, newTr]);
     setNewTrNama('');
@@ -314,6 +341,9 @@ export default function EmployeeModalForm({
     setNewTrDurasiJam(20);
     setNewTrNoSertifikat('');
     setNewTrJenisPerhitungan('JP');
+    setNewTrFileSertifikat('');
+    setNewTrLinkSertifikat('');
+    setNewTrFileName('');
     setShowAddTrForm(false);
   };
 
@@ -1034,6 +1064,55 @@ export default function EmployeeModalForm({
                     </div>
                   </div>
 
+                  {/* Eviden Sertifikat (Upload Foto / File & Link Eviden) */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3 bg-indigo-50/50 border border-indigo-100 rounded-xl">
+                    {/* 1. Upload File / Foto */}
+                    <div>
+                      <label className="text-[10px] font-bold text-indigo-900 flex items-center gap-1 mb-1">
+                        <Upload className="w-3 h-3 text-indigo-600" />
+                        Upload Foto / Berkas Sertifikat (Maks. 5MB)
+                      </label>
+                      <div className="space-y-1.5">
+                        <input
+                          type="file"
+                          accept="image/*,application/pdf"
+                          onChange={handleTrFileChange}
+                          className="w-full text-[11px] text-slate-500 file:mr-2 file:py-1 file:px-2.5 file:rounded-lg file:border-0 file:text-[10px] file:font-bold file:bg-indigo-600 file:text-white hover:file:bg-indigo-700 cursor-pointer"
+                        />
+                        {newTrFileName && (
+                          <div className="flex items-center justify-between text-[10px] bg-white px-2 py-1 rounded border border-indigo-200 text-indigo-800">
+                            <span className="truncate max-w-[200px]">📎 {newTrFileName}</span>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setNewTrFileSertifikat('');
+                                setNewTrFileName('');
+                              }}
+                              className="text-rose-500 font-bold hover:underline ml-2"
+                            >
+                              Hapus
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* 2. Link Eviden Dokumen */}
+                    <div>
+                      <label className="text-[10px] font-bold text-indigo-900 flex items-center gap-1 mb-1">
+                        <Link className="w-3 h-3 text-indigo-600" />
+                        Link Eviden (Google Drive / Cloud URL)
+                      </label>
+                      <input
+                        type="url"
+                        value={newTrLinkSertifikat}
+                        onChange={(e) => setNewTrLinkSertifikat(e.target.value)}
+                        placeholder="https://drive.google.com/..."
+                        className="w-full bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs text-slate-800 focus:outline-hidden focus:border-indigo-600"
+                      />
+                    </div>
+                  </div>
+
                   <div className="flex justify-end gap-2 pt-2">
                     <button
                       type="button"
@@ -1067,7 +1146,7 @@ export default function EmployeeModalForm({
                         key={tr.id}
                         className="p-3.5 bg-white border border-slate-200 rounded-2xl flex justify-between items-center shadow-2xs"
                       >
-                        <div className="space-y-1">
+                        <div className="space-y-1 flex-1 pr-3">
                           <div className="flex items-center gap-2 flex-wrap">
                             <span className="font-bold text-slate-800 text-xs">{tr.namaPelatihan}</span>
                             {isJP ? (
@@ -1091,13 +1170,41 @@ export default function EmployeeModalForm({
                               No. Sertifikat: {tr.nomorSertifikat}
                             </p>
                           )}
+
+                          {/* Eviden Sertifikat Link / Foto Badge */}
+                          {(tr.fileSertifikat || tr.linkSertifikat) && (
+                            <div className="flex items-center gap-2 pt-1 flex-wrap">
+                              {tr.fileSertifikat && (
+                                <a
+                                  href={tr.fileSertifikat}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-700 border border-emerald-200 text-[10px] font-bold hover:bg-emerald-100 transition-colors"
+                                >
+                                  <ImageIcon className="w-3 h-3" />
+                                  <span>Lihat Foto/Berkas Eviden</span>
+                                </a>
+                              )}
+                              {tr.linkSertifikat && (
+                                <a
+                                  href={tr.linkSertifikat}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-sky-50 text-sky-700 border border-sky-200 text-[10px] font-bold hover:bg-sky-100 transition-colors"
+                                >
+                                  <ExternalLink className="w-3 h-3" />
+                                  <span>Tautan Eviden</span>
+                                </a>
+                              )}
+                            </div>
+                          )}
                         </div>
 
                         {canDelete && (
                           <button
                             type="button"
                             onClick={() => handleDeleteTraining(tr.id)}
-                            className="p-2 text-rose-500 hover:bg-rose-50 rounded-xl transition-colors cursor-pointer"
+                            className="p-2 text-rose-500 hover:bg-rose-50 rounded-xl transition-colors cursor-pointer shrink-0"
                             title="Hapus"
                           >
                             <Trash2 className="w-4 h-4" />

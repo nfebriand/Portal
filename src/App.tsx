@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Employee, AppSettings, InstitutionalIdentity, CriticalNotification, PerformanceAgreement, CooperationContract, ReporterTarget, NewsReport } from './types';
 import { syncNewsAchievements } from './utils/syncNewsAchievements';
 import { syncCompetencyAchievements, isCompetencyIndicator } from './utils/syncCompetencyAchievements';
-import { mapEmployeeToAppRole } from './utils/roleHelper';
+import { mapEmployeeToAppRole, isTataUsahaDivision } from './utils/roleHelper';
 import DashboardView from './components/DashboardView';
 import EmployeeAdminView from './components/EmployeeAdminView';
 import AppAdminView from './components/AppAdminView';
@@ -1500,6 +1500,25 @@ export default function App() {
     );
   }
 
+  // Access control for "Input Capaian PK": Accessible by Admin Bidang, Ketua Bidang/Tim, Kasatker, and Superadmin
+  const currentEmpRecord = employees.find(e => e.id === currentUser.id || e.nip === currentUser.id || e.nik === currentUser.id);
+  const currentLoginRole = (currentUser as any).loginRole || currentEmpRecord?.loginRole;
+  const currentJabatan = ((currentUser as any).jabatan || currentEmpRecord?.jabatan || '').toLowerCase();
+  
+  const canAccessInputCapaianPK = 
+    currentUser.role === 'Superadmin' || 
+    currentUser.role === 'Kepala' || 
+    currentUser.role === 'Ketua Bidang' ||
+    currentLoginRole === 'Super Admin' ||
+    currentLoginRole === 'Kepala Satker' ||
+    currentLoginRole === 'Ketua Tim' ||
+    currentLoginRole === 'Admin Tim' ||
+    currentJabatan.includes('admin') ||
+    currentJabatan.includes('ketua') ||
+    currentJabatan.includes('kepala') ||
+    currentJabatan.includes('pengelola') ||
+    currentUser.isEditor;
+
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col md:flex-row text-slate-800 font-sans antialiased">
       
@@ -1574,9 +1593,11 @@ export default function App() {
             <span>
               {currentUser.role === 'Kepala' 
                 ? 'Rekapitulasi Kepegawaian' 
+                : isTataUsahaDivision(currentUser.division)
+                ? 'Administrasi Kepegawaian'
                 : currentUser.role === 'Staff' 
                 ? 'Profil Pegawai Saya' 
-                : 'Administrasi Kepegawaian'}
+                : 'Kepegawaian & Pelatihan SDM'}
             </span>
           </button>
 
@@ -1595,8 +1616,8 @@ export default function App() {
             </button>
           )}
 
-          {/* Input Capaian PK (Superadmin, Kepala, or Ketua Bidang) */}
-          {(currentUser.role === 'Superadmin' || currentUser.role === 'Kepala' || currentUser.role === 'Ketua Bidang') && (
+          {/* Input Capaian PK (Admin Bidang, Ketua Bidang/Tim, Kasatker, Superadmin) */}
+          {canAccessInputCapaianPK && (
             <button
               onClick={() => setActiveTab('input-capaian-pk')}
               className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-semibold tracking-wide transition-all ${
@@ -1741,9 +1762,11 @@ export default function App() {
             <span>
               {currentUser.role === 'Kepala' 
                 ? 'Rekapitulasi Kepegawaian' 
+                : isTataUsahaDivision(currentUser.division)
+                ? 'Administrasi Kepegawaian'
                 : currentUser.role === 'Staff' 
                 ? 'Profil Pegawai Saya' 
-                : 'Administrasi Kepegawaian'}
+                : 'Kepegawaian & Pelatihan SDM'}
             </span>
           </button>
 
@@ -1760,8 +1783,8 @@ export default function App() {
             </button>
           )}
 
-          {/* Input Capaian PK (Superadmin, Kepala, or Ketua Bidang) */}
-          {(currentUser.role === 'Superadmin' || currentUser.role === 'Kepala' || currentUser.role === 'Ketua Bidang') && (
+          {/* Input Capaian PK (Admin Bidang, Ketua Bidang/Tim, Kasatker, Superadmin) */}
+          {canAccessInputCapaianPK && (
             <button
               onClick={() => { setActiveTab('input-capaian-pk'); setIsMobileMenuOpen(false); }}
               className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-semibold tracking-wide transition-colors ${

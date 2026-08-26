@@ -19,7 +19,9 @@ import {
   AlertCircle,
   ChevronLeft,
   ChevronRight,
-  Sparkles
+  Sparkles,
+  ExternalLink,
+  Image as ImageIcon
 } from 'lucide-react';
 
 interface StaffPersonalProfileViewProps {
@@ -367,6 +369,32 @@ export default function StaffPersonalProfileView({ employee }: StaffPersonalProf
                           <p className="text-[10px] text-slate-400 font-mono">
                             No. Sertifikat: {tr.nomorSertifikat}
                           </p>
+                        )}
+                        {(tr.fileSertifikat || tr.linkSertifikat) && (
+                          <div className="flex items-center gap-2 pt-1.5 flex-wrap">
+                            {tr.fileSertifikat && (
+                              <a
+                                href={tr.fileSertifikat}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-700 border border-emerald-200 text-[10px] font-bold hover:bg-emerald-100 transition-colors"
+                              >
+                                <ImageIcon className="w-3 h-3" />
+                                <span>Lihat Foto/Berkas Sertifikat</span>
+                              </a>
+                            )}
+                            {tr.linkSertifikat && (
+                              <a
+                                href={tr.linkSertifikat}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-sky-50 text-sky-700 border border-sky-200 text-[10px] font-bold hover:bg-sky-100 transition-colors"
+                              >
+                                <ExternalLink className="w-3 h-3" />
+                                <span>Tautan Dokumen Sertifikat</span>
+                              </a>
+                            )}
+                          </div>
                         )}
                       </div>
                     </div>
