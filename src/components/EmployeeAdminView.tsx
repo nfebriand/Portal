@@ -5,7 +5,7 @@ import EmployeeModalForm from './kepegawaian/EmployeeModalForm';
 import EmployeeDetailDrawer from './kepegawaian/EmployeeDetailDrawer';
 import StaffPersonalProfileView from './kepegawaian/StaffPersonalProfileView';
 import { computeEmployeeAnnualTrainings, formatIndonesianDate } from './kepegawaian/PelatihanTahunanTracker';
-import { getKepegawaianPermissions } from '../utils/roleHelper';
+import { getKepegawaianPermissions, getInitials, getAvatarColor } from '../utils/roleHelper';
 import { 
   BarChart3, 
   Users, 
@@ -482,9 +482,14 @@ export default function EmployeeAdminView({
                         {/* Nama & NIP */}
                         <td className="px-4 py-3">
                           <div className="flex items-center gap-2.5">
-                            <div className="w-7 h-7 rounded-lg bg-indigo-100 text-indigo-700 font-black text-xs flex items-center justify-center border border-indigo-200 shrink-0">
-                              {emp.nama.charAt(0)}
-                            </div>
+                            {(() => {
+                              const pal = getAvatarColor(emp.nama);
+                              return (
+                                <div className={`w-7 h-7 rounded-lg ${pal.bg} ${pal.text} ${pal.border} border font-black text-xs flex items-center justify-center shrink-0 shadow-2xs`}>
+                                  {getInitials(emp.nama)}
+                                </div>
+                              );
+                            })()}
                             <div>
                               <p className="font-bold text-slate-900 text-xs">{formatFullName(emp)}</p>
                               <p className="text-[10px] text-slate-400 font-mono">NIP: {emp.nip || '-'}</p>

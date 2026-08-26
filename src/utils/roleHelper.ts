@@ -266,3 +266,50 @@ export function normalizeCredential(input?: string | null): string {
   return input.trim().toLowerCase().replace(/[\s.-]/g, '');
 }
 
+/**
+ * Extracts clean uppercase 2-letter initials from employee / user name
+ */
+export function getInitials(name?: string | null): string {
+  if (!name) return 'PG';
+  // Remove academic / formal titles prefixes and suffixes if any
+  const cleaned = name
+    .replace(/\b(Drs\.|Dr\.|Dra\.|Ir\.|H\.|Hj\.|Prof\.|S\.Kom|M\.Kom|S\.T|M\.T|S\.E|M\.M|S\.Sos|M\.Si|S\.I\.Kom|A\.Md|M\.P|S\.Pd|M\.Pd)\b/gi, '')
+    .replace(/[^a-zA-Z\s]/g, '')
+    .trim();
+
+  const parts = cleaned.split(/\s+/).filter(Boolean);
+  if (parts.length === 0) {
+    const rawParts = name.trim().split(/\s+/).filter(Boolean);
+    if (rawParts.length === 0) return 'PG';
+    if (rawParts.length === 1) return rawParts[0].slice(0, 2).toUpperCase();
+    return (rawParts[0][0] + rawParts[rawParts.length - 1][0]).toUpperCase();
+  }
+  if (parts.length === 1) {
+    return parts[0].slice(0, 2).toUpperCase();
+  }
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+}
+
+/**
+ * Returns a consistent stylish color palette class based on a string name
+ */
+export function getAvatarColor(name?: string | null): { bg: string; text: string; border: string } {
+  const palettes = [
+    { bg: 'bg-indigo-100', text: 'text-indigo-700', border: 'border-indigo-200' },
+    { bg: 'bg-sky-100', text: 'text-sky-700', border: 'border-sky-200' },
+    { bg: 'bg-emerald-100', text: 'text-emerald-700', border: 'border-emerald-200' },
+    { bg: 'bg-violet-100', text: 'text-violet-700', border: 'border-violet-200' },
+    { bg: 'bg-amber-100', text: 'text-amber-700', border: 'border-amber-200' },
+    { bg: 'bg-teal-100', text: 'text-teal-700', border: 'border-teal-200' },
+    { bg: 'bg-rose-100', text: 'text-rose-700', border: 'border-rose-200' },
+    { bg: 'bg-blue-100', text: 'text-blue-700', border: 'border-blue-200' },
+  ];
+  if (!name) return palettes[0];
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) {
+    hash = name.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  const index = Math.abs(hash) % palettes.length;
+  return palettes[index];
+}
+

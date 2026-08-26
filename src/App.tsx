@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Employee, AppSettings, InstitutionalIdentity, CriticalNotification, PerformanceAgreement, CooperationContract, ReporterTarget, NewsReport } from './types';
 import { syncNewsAchievements } from './utils/syncNewsAchievements';
 import { syncCompetencyAchievements, isCompetencyIndicator } from './utils/syncCompetencyAchievements';
-import { mapEmployeeToAppRole, isTataUsahaDivision } from './utils/roleHelper';
+import { mapEmployeeToAppRole, isTataUsahaDivision, getInitials, getAvatarColor } from './utils/roleHelper';
 import DashboardView from './components/DashboardView';
 import EmployeeAdminView from './components/EmployeeAdminView';
 import AppAdminView from './components/AppAdminView';
@@ -88,7 +88,6 @@ const INITIAL_EMPLOYEES: Employee[] = [
       { id: 'comp-1', namaKompetensi: 'Manajemen Redaksi & Pemberitaan Penyiaran', kategori: 'Teknis', tingkatKemahiran: 'Ahli', sertifikasi: 'Sertifikasi Wartawan Utama - Dewan Pers', tahunPerolehan: 2021 },
       { id: 'comp-2', namaKompetensi: 'Kepemimpinan Strategis & Pengambilan Keputusan', kategori: 'Manajerial', tingkatKemahiran: 'Lanjutan' }
     ],
-    foto: 'https://images.unsplash.com/photo-1560250097-0b93528c311a?w=150&h=150&fit=crop&crop=faces',
     ttdElektronik: MOCK_TTD_1,
     createdAt: new Date().toISOString()
   },
@@ -126,7 +125,6 @@ const INITIAL_EMPLOYEES: Employee[] = [
       { id: 'comp-3', namaKompetensi: 'Strategi Distribusi Konten Multi-Platform', kategori: 'Digital & IT', tingkatKemahiran: 'Ahli', sertifikasi: 'Google Digital Marketing Certified', tahunPerolehan: 2023 },
       { id: 'comp-4', namaKompetensi: 'Audio Production & Podcast Engineering', kategori: 'Teknis', tingkatKemahiran: 'Lanjutan' }
     ],
-    foto: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150&h=150&fit=crop&crop=faces',
     ttdElektronik: MOCK_TTD_2,
     createdAt: new Date().toISOString()
   },
@@ -165,7 +163,6 @@ const INITIAL_EMPLOYEES: Employee[] = [
       { id: 'comp-5', namaKompetensi: 'Teknik Transmisi & Pemancar Frekuensi Radio', kategori: 'Teknis', tingkatKemahiran: 'Ahli', sertifikasi: 'Sertifikasi Insinyur Penyiaran Profesional (IPPI)', tahunPerolehan: 2020 },
       { id: 'comp-6', namaKompetensi: 'Infrastruktur Jaringan & Server Penyiaran', kategori: 'Digital & IT', tingkatKemahiran: 'Lanjutan' }
     ],
-    foto: 'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?w=150&h=150&fit=crop&crop=faces',
     ttdElektronik: MOCK_TTD_3,
     createdAt: new Date().toISOString()
   },
@@ -201,7 +198,6 @@ const INITIAL_EMPLOYEES: Employee[] = [
     kompetensi: [
       { id: 'comp-7', namaKompetensi: 'Penyusunan Laporan Keuangan SAKIP & SIMAK BMN', kategori: 'Teknis', tingkatKemahiran: 'Lanjutan', sertifikasi: 'Sertifikasi Bendahara Pengeluaran (BNSP)', tahunPerolehan: 2022 }
     ],
-    foto: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&h=150&fit=crop&crop=faces',
     ttdElektronik: MOCK_TTD_4,
     createdAt: new Date().toISOString()
   },
@@ -238,7 +234,6 @@ const INITIAL_EMPLOYEES: Employee[] = [
     kompetensi: [
       { id: 'comp-8', namaKompetensi: 'Negosiasi Kontrak Bisnis & Kemitraan Penyiaran', kategori: 'Teknis', tingkatKemahiran: 'Menengah' }
     ],
-    foto: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&h=150&fit=crop&crop=faces',
     ttdElektronik: MOCK_TTD_5,
     createdAt: new Date().toISOString()
   },
@@ -1538,18 +1533,14 @@ export default function App() {
 
         {/* User Profile Widget in Sidebar */}
         <div className="px-5 py-4 border-b border-slate-800/60 bg-slate-950/20 flex items-center gap-3">
-          {currentUser.photo ? (
-            <img 
-              src={currentUser.photo} 
-              alt={currentUser.name} 
-              className="w-10 h-10 rounded-full object-cover border-2 border-indigo-500/30 shadow-sm"
-              referrerPolicy="no-referrer"
-            />
-          ) : (
-            <div className="w-10 h-10 bg-indigo-600/20 text-indigo-300 rounded-full flex items-center justify-center font-bold text-xs border border-indigo-500/30">
-              {currentUser.name.substring(0, 2).toUpperCase()}
-            </div>
-          )}
+          {(() => {
+            const pal = getAvatarColor(currentUser.name);
+            return (
+              <div className={`w-10 h-10 rounded-xl ${pal.bg} ${pal.text} ${pal.border} border font-black text-sm flex items-center justify-center shrink-0 shadow-sm font-mono tracking-wider`}>
+                {getInitials(currentUser.name)}
+              </div>
+            );
+          })()}
           <div className="min-w-0 flex-1">
             <p className="text-xs font-bold text-slate-100 truncate">{currentUser.name}</p>
             <p className="text-[9px] font-bold text-indigo-400 tracking-wider font-mono uppercase truncate mt-0.5">
@@ -1874,13 +1865,14 @@ export default function App() {
           {/* User Profile & Quick Logout Button at the Top Workspace Header */}
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-2.5 px-3 py-1.5 bg-slate-50 border border-slate-200/80 rounded-xl">
-              {currentUser.photo ? (
-                <img src={currentUser.photo} alt={currentUser.name} className="w-6 h-6 rounded-full object-cover border border-slate-200" />
-              ) : (
-                <div className="w-6 h-6 rounded-full bg-indigo-100 text-indigo-700 font-black text-xs flex items-center justify-center border border-indigo-200">
-                  {currentUser.name.charAt(0)}
-                </div>
-              )}
+              {(() => {
+                const pal = getAvatarColor(currentUser.name);
+                return (
+                  <div className={`w-7 h-7 rounded-lg ${pal.bg} ${pal.text} ${pal.border} border font-black text-xs flex items-center justify-center shrink-0 shadow-2xs font-mono`}>
+                    {getInitials(currentUser.name)}
+                  </div>
+                );
+              })()}
               <div className="text-left hidden sm:block">
                 <span className="text-xs font-bold text-slate-800 block leading-none">{currentUser.name}</span>
                 <span className="text-[9px] font-semibold text-slate-400 font-mono block mt-0.5">{currentUser.role} {currentUser.division ? `• ${currentUser.division}` : ''}</span>

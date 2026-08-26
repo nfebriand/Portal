@@ -1,6 +1,7 @@
 import React from 'react';
 import { IndicatorTitleDisplay } from './IndicatorTitleDisplay';
 import { getGaugeColorByPercentage } from "../utils/colors";
+import { getInitials, getAvatarColor } from "../utils/roleHelper";
 import { useMemo, useState } from 'react';
 import { ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { Employee, PerformanceAgreement, CooperationContract, ReporterTarget, NewsReport, InstitutionalIdentity, AppSettings } from '../types';
@@ -801,12 +802,14 @@ export default function DashboardBidangView({
         <div className="flex flex-col md:flex-row gap-6 justify-between items-start md:items-center">
           <div className="flex items-center gap-4">
             <div className="relative">
-              <img
-                src={currentUser.photo || "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&h=150&fit=crop&crop=faces"}
-                alt={currentUser.name}
-                className="w-16 h-16 rounded-full object-cover border-2 border-indigo-400"
-                referrerPolicy="no-referrer"
-              />
+              {(() => {
+                const pal = getAvatarColor(currentUser.name);
+                return (
+                  <div className={`w-16 h-16 rounded-2xl ${pal.bg} ${pal.text} ${pal.border} border-2 font-black text-xl flex items-center justify-center shadow-lg font-mono tracking-wider shrink-0`}>
+                    {getInitials(currentUser.name)}
+                  </div>
+                );
+              })()}
               <span className="absolute bottom-0 right-0 w-4 h-4 bg-emerald-500 border-2 border-slate-900 rounded-full" />
             </div>
             <div className="space-y-1">

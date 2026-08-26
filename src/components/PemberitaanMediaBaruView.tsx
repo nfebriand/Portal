@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
+import { getInitials, getAvatarColor } from '../utils/roleHelper';
 import { 
   FileText, 
   Link2, 
@@ -1112,9 +1113,14 @@ export default function PemberitaanMediaBaruView({
                   <div className="space-y-2">
                     <span className="bg-indigo-100 text-indigo-700 font-extrabold text-[9px] font-mono px-2 py-0.5 rounded-full uppercase tracking-wider">Level 3: Reporter / Pegawai</span>
                     <div className="flex items-center gap-2.5 pt-1">
-                      <div className="w-9 h-9 rounded-full bg-white border border-indigo-200 overflow-hidden shrink-0">
-                        <img referrerPolicy="no-referrer" src={cascadingPath.reporter.foto} alt={cascadingPath.reporter.nama} className="w-full h-full object-cover" />
-                      </div>
+                      {(() => {
+                        const pal = getAvatarColor(cascadingPath.reporter.nama);
+                        return (
+                          <div className={`w-9 h-9 rounded-xl ${pal.bg} ${pal.text} ${pal.border} border font-black text-xs flex items-center justify-center shrink-0 shadow-2xs font-mono`}>
+                            {getInitials(cascadingPath.reporter.nama)}
+                          </div>
+                        );
+                      })()}
                       <div>
                         <h4 className="text-xs font-bold text-slate-700 leading-tight">{cascadingPath.reporter.nama}</h4>
                         <p className="text-[10px] text-slate-400 font-medium">{cascadingPath.reporter.divisi}</p>

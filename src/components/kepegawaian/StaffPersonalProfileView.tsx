@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { Employee } from '../../types';
 import PelatihanTahunanTracker, { computeEmployeeAnnualTrainings } from './PelatihanTahunanTracker';
+import { getInitials, getAvatarColor } from '../../utils/roleHelper';
 import { 
   User, 
   GraduationCap, 
@@ -86,17 +87,14 @@ export default function StaffPersonalProfileView({ employee }: StaffPersonalProf
       <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-2xs">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div className="flex items-start gap-4">
-            {employee.foto ? (
-              <img
-                src={employee.foto}
-                alt={employee.nama}
-                className="w-20 h-20 rounded-2xl object-cover border-2 border-indigo-200 shadow-md shrink-0"
-              />
-            ) : (
-              <div className="w-20 h-20 rounded-2xl bg-indigo-600 text-white font-black text-2xl flex items-center justify-center shadow-md shadow-indigo-600/20 shrink-0">
-                {employee.nama.charAt(0)}
-              </div>
-            )}
+            {(() => {
+              const pal = getAvatarColor(employee.nama);
+              return (
+                <div className={`w-20 h-20 rounded-2xl ${pal.bg} ${pal.text} ${pal.border} border-2 font-black text-2xl flex items-center justify-center shadow-md shadow-indigo-600/10 shrink-0 font-mono tracking-wider`}>
+                  {getInitials(employee.nama)}
+                </div>
+              );
+            })()}
 
             <div className="space-y-1.5">
               <div className="flex items-center gap-2 flex-wrap">

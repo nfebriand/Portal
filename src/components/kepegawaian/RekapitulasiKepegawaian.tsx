@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { Employee } from '../../types';
 import { computeEmployeeAnnualTrainings } from './PelatihanTahunanTracker';
+import { getInitials, getAvatarColor } from '../../utils/roleHelper';
 import { 
   Users, 
   Award, 
@@ -754,17 +755,14 @@ export default function RekapitulasiKepegawaian({
                       {/* Pegawai Info */}
                       <td className="py-3 px-4">
                         <div className="flex items-center gap-3">
-                          {emp.foto ? (
-                            <img 
-                              src={emp.foto} 
-                              alt={emp.nama} 
-                              className="w-8 h-8 rounded-full object-cover border border-slate-200 shrink-0" 
-                            />
-                          ) : (
-                            <div className="w-8 h-8 rounded-full bg-indigo-100 text-indigo-700 font-bold text-xs flex items-center justify-center border border-indigo-200 shrink-0">
-                              {emp.nama.charAt(0)}
-                            </div>
-                          )}
+                          {(() => {
+                            const pal = getAvatarColor(emp.nama);
+                            return (
+                              <div className={`w-8 h-8 rounded-xl ${pal.bg} ${pal.text} ${pal.border} border font-black text-xs flex items-center justify-center shrink-0 shadow-2xs`}>
+                                {getInitials(emp.nama)}
+                              </div>
+                            );
+                          })()}
                           <div className="min-w-0">
                             <p className="font-bold text-slate-900 leading-snug truncate">
                               {emp.gelarDepan ? `${emp.gelarDepan} ` : ''}

@@ -37,8 +37,7 @@ export default function LoginView({ employees, onLogin, namaInstansi, kepalaStas
         id: 'superadmin',
         name: 'Superadmin Portal',
         role: 'Superadmin',
-        division: 'Tata Usaha / Umum',
-        photo: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&h=150&fit=crop&crop=faces'
+        division: 'Tata Usaha / Umum'
       });
       return;
     }
@@ -54,8 +53,7 @@ export default function LoginView({ employees, onLogin, namaInstansi, kepalaStas
       onLogin({
         id: 'kepala',
         name: kepalaStasiunNama || 'Drs. H. Mulyadi Kusuma, M.M.',
-        role: 'Kepala',
-        photo: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&h=150&fit=crop&crop=faces'
+        role: 'Kepala'
       });
       return;
     }
@@ -103,8 +101,7 @@ export default function LoginView({ employees, onLogin, namaInstansi, kepalaStas
         id: foundEmp.id,
         name: `${foundEmp.gelarDepan ? foundEmp.gelarDepan + ' ' : ''}${foundEmp.nama}${foundEmp.gelarBelakang ? ', ' + foundEmp.gelarBelakang : ''}`,
         role: assignedRole,
-        division: foundEmp.divisi,
-        photo: foundEmp.foto
+        division: foundEmp.divisi
       });
     } else {
       setError('Akun tidak ditemukan atau kata sandi salah. Silakan periksa kembali.');
