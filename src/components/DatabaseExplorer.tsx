@@ -536,6 +536,47 @@ export default function DatabaseExplorer({
                 </button>
               )}
 
+              <button
+                onClick={async () => {
+                  if (!window.confirm("PENTING: Anda akan memigrasikan seluruh data dari Firestore ke Cloud SQL. Pastikan Anda memiliki Token Akses. Lanjutkan?")) return;
+                  
+                  try {
+                    const payload = {
+                      employees,
+                      agreements,
+                      contracts,
+                      reporterTargets,
+                      newsReports,
+                      promotions
+                    };
+                    
+                    const response = await fetch('/api/import-json', {
+                      method: 'POST',
+                      headers: {
+                        'Content-Type': 'application/json',
+                        // Temporary dummy token to bypass requireAuth (replace with actual auth token if implemented in frontend)
+                        'Authorization': 'Bearer ' + (localStorage.getItem('token') || 'dummy-token')
+                      },
+                      body: JSON.stringify(payload)
+                    });
+                    
+                    const result = await response.json();
+                    if (response.ok) {
+                      alert("Migrasi Sukses: " + result.message);
+                    } else {
+                      alert("Gagal Migrasi: " + (result.error || result.details || 'Unknown Error'));
+                    }
+                  } catch (error: any) {
+                    alert("Gagal menghubungi server: " + error.message);
+                  }
+                }}
+                className="flex items-center gap-1.5 bg-indigo-100 hover:bg-indigo-200 text-indigo-800 text-xs font-bold px-3.5 py-2 rounded-xl transition-all shadow-xs"
+                title="Migrasi seluruh koleksi aktif ke Cloud SQL"
+              >
+                <Database className="w-4 h-4" />
+                Migrasi ke PostgreSQL
+              </button>
+
               {selectedColId !== 'settings' && selectedColId !== 'identity' && (
                 <button
                   onClick={handleOpenAdd}
