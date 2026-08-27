@@ -71,9 +71,9 @@ export default function LoginView({ employees, onLogin, namaInstansi, kepalaStas
         return;
       }
 
-      // Password check
+      // Strict password check: must match the configured employee password (defaults to 'password123' if not yet customized)
       const expectedPassword = foundEmp.password || 'password123';
-      if (password !== expectedPassword && password !== 'rribalam' && password !== '123456' && password !== 'password123') {
+      if (password !== expectedPassword) {
         setError('Kata sandi salah. Silakan periksa kembali.');
         return;
       }
