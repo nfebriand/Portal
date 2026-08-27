@@ -193,4 +193,31 @@ export interface NewsReport {
   daerah?: string; // daerah berita
 }
 
+export interface PromotionActivity {
+  id: string;
+  tanggal: string; // YYYY-MM-DD
+  namaKegiatan: string;
+  // Media Luar Ruang
+  baliho: number;
+  spanduk: number;
+  videotron: number;
+  umbulUmbul: number;
+  pamflet: number;
+  // Media Multiplatform
+  yt: number;
+  ig: number;
+  tiktok: number;
+  fb: number;
+  eFlyer: number;
+  // Metadata & Eviden
+  jumlah?: number; // Total item media yang terpasang/tersebar
+  keterangan?: string;
+  linkDokumentasi?: string; // URL Google Drive / Link Eviden
+  fotoDokumentasi?: string; // Base64 atau image URL
+  creatorId?: string; // Employee ID pembuat
+  creatorName?: string; // Nama pembuat
+  divisi?: string; // Unit kerja / Bidang pelaksana
+  createdAt?: string;
+}
+
 

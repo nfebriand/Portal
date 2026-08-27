@@ -1,13 +1,13 @@
 import React, { useState } from 'react';
 import { 
   Employee, AppSettings, InstitutionalIdentity, CriticalNotification, 
-  PerformanceAgreement, CooperationContract, ReporterTarget, NewsReport 
+  PerformanceAgreement, CooperationContract, ReporterTarget, NewsReport, PromotionActivity 
 } from '../types';
 import { 
   Database, Search, Plus, Trash2, Edit3, Save, FileJson, X, 
   Download, Upload, AlertCircle, Check, Play, Settings, RefreshCw, 
   HelpCircle, ShieldCheck, ChevronRight, HardDrive, Calendar, UserCheck, 
-  Award, FileText, Radio, Layers, Clock, Building, PenTool 
+  Award, FileText, Radio, Layers, Clock, Building, PenTool, Megaphone 
 } from 'lucide-react';
 
 interface DatabaseExplorerProps {
@@ -27,6 +27,8 @@ interface DatabaseExplorerProps {
   onUpdateReporterTargets?: (targets: ReporterTarget[]) => void;
   newsReports: NewsReport[];
   onUpdateNewsReports?: (reports: NewsReport[]) => void;
+  promotions?: PromotionActivity[];
+  onUpdatePromotions?: (promotions: PromotionActivity[]) => void;
 }
 
 export default function DatabaseExplorer({
@@ -45,13 +47,16 @@ export default function DatabaseExplorer({
   reporterTargets,
   onUpdateReporterTargets,
   newsReports,
-  onUpdateNewsReports
+  onUpdateNewsReports,
+  promotions = [],
+  onUpdatePromotions
 }: DatabaseExplorerProps) {
   
   // List of all active collections in the app
   const collections = [
     { id: 'employees', label: 'Pegawai', icon: UserCheck, data: employees, update: onUpdateEmployees },
     { id: 'agreements', label: 'Perjanjian Kinerja SAKIP', icon: Award, data: agreements, update: onUpdateAgreements },
+    { id: 'promotions', label: 'Kegiatan Promosi', icon: Megaphone, data: promotions, update: onUpdatePromotions },
     { id: 'contracts', label: 'Kerja Sama PNBP', icon: FileText, data: contracts, update: onUpdateContracts },
     { id: 'newsReports', label: 'Laporan Berita & Media Baru', icon: Radio, data: newsReports, update: onUpdateNewsReports },
     { id: 'reporterTargets', label: 'Target Angka Kredit', icon: Layers, data: reporterTargets, update: onUpdateReporterTargets },

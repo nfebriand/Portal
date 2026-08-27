@@ -54,7 +54,7 @@ export function cleanObjectForFirestore<T>(obj: T): T {
  * Generic fetch array collection directly from live Firestore.
  * LocalStorage acts strictly as an offline/read-through cache; it will NEVER resurrect deleted documents.
  */
-export async function fetchCollection<T extends { id: string }>(collectionName: string, fallbackData: T[]): Promise<T[]> {
+export async function fetchCollection<T extends { id: string }>(collectionName: string, fallbackData: T[] = []): Promise<T[]> {
   const cacheKey = `swara_cache_col_${collectionName}`;
 
   try {
@@ -62,16 +62,10 @@ export async function fetchCollection<T extends { id: string }>(collectionName: 
     const snapshot = await getDocs(colRef);
     
     if (snapshot.empty) {
-      const seeded = await isSystemSeeded();
-      if (seeded) {
-        // Collection is legitimately empty in live Firestore
-        try {
-          localStorage.setItem(cacheKey, JSON.stringify([]));
-        } catch (e) {}
-        return [];
-      }
-      // System has never been seeded before
-      return fallbackData;
+      try {
+        localStorage.setItem(cacheKey, JSON.stringify([]));
+      } catch (e) {}
+      return [];
     }
 
     const data: T[] = [];
@@ -89,7 +83,7 @@ export async function fetchCollection<T extends { id: string }>(collectionName: 
 
     return data;
   } catch (error: any) {
-    console.warn(`Fetch notice for ${collectionName} (using offline cache fallback):`, error?.message || error);
+    console.warn(`Fetch notice for ${collectionName}:`, error?.message || error);
     const cached = localStorage.getItem(cacheKey);
     if (cached !== null) {
       try {

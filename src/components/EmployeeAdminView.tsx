@@ -129,9 +129,18 @@ export default function EmployeeAdminView({
     return full;
   };
 
+  // Base accessible employees based on RBAC:
+  // Non-Tata Usaha users (Admin Bidang or Kepala Bidang outside Tata Usaha) are strictly scoped to their own division.
+  const accessibleEmployees = useMemo(() => {
+    if (permissions.canViewAllEmployees || permissions.isTataUsaha || !currentUser?.division) {
+      return employees;
+    }
+    return employees.filter(emp => emp.divisi === currentUser.division);
+  }, [employees, permissions, currentUser]);
+
   // Filtered List for Table in Pengaturan Pegawai Tab
   const filteredEmployees = useMemo(() => {
-    return employees.filter(emp => {
+    return accessibleEmployees.filter(emp => {
       const q = searchQuery.toLowerCase();
       const matchSearch =
         emp.nama.toLowerCase().includes(q) ||
@@ -147,9 +156,9 @@ export default function EmployeeAdminView({
 
       return matchSearch && matchDiv && matchJabatan && matchJalur && matchStatus;
     });
-  }, [employees, searchQuery, selectedDivFilter, selectedJabatanFilter, selectedJalurFilter, selectedStatusFilter]);
+  }, [accessibleEmployees, searchQuery, selectedDivFilter, selectedJabatanFilter, selectedJalurFilter, selectedStatusFilter]);
 
-  // Paginated Employees (Max 20 per page)
+  // Paginated Employees
   const totalEmployeePages = Math.max(1, Math.ceil(filteredEmployees.length / PAGE_SIZE));
   const paginatedEmployees = useMemo(() => {
     const start = (employeeListPage - 1) * PAGE_SIZE;
@@ -157,8 +166,11 @@ export default function EmployeeAdminView({
   }, [filteredEmployees, employeeListPage]);
 
   // Filtered List for Pelatihan 40 Jam Matrix Tab
+  const [matrixSearchQuery, setMatrixSearchQuery] = useState('');
+  const MATRIX_PAGE_SIZE = 10; // Exactly 10 pegawai per halaman as requested
+
   const trainingMatrixList = useMemo(() => {
-    return employees.map(emp => {
+    return accessibleEmployees.map(emp => {
       const annuals = computeEmployeeAnnualTrainings(emp);
       const yearData = annuals[matrixYear] || {
         year: matrixYear,
@@ -173,10 +185,11 @@ export default function EmployeeAdminView({
         yearData
       };
     }).filter(({ emp, yearData }) => {
-      const q = searchQuery.toLowerCase();
-      const matchSearch =
+      const q = matrixSearchQuery.toLowerCase().trim();
+      const matchSearch = !q ||
         emp.nama.toLowerCase().includes(q) ||
         (emp.nip && emp.nip.includes(q)) ||
+        (emp.jabatan && emp.jabatan.toLowerCase().includes(q)) ||
         (emp.divisi && emp.divisi.toLowerCase().includes(q));
 
       const matchDiv = selectedDivFilter === 'Semua' || emp.divisi === selectedDivFilter;
@@ -187,13 +200,13 @@ export default function EmployeeAdminView({
 
       return matchSearch && matchDiv && matchComp;
     });
-  }, [employees, matrixYear, searchQuery, selectedDivFilter, matrixComplianceFilter]);
+  }, [accessibleEmployees, matrixYear, matrixSearchQuery, selectedDivFilter, matrixComplianceFilter]);
 
-  // Paginated Training Matrix List (Max 20 per page)
-  const totalMatrixPages = Math.max(1, Math.ceil(trainingMatrixList.length / PAGE_SIZE));
+  // Paginated Training Matrix List (10 per page)
+  const totalMatrixPages = Math.max(1, Math.ceil(trainingMatrixList.length / MATRIX_PAGE_SIZE));
   const paginatedTrainingMatrixList = useMemo(() => {
-    const start = (matrixListPage - 1) * PAGE_SIZE;
-    return trainingMatrixList.slice(start, start + PAGE_SIZE);
+    const start = (matrixListPage - 1) * MATRIX_PAGE_SIZE;
+    return trainingMatrixList.slice(start, start + MATRIX_PAGE_SIZE);
   }, [trainingMatrixList, matrixListPage]);
 
   // Action: Open Modal for Add
@@ -634,11 +647,46 @@ export default function EmployeeAdminView({
                 Matriks Kepatuhan Pengembangan Kompetensi (Min. 40 Jam / Tahun)
               </h3>
               <p className="text-[10px] text-slate-400 mt-0.5">
-                Evaluasi pemenuhan target tahunan berdasarkan riwayat pelatihan terverifikasi.
+                Evaluasi pemenuhan target tahunan (10 pegawai per halaman).
               </p>
             </div>
 
-            <div className="flex flex-wrap items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2 flex-1 justify-end">
+              {/* Search Bar for Matrix */}
+              <div className="relative min-w-[200px] flex-1 sm:flex-initial">
+                <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                <input
+                  type="text"
+                  placeholder="Cari nama pegawai, NIP, jabatan..."
+                  value={matrixSearchQuery}
+                  onChange={(e) => {
+                    setMatrixSearchQuery(e.target.value);
+                    setMatrixListPage(1);
+                  }}
+                  className="w-full pl-9 pr-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:bg-white focus:outline-hidden focus:ring-2 focus:ring-indigo-500/20"
+                />
+              </div>
+
+              {/* Filter Bidang (If TU / Superadmin) */}
+              {(permissions.canViewAllEmployees || permissions.isTataUsaha) && (
+                <select
+                  value={selectedDivFilter}
+                  onChange={(e) => {
+                    setSelectedDivFilter(e.target.value);
+                    setMatrixListPage(1);
+                  }}
+                  className="bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1.5 text-xs text-slate-700 focus:bg-white focus:outline-hidden"
+                >
+                  <option value="Semua">Semua Bidang</option>
+                  <option value="Tata Usaha / Umum">Tata Usaha / Umum</option>
+                  <option value="Siaran">Siaran</option>
+                  <option value="Pemberitaan">Pemberitaan</option>
+                  <option value="Teknologi dan Media Baru">Teknologi dan Media Baru</option>
+                  <option value="Konten Media Baru">Konten Media Baru</option>
+                  <option value="Layanan Pengembangan Usaha">Layanan Pengembangan Usaha</option>
+                </select>
+              )}
+
               {/* Year Selector */}
               <div className="flex items-center gap-1.5 bg-slate-100 p-1 rounded-xl border border-slate-200">
                 {[currentYear, currentYear - 1, currentYear - 2].map(yr => (
@@ -675,7 +723,7 @@ export default function EmployeeAdminView({
             </div>
           </div>
 
-          {/* Matrix Grid (Paginated Max 20/page) */}
+          {/* Matrix Grid (Paginated 10/page) */}
           <div className="bg-white rounded-2xl border border-slate-200/80 shadow-2xs overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs border-collapse">
@@ -695,7 +743,7 @@ export default function EmployeeAdminView({
                   {paginatedTrainingMatrixList.length === 0 ? (
                     <tr>
                       <td colSpan={8} className="text-center py-12 text-slate-400 italic">
-                        Tidak ada data pelatihan pada tahun {matrixYear} yang cocok dengan filter.
+                        Tidak ada data pelatihan pada tahun {matrixYear} yang cocok dengan filter / pencarian.
                       </td>
                     </tr>
                   ) : (
@@ -783,11 +831,11 @@ export default function EmployeeAdminView({
               </table>
             </div>
 
-            {/* Pagination Controls for Training Matrix Table (Max 20/page) */}
+            {/* Pagination Controls for Training Matrix Table (10 per page) */}
             {totalMatrixPages > 1 && (
               <div className="p-4 border-t border-slate-100 flex flex-col sm:flex-row justify-between items-center gap-3 bg-slate-50/50 text-xs">
                 <p className="text-slate-500 text-[11px]">
-                  Menampilkan {((matrixListPage - 1) * PAGE_SIZE) + 1} - {Math.min(matrixListPage * PAGE_SIZE, trainingMatrixList.length)} dari {trainingMatrixList.length} pegawai
+                  Menampilkan {((matrixListPage - 1) * MATRIX_PAGE_SIZE) + 1} - {Math.min(matrixListPage * MATRIX_PAGE_SIZE, trainingMatrixList.length)} dari {trainingMatrixList.length} pegawai
                 </p>
                 <div className="flex items-center gap-1.5">
                   <button

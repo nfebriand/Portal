@@ -148,6 +148,35 @@
         "date": { "type": "string" }
       },
       "required": ["id", "employeeId", "title", "url", "type", "date"]
+    },
+    "PromotionActivity": {
+      "title": "PromotionActivity",
+      "description": "Promotional activities conducted across outdoor and multiplatform media",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "tanggal": { "type": "string" },
+        "namaKegiatan": { "type": "string" },
+        "baliho": { "type": "number" },
+        "spanduk": { "type": "number" },
+        "videotron": { "type": "number" },
+        "umbulUmbul": { "type": "number" },
+        "pamflet": { "type": "number" },
+        "yt": { "type": "number" },
+        "ig": { "type": "number" },
+        "tiktok": { "type": "number" },
+        "fb": { "type": "number" },
+        "eFlyer": { "type": "number" },
+        "jumlah": { "type": "number" },
+        "keterangan": { "type": "string" },
+        "linkDokumentasi": { "type": "string" },
+        "fotoDokumentasi": { "type": "string" },
+        "creatorId": { "type": "string" },
+        "creatorName": { "type": "string" },
+        "divisi": { "type": "string" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["id", "tanggal", "namaKegiatan"]
     }
   },
   "firestore": {
@@ -182,6 +211,10 @@
     "/newsReports/{reportId}": {
       "schema": { "$ref": "#/entities/NewsReport" },
       "description": "Store individual uploaded news and media posts"
+    },
+    "/promotions/{promotionId}": {
+      "schema": { "$ref": "#/entities/PromotionActivity" },
+      "description": "Store promotional activity logs and media distribution documentation"
     }
   }
 }

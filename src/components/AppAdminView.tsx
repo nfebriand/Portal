@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
-import { AppSettings, InstitutionalIdentity, Employee, NewsReport, CriticalNotification, PerformanceAgreement, CooperationContract, ReporterTarget } from '../types';
+import { AppSettings, InstitutionalIdentity, Employee, NewsReport, CriticalNotification, PerformanceAgreement, CooperationContract, ReporterTarget, PromotionActivity } from '../types';
 import SignaturePad from './SignaturePad';
 import DatabaseExplorer from './DatabaseExplorer';
 import { 
   Building, Award, PenTool, Check, FileText, Phone, MapPin, Printer, 
   Database, Download, Upload, Radio, FileSpreadsheet, AlertCircle, 
   Clock, UserCheck, RefreshCw, Layers, Share2, Search, Plus, 
-  Trash2, Edit3, Save, FileJson, X, ShieldAlert 
+  Trash2, Edit3, Save, FileJson, X, ShieldAlert, Megaphone 
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { parseFlexibleDate } from '../utils/dateUtils';
@@ -38,6 +38,8 @@ interface AppAdminViewProps {
   } | null;
   newsReports?: NewsReport[];
   onUpdateNewsReports?: (reports: NewsReport[]) => void;
+  promotions?: PromotionActivity[];
+  onUpdatePromotions?: (promotions: PromotionActivity[]) => void;
 }
 
 export default function AppAdminView({
@@ -60,7 +62,9 @@ export default function AppAdminView({
   onImportDatabase,
   currentUser,
   newsReports = [],
-  onUpdateNewsReports
+  onUpdateNewsReports,
+  promotions = [],
+  onUpdatePromotions
 }: AppAdminViewProps) {
   const formatFullName = (emp: Employee) => {
     let full = emp.nama;
@@ -1537,6 +1541,8 @@ export default function AppAdminView({
             onUpdateReporterTargets={onUpdateReporterTargets}
             newsReports={newsReports}
             onUpdateNewsReports={onUpdateNewsReports}
+            promotions={promotions}
+            onUpdatePromotions={onUpdatePromotions}
           />
         </div>
       )}
