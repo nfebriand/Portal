@@ -167,7 +167,7 @@ export default function IndicatorCommentsSection({
             <form onSubmit={handleSubmit} className="border border-slate-200 rounded-xl bg-white p-2 focus-within:ring-1 focus-within:ring-indigo-500 focus-within:border-indigo-500 transition-all">
               <div className="flex items-start gap-2">
                 <textarea
-                  value={commentText}
+                  value={commentText || ""}
                   onChange={(e) => setCommentText(e.target.value)}
                   placeholder={
                     isPimpinan(currentUser.role)

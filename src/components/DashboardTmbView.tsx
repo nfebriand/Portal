@@ -71,7 +71,7 @@ export default function DashboardTmbView({
     if (!tmbAgreement) return;
     const valueNum = parseFloat(valueStr) || 0;
 
-    const updatedObjectives = tmbAgreement.objectives.map(obj => 
+    const updatedObjectives = tmbAgreement?.objectives?.map(obj => 
       obj.id === objId ? { ...obj, achievement: valueNum } : obj
     );
 
@@ -240,7 +240,7 @@ export default function DashboardTmbView({
                           <div className="flex items-center gap-1 justify-center mt-1">
                             <input 
                               type="number" 
-                              value={editValue} 
+                              value={editValue ?? 0} 
                               onChange={(e) => setEditValue(e.target.value)}
                               className="w-14 bg-slate-100 border border-slate-300 rounded text-center font-bold text-xs p-0.5"
                               placeholder="0"

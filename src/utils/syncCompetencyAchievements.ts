@@ -8,7 +8,7 @@ export function isCompetencyIndicator(indicator?: { indicatorName?: string; id?:
   if (!indicator) return false;
   if (indicator.id === 'ind-tu-kompetensi') return true;
   
-  const nameLower = (indicator.indicatorName || '').toLowerCase();
+  const nameLower = (indicator.indicatorName || '')?.toLowerCase();
   
   return (
     nameLower.includes('pengembangan kompetensi') ||
@@ -46,7 +46,7 @@ export function calculateMonthlyCompetencyCompliance(
 ): CompetencyComplianceResult {
   const safeList = Array.isArray(employees) ? employees : [];
   const activeEmployees = safeList.filter(emp => {
-    const st = (emp.status || 'aktif').toLowerCase();
+    const st = (emp.status || 'aktif')?.toLowerCase();
     return st !== 'keluar' && st !== 'pindah';
   });
 

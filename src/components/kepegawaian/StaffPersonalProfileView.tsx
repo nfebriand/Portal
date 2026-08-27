@@ -102,7 +102,7 @@ export default function StaffPersonalProfileView({ employee }: StaffPersonalProf
                   PROFIL PEGAWAI MANDIRI
                 </span>
                 <span className={`text-[10px] font-extrabold uppercase px-2.5 py-0.5 rounded-md font-mono ${
-                  (employee.status || 'aktif').toLowerCase() === 'aktif'
+                  (employee.status || 'aktif')?.toLowerCase() === 'aktif'
                     ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
                     : 'bg-amber-50 text-amber-700 border border-amber-200'
                 }`}>

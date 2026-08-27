@@ -86,7 +86,7 @@ export function parseFlexibleDate(rawInput: any): ParsedDateResult {
     desember: 11, des: 11, dec: 11
   };
 
-  const words = str.toLowerCase().split(/[\s,.-]+/);
+  const words = str?.toLowerCase().split(/[\s,.-]+/);
   let foundMonthIdx = -1;
   words.forEach(w => {
     if (indoMonths[w] !== undefined) {

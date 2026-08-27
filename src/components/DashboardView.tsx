@@ -422,7 +422,7 @@ export default function DashboardView({
     // Find objective with id 'ind-11' or matching 'PNBP'
     let targetCapaian = 150; // default fallback in case agreement isn't loaded
     for (const ag of agreements) {
-      const pnbpObj = ag.objectives.find(o => o.id === 'ind-11' || o.indicatorName.toLowerCase().includes('pnbp'));
+      const pnbpObj = ag?.objectives?.find(o => o.id === 'ind-11' ||  (o.indicatorName || "")?.toLowerCase().includes('pnbp'));
       if (pnbpObj) {
         targetCapaian = parseFloat(pnbpObj.target) || 150;
         break;
@@ -510,7 +510,7 @@ export default function DashboardView({
     let kmbSum = 0;
     agreements.forEach(ag => {
       if (!ag.objectives) return;
-      ag.objectives.forEach(obj => {
+      ag?.objectives?.forEach(obj => {
         if (obj.supportedByKMB) {
           kmbObjectives.push(obj);
           const targetVal = parseFloat(obj.target) || 100;
@@ -605,7 +605,7 @@ export default function DashboardView({
       const empReports = (newsReports || []).filter(r => r.employeeId === ag.assignedToEmployeeId && isReportInPeriod(r));
       const empReportCount = empReports.length;
 
-      const newObjectives = ag.objectives.map(obj => {
+      const newObjectives = ag?.objectives?.map(obj => {
         let baseTgt = parseFloat(obj.target) || 100;
         let scaledTarget = baseTgt;
 
@@ -617,7 +617,7 @@ export default function DashboardView({
           scaledTarget = baseTgt / 12;
         }
 
-        const isConstant = obj.unit === '%' || obj.indicatorName.toLowerCase().includes('ikpa') || obj.indicatorName.toLowerCase().includes('nilai');
+        const isConstant = obj.unit === '%' || obj.indicatorName?.toLowerCase().includes('ikpa') || obj.indicatorName?.toLowerCase().includes('nilai');
         if (isConstant) {
           scaledTarget = baseTgt;
         }
@@ -627,7 +627,7 @@ export default function DashboardView({
           computedAch = totalPnbpForPeriod;
         } else if (ag.level === 'Pegawai' && ag.assignedToEmployeeId) {
           const empId = ag.assignedToEmployeeId;
-          const nameLower = obj.indicatorName.toLowerCase();
+          const nameLower = obj.indicatorName?.toLowerCase();
           if (nameLower.includes('ringan') || nameLower.includes('lpu')) {
             computedAch = empReports.filter(r => r.type === 'Berita Ringan' || r.type === 'Berita Ringan LPU').length;
           } else if (nameLower.includes('radio')) {
@@ -685,12 +685,12 @@ export default function DashboardView({
     const pegawaiAgreements = updatedAgreements.filter(a => a.level === 'Pegawai');
 
     level2Agreements.forEach(l2Ag => {
-      l2Ag.objectives.forEach(l2Obj => {
+      l2Ag?.objectives?.forEach(l2Obj => {
         if (l2Obj.calculationType === 'manual') return;
 
         const childObjs: any[] = [];
         pegawaiAgreements.forEach(pAg => {
-          pAg.objectives.forEach(pObj => {
+          pAg?.objectives?.forEach(pObj => {
             if (pObj.parentIndicatorId === l2Obj.id) {
               childObjs.push(pObj);
             }
@@ -714,12 +714,12 @@ export default function DashboardView({
 
     const kepalaAg = updatedAgreements.find(a => a.level === 'Kepala Stasiun');
     if (kepalaAg) {
-      kepalaAg.objectives.forEach(kObj => {
+      kepalaAg?.objectives?.forEach(kObj => {
         if (kObj.calculationType === 'manual') return;
 
         const childObjs: any[] = [];
         level2Agreements.forEach(l2Ag => {
-          l2Ag.objectives.forEach(l2Obj => {
+          l2Ag?.objectives?.forEach(l2Obj => {
             if (l2Obj.parentIndicatorId === kObj.id) {
               childObjs.push(l2Obj);
             }
@@ -763,7 +763,7 @@ export default function DashboardView({
     let sharedKmbSum = 0;
     currentPeriodAgreements.forEach(ag => {
       if (!ag.objectives) return;
-      ag.objectives.forEach(obj => {
+      ag?.objectives?.forEach(obj => {
         if (obj.supportedByKMB) {
           sharedKmbObjectives.push(obj);
           sharedKmbSum += obj._computedPct !== undefined ? obj._computedPct : 0;
@@ -775,12 +775,12 @@ export default function DashboardView({
     const tuAg = findActiveAg('Kabid Tata Usaha');
 
     const getAvgPercentage = (ag: PerformanceAgreement | undefined) => {
-      if (!ag || !ag.objectives || ag.objectives.length === 0) return 0;
+      if (!ag || !ag.objectives || ag?.objectives?.length === 0) return 0;
       let sum = 0;
-      ag.objectives.forEach((obj: any) => {
+      ag?.objectives?.forEach((obj: any) => {
         sum += obj._computedPct !== undefined ? obj._computedPct : 0;
       });
-      return Math.round(sum / ag.objectives.length);
+      return Math.round(sum / ag?.objectives?.length);
     };
 
     return [
@@ -884,7 +884,7 @@ export default function DashboardView({
       const kmbContributedObjectives: any[] = [];
       currentPeriodAgreements.forEach(ag => {
         if (!ag.objectives) return;
-        ag.objectives.forEach(obj => {
+        ag?.objectives?.forEach(obj => {
           if (obj.supportedByKMB) {
             kmbContributedObjectives.push({
               ...obj,
@@ -902,7 +902,7 @@ export default function DashboardView({
     }
 
     if (!selectedDivData.agreement) return [];
-    return selectedDivData.agreement.objectives.map((obj: any) => {
+    return selectedDivData.agreement?.objectives?.map((obj: any) => {
       return {
         ...obj,
         target: typeof obj.target === 'string' ? obj.target : `${obj.target}`,
@@ -934,13 +934,13 @@ export default function DashboardView({
   const satkerOverallStats = useMemo(() => {
     // Priority: Level 1 (Kepala Stasiun) objectives roll-up
     const kepalaAg = currentPeriodAgreements.find(a => a.level === 'Kepala Stasiun');
-    if (kepalaAg && kepalaAg.objectives && kepalaAg.objectives.length > 0) {
-      const sum = kepalaAg.objectives.reduce((acc, curr: any) => acc + (curr._computedPct ?? 0), 0);
-      const pct = Math.round(sum / kepalaAg.objectives.length);
+    if (kepalaAg && kepalaAg.objectives && kepalaAg?.objectives?.length > 0) {
+      const sum = kepalaAg?.objectives?.reduce((acc, curr: any) => acc + (curr._computedPct ?? 0), 0);
+      const pct = Math.round(sum / kepalaAg?.objectives?.length);
       return {
         percentage: pct,
         status: getKpiStatusByPercentage(pct),
-        totalObjectives: kepalaAg.objectives.length,
+        totalObjectives: kepalaAg?.objectives?.length,
         source: 'Kepala Stasiun'
       };
     }
@@ -972,7 +972,7 @@ export default function DashboardView({
 
     currentPeriodAgreements.forEach(ag => {
       (ag.objectives || []).forEach((obj: any) => {
-        const nameLower = (obj.indicatorName || '').toLowerCase();
+        const nameLower = (obj.indicatorName || '')?.toLowerCase();
         if (
           nameLower.includes('nilai akip') ||
           nameLower.includes('evaluasi spi') ||
@@ -1076,7 +1076,7 @@ export default function DashboardView({
     // Check all agreements for budget indicator (prefer Kepala Stasiun or TU)
     for (const ag of currentPeriodAgreements) {
       const match = (ag.objectives || []).find((obj: any) => {
-        const nameLower = (obj.indicatorName || '').toLowerCase();
+        const nameLower = (obj.indicatorName || '')?.toLowerCase();
         return (
           nameLower.includes('penyerapan anggaran') ||
           nameLower.includes('realisasi anggaran') ||
@@ -1146,7 +1146,7 @@ export default function DashboardView({
           });
         });
         if (divObjectives.length === 0 && div.agreement?.objectives) {
-          div.agreement.objectives.forEach((obj: any) => {
+          div.agreement?.objectives?.forEach((obj: any) => {
             divObjectives.push({
               ...obj,
               divisionName: div.name,
@@ -1157,7 +1157,7 @@ export default function DashboardView({
           });
         }
       } else if (div.agreement?.objectives) {
-        div.agreement.objectives.forEach((obj: any) => {
+        div.agreement?.objectives?.forEach((obj: any) => {
           divObjectives.push({
             ...obj,
             divisionName: div.name,
@@ -1196,7 +1196,7 @@ export default function DashboardView({
     // 2. Also check Level 1 (Kepala Stasiun / Satker) if any root indicator is < 50%
     const kepalaAg = currentPeriodAgreements.find(a => a.level === 'Kepala Stasiun');
     if (kepalaAg && kepalaAg.objectives) {
-      kepalaAg.objectives.forEach((obj: any) => {
+      kepalaAg?.objectives?.forEach((obj: any) => {
         const uniqueKey = `${kepalaAg.id}-${obj.id}`;
         if (seenKeys.has(uniqueKey)) return;
         seenKeys.add(uniqueKey);
@@ -1224,7 +1224,7 @@ export default function DashboardView({
   }, [activeDivisionsData, currentPeriodAgreements]);
 
   const handleNavigateToDivisionFromRedFlag = (item: RedFlagIndicatorItem) => {
-    const divName = (item.divisionName || '').toLowerCase();
+    const divName = (item.divisionName || '')?.toLowerCase();
     if (divName.includes('pemberitaan')) {
       setSelectedKpiDivision('Pemberitaan');
     } else if (divName.includes('lpu') || divName.includes('layanan pengembangan') || divName.includes('layanan')) {

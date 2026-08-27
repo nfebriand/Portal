@@ -305,7 +305,7 @@ export default function DashboardBidangView({
 
     agreements.forEach(ag => {
       if (!ag.objectives) return;
-      ag.objectives.forEach(obj => {
+      ag?.objectives?.forEach(obj => {
         if (obj.supportedByKMB) {
           const targetVal = parseFloat(obj.target) || 100;
           const pct = targetVal > 0 ? Math.min(100, Math.round((obj.achievement / targetVal) * 100)) : 0;
@@ -467,7 +467,7 @@ export default function DashboardBidangView({
 
   // Ketua Tim / Penanggung Jawab Bidang
   const ketuaTimBidangName = useMemo(() => {
-    const d = activeDivision.toLowerCase();
+    const d = activeDivision?.toLowerCase();
     if (d.includes('tata usaha')) return identity.kepalaBidangNama || 'Ir. Hendra Saputra, M.T.';
     if (d.includes('siaran')) return identity.ketuaTimSiaranNama || 'Rina Kartika, S.Sos.';
     if (d.includes('pemberitaan')) return identity.ketuaTimPemberitaanNama || 'Drs. Heru Prasetyo, M.Si.';
@@ -496,8 +496,8 @@ export default function DashboardBidangView({
       if (ag.assignedToEmployeeId === currentUser.id && currentUser.division === activeDivision) return true;
       
       // Ketua Tim of their division
-      const divisionKey = activeDivision.toLowerCase();
-      const levelKey = (ag.level || '').toLowerCase();
+      const divisionKey = activeDivision?.toLowerCase();
+      const levelKey = (ag.level || '')?.toLowerCase();
       
       if (divisionKey.includes('pemberitaan') && levelKey.includes('pemberitaan')) return true;
       if (divisionKey.includes('konten') && levelKey.includes('konten')) return true;
@@ -532,8 +532,8 @@ export default function DashboardBidangView({
     if (!subTeam) return teamObjectives;
 
     const matched = teamObjectives.filter(obj => {
-      const name = (obj.indicatorName || '').toLowerCase();
-      const code = (obj.id || '').toLowerCase();
+      const name = (obj.indicatorName || '')?.toLowerCase();
+      const code = (obj.id || '')?.toLowerCase();
       return subTeam.keywords.some(kw => name.includes(kw) || code.includes(kw));
     });
 
@@ -577,9 +577,9 @@ export default function DashboardBidangView({
 
   // Find Level 2 Agreement for this division (e.g. Siaran, Pemberitaan, etc.)
   const level2Agreement = useMemo(() => {
-    const divKey = activeDivision.toLowerCase();
+    const divKey = activeDivision?.toLowerCase();
     return agreements.find(ag => {
-      const lvlKey = (ag.level || '').toLowerCase();
+      const lvlKey = (ag.level || '')?.toLowerCase();
       if (divKey.includes('pemberitaan') && lvlKey.includes('pemberitaan')) return true;
       if (divKey.includes('konten') && lvlKey.includes('konten')) return true;
       if (divKey.includes('teknologi') && lvlKey.includes('teknologi')) return true;
@@ -594,8 +594,8 @@ export default function DashboardBidangView({
   const divisionStaff = useMemo(() => {
     return employees.filter(e => {
       if (e.role === 'Ketua Bidang') return false;
-      const empDiv = (e.divisi || '').toLowerCase();
-      const actDiv = activeDivision.toLowerCase();
+      const empDiv = (e.divisi || '')?.toLowerCase();
+      const actDiv = activeDivision?.toLowerCase();
       return empDiv.includes(actDiv) || actDiv.includes(empDiv);
     });
   }, [employees, activeDivision]);
@@ -614,8 +614,8 @@ export default function DashboardBidangView({
       if (ag.level !== 'Pegawai' || !ag.assignedToEmployeeId) return false;
       const emp = employees.find(e => e.id === ag.assignedToEmployeeId);
       if (!emp) return false;
-      const empDiv = (emp.divisi || '').toLowerCase();
-      const actDiv = activeDivision.toLowerCase();
+      const empDiv = (emp.divisi || '')?.toLowerCase();
+      const actDiv = activeDivision?.toLowerCase();
       return empDiv.includes(actDiv) || actDiv.includes(empDiv);
     });
   }, [agreements, employees, activeDivision]);
@@ -727,7 +727,7 @@ export default function DashboardBidangView({
       if (ag.id === agreementId) {
         return {
           ...ag,
-          objectives: ag.objectives.filter(o => o.id !== indicatorId)
+          objectives: ag?.objectives?.filter(o => o.id !== indicatorId)
         };
       }
       return ag;
@@ -743,7 +743,7 @@ export default function DashboardBidangView({
       if (ag.id === editingAchievement.agreementId) {
         return {
           ...ag,
-          objectives: ag.objectives.map(o => {
+          objectives: ag?.objectives?.map(o => {
             if (o.id === editingAchievement.indicatorId) {
               return {
                 ...o,
@@ -1774,7 +1774,7 @@ export default function DashboardBidangView({
                 <div className="space-y-1.5">
                   <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Pilih Staf Penerima Delegasi</label>
                   <select
-                    value={delegateEmployeeId}
+                    value={delegateEmployeeId || ""}
                     onChange={(e) => setDelegateEmployeeId(e.target.value)}
                     className="w-full bg-slate-50 text-slate-800 border border-slate-200 focus:border-indigo-600 focus:ring-1 focus:ring-indigo-600 rounded-xl px-3 py-2 text-xs outline-none transition-all"
                   >
@@ -1788,7 +1788,7 @@ export default function DashboardBidangView({
                 <div className="space-y-1.5">
                   <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Nama Sasaran Delegasi (IKU Staf)</label>
                   <textarea
-                    value={delegatedIndicatorName}
+                    value={delegatedIndicatorName || ""}
                     onChange={(e) => setDelegatedIndicatorName(e.target.value)}
                     rows={2}
                     className="w-full bg-slate-50 text-slate-800 border border-slate-200 focus:border-indigo-600 focus:ring-1 focus:ring-indigo-600 rounded-xl px-3 py-2 text-xs outline-none transition-all resize-none"
@@ -1802,7 +1802,7 @@ export default function DashboardBidangView({
                     <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Target Delegasi</label>
                     <input
                       type="text"
-                      value={delegatedTarget}
+                      value={delegatedTarget ?? 0}
                       onChange={(e) => setDelegatedTarget(e.target.value)}
                       className="w-full bg-slate-50 text-slate-800 border border-slate-200 focus:border-indigo-600 focus:ring-1 focus:ring-indigo-600 rounded-xl px-3 py-2 text-xs outline-none transition-all"
                       placeholder="Contoh: 12 atau 100"
@@ -1812,7 +1812,7 @@ export default function DashboardBidangView({
                     <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Satuan</label>
                     <input
                       type="text"
-                      value={delegatedUnit}
+                      value={delegatedUnit || ""}
                       onChange={(e) => setDelegatedUnit(e.target.value)}
                       className="w-full bg-slate-50 text-slate-800 border border-slate-200 focus:border-indigo-600 focus:ring-1 focus:ring-indigo-600 rounded-xl px-3 py-2 text-xs outline-none transition-all"
                       placeholder="Contoh: Kegiatan / Laporan"
@@ -1825,7 +1825,7 @@ export default function DashboardBidangView({
                   <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Bobot Sasaran (%)</label>
                   <input
                     type="number"
-                    value={delegatedWeight}
+                    value={delegatedWeight ?? 0}
                     onChange={(e) => setDelegatedWeight(parseInt(e.target.value) || 0)}
                     min={0}
                     max={100}
@@ -1897,7 +1897,7 @@ export default function DashboardBidangView({
                     id="new_ach_input"
                     type="number"
                     step="any"
-                    value={newAchievementVal}
+                    value={newAchievementVal ?? 0}
                     onChange={(e) => setNewAchievementVal(e.target.value)}
                     className="w-full bg-slate-50 text-slate-800 border border-slate-200 focus:border-indigo-600 focus:ring-1 focus:ring-indigo-600 rounded-xl px-3 py-2 text-sm outline-none transition-all font-mono"
                     placeholder="Masukkan angka realisasi..."

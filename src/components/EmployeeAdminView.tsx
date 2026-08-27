@@ -62,7 +62,7 @@ export default function EmployeeAdminView({
       e.id === currentUser.id ||
       (e.nip && currentUser.id && e.nip.replace(/\s+/g, '') === currentUser.id.replace(/\s+/g, '')) ||
       (e.nik && currentUser.id && e.nik.replace(/\s+/g, '') === currentUser.id.replace(/\s+/g, '')) ||
-      (currentUser.name && e.nama.toLowerCase().trim() === currentUser.name.toLowerCase().trim())
+      (currentUser.name && (e.nama || "")?.toLowerCase().trim() === currentUser.name?.toLowerCase().trim())
     ) || null;
   }, [employees, currentUser]);
 
@@ -141,18 +141,18 @@ export default function EmployeeAdminView({
   // Filtered List for Table in Pengaturan Pegawai Tab
   const filteredEmployees = useMemo(() => {
     return accessibleEmployees.filter(emp => {
-      const q = searchQuery.toLowerCase();
+      const q = searchQuery?.toLowerCase();
       const matchSearch =
-        emp.nama.toLowerCase().includes(q) ||
+         (emp.nama || "")?.toLowerCase().includes(q) ||
         (emp.nip && emp.nip.includes(q)) ||
         (emp.nik && emp.nik.includes(q)) ||
-        (emp.surel && emp.surel.toLowerCase().includes(q)) ||
-        (emp.jabatan && emp.jabatan.toLowerCase().includes(q));
+        (emp.surel && (emp.surel || "")?.toLowerCase().includes(q)) ||
+        (emp.jabatan && (emp.jabatan || "")?.toLowerCase().includes(q));
 
       const matchDiv = selectedDivFilter === 'Semua' || emp.divisi === selectedDivFilter;
-      const matchJabatan = selectedJabatanFilter === 'Semua' || (emp.jabatan || 'staf').toLowerCase() === selectedJabatanFilter.toLowerCase();
-      const matchJalur = selectedJalurFilter === 'Semua' || (emp.jenisJabatan || 'fungsional').toLowerCase() === selectedJalurFilter.toLowerCase();
-      const matchStatus = selectedStatusFilter === 'Semua' || (emp.status || 'aktif').toLowerCase() === selectedStatusFilter.toLowerCase();
+      const matchJabatan = selectedJabatanFilter === 'Semua' || (emp.jabatan || 'staf')?.toLowerCase() === selectedJabatanFilter?.toLowerCase();
+      const matchJalur = selectedJalurFilter === 'Semua' || (emp.jenisJabatan || 'fungsional')?.toLowerCase() === selectedJalurFilter?.toLowerCase();
+      const matchStatus = selectedStatusFilter === 'Semua' || (emp.status || 'aktif')?.toLowerCase() === selectedStatusFilter?.toLowerCase();
 
       return matchSearch && matchDiv && matchJabatan && matchJalur && matchStatus;
     });
@@ -185,12 +185,12 @@ export default function EmployeeAdminView({
         yearData
       };
     }).filter(({ emp, yearData }) => {
-      const q = matrixSearchQuery.toLowerCase().trim();
+      const q = matrixSearchQuery?.toLowerCase().trim();
       const matchSearch = !q ||
-        emp.nama.toLowerCase().includes(q) ||
+         (emp.nama || "")?.toLowerCase().includes(q) ||
         (emp.nip && emp.nip.includes(q)) ||
-        (emp.jabatan && emp.jabatan.toLowerCase().includes(q)) ||
-        (emp.divisi && emp.divisi.toLowerCase().includes(q));
+        (emp.jabatan && (emp.jabatan || "")?.toLowerCase().includes(q)) ||
+        (emp.divisi && (emp.divisi || "")?.toLowerCase().includes(q));
 
       const matchDiv = selectedDivFilter === 'Semua' || emp.divisi === selectedDivFilter;
       const matchComp = 
@@ -376,7 +376,7 @@ export default function EmployeeAdminView({
                 <input
                   type="text"
                   placeholder="Cari nama, NIP, NIK, jabatan..."
-                  value={searchQuery}
+                  value={searchQuery || ""}
                   onChange={(e) => {
                     setSearchQuery(e.target.value);
                     setEmployeeListPage(1);
@@ -534,9 +534,9 @@ export default function EmployeeAdminView({
                         {/* Status */}
                         <td className="px-4 py-3">
                           <span className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase ${
-                            (emp.status || 'aktif').toLowerCase() === 'aktif'
+                            (emp.status || 'aktif')?.toLowerCase() === 'aktif'
                               ? 'bg-emerald-100 text-emerald-800'
-                              : (emp.status || 'aktif').toLowerCase() === 'pindah'
+                              : (emp.status || 'aktif')?.toLowerCase() === 'pindah'
                               ? 'bg-amber-100 text-amber-800'
                               : 'bg-rose-100 text-rose-800'
                           }`}>
@@ -658,7 +658,7 @@ export default function EmployeeAdminView({
                 <input
                   type="text"
                   placeholder="Cari nama pegawai, NIP, jabatan..."
-                  value={matrixSearchQuery}
+                  value={matrixSearchQuery || ""}
                   onChange={(e) => {
                     setMatrixSearchQuery(e.target.value);
                     setMatrixListPage(1);

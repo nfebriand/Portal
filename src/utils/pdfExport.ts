@@ -26,9 +26,9 @@ const getIndicatorScore = (obj: any) => {
 
   const tType = obj.trajectoryType || (
     obj.unit === '%' ||
-    obj.indicatorName.toLowerCase().includes('ikpa') ||
-    obj.indicatorName.toLowerCase().includes('indeks') ||
-    obj.indicatorName.toLowerCase().includes('nilai')
+     (obj.indicatorName || "")?.toLowerCase().includes('ikpa') ||
+     (obj.indicatorName || "")?.toLowerCase().includes('indeks') ||
+     (obj.indicatorName || "")?.toLowerCase().includes('nilai')
       ? 'constant'
       : 'cumulative'
   );

@@ -97,7 +97,7 @@ export const QuickReportModal: React.FC<QuickReportModalProps> = ({
       const dataRows: any[] = [];
 
       targetAgs.forEach(ag => {
-        ag.objectives.forEach((obj, idx) => {
+        ag?.objectives?.forEach((obj, idx) => {
           const achievements = obj.monthlyAchievements || Array(12).fill(0);
           const realisasi = achievements.reduce((a, b) => a + b, 0);
           const targetVal = parseFloat(obj.target) || 100;

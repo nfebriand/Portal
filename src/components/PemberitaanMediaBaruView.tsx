@@ -326,7 +326,7 @@ export default function PemberitaanMediaBaruView({
           delimiter = ';';
         }
 
-        const headers = lines[0].split(delimiter).map(h => h.trim().replace(/^["']|["']$/g, '').toLowerCase());
+        const headers = lines[0].split(delimiter).map(h => h.trim().replace(/^["']|["']$/g, '')?.toLowerCase());
 
         for (let i = 1; i < lines.length; i++) {
           const row = lines[i].split(delimiter).map(cell => cell.trim().replace(/^["']|["']$/g, ''));
@@ -349,7 +349,7 @@ export default function PemberitaanMediaBaruView({
       const normalized: NewsReport[] = items.map((item, idx) => {
         const getVal = (keys: string[]) => {
           for (const key of keys) {
-            const foundKey = Object.keys(item).find(k => k.toLowerCase().replace(/[\s_-]/g, '') === key.toLowerCase().replace(/[\s_-]/g, ''));
+            const foundKey = Object.keys(item).find(k => k?.toLowerCase().replace(/[\s_-]/g, '') === key?.toLowerCase().replace(/[\s_-]/g, ''));
             if (foundKey) return item[foundKey];
           }
           return undefined;
@@ -359,7 +359,7 @@ export default function PemberitaanMediaBaruView({
         const link = getVal(['link eviden', 'link_eviden', 'url', 'link', 'eviden', 'linkeviden', 'website']) || '';
         const pembuat = getVal(['penulis', 'pembuat', 'reporter', 'creator', 'writer', 'penyiar', 'author', 'penulis (reporter)', 'penulis/reporter']) || '';
         const kategoriRaw = getVal(['jenis berita', 'jenis_berita', 'tipe berita', 'tipe_berita', 'kategori', 'category', 'type', 'jenis', 'jenis/tipe berita']) || 'Berita Online';
-        const kategoriStr = String(kategoriRaw).toLowerCase().trim();
+        const kategoriStr = String(kategoriRaw)?.toLowerCase().trim();
         const publishRaw = getVal(['waktu publish', 'waktu_publish', 'waktupublish', 'tgl_jam_publish', 'tgl jampublish', 'publishdatetime', 'publish_date', 'date', 'tanggal', 'publish', 'tgl', 'tanggal publish', 'waktu terbit']);
         const parsedDate = parseFlexibleDate(publishRaw);
         const datePart = parsedDate.dateISO;
@@ -376,9 +376,9 @@ export default function PemberitaanMediaBaruView({
         let reporterId = '';
         let matchedReporter = employees.find(emp => 
           emp.nip === pembuat || 
-          emp.nama.toLowerCase().trim() === String(pembuat).toLowerCase().trim() ||
-          emp.nama.toLowerCase().includes(String(pembuat).toLowerCase()) || 
-          String(pembuat).toLowerCase().includes(emp.nama.toLowerCase())
+          (emp.nama || "")?.toLowerCase().trim() === String(pembuat)?.toLowerCase().trim() ||
+          (emp.nama || "")?.toLowerCase().includes(String(pembuat)?.toLowerCase()) || 
+          String(pembuat)?.toLowerCase().includes((emp.nama || "")?.toLowerCase())
         );
 
         if (matchedReporter) {
@@ -392,9 +392,9 @@ export default function PemberitaanMediaBaruView({
         let matchedEditor = employees.find(emp => 
           (emp.isEditor || emp.role === 'Superadmin' || emp.divisi === 'Tata Usaha / Umum' || emp.role === 'Ketua Bidang') && (
             emp.nip === editor || 
-            emp.nama.toLowerCase().trim() === String(editor).toLowerCase().trim() ||
-            emp.nama.toLowerCase().includes(String(editor).toLowerCase()) || 
-            String(editor).toLowerCase().includes(emp.nama.toLowerCase())
+            (emp.nama || "")?.toLowerCase().trim() === String(editor)?.toLowerCase().trim() ||
+            (emp.nama || "")?.toLowerCase().includes(String(editor)?.toLowerCase()) || 
+            String(editor)?.toLowerCase().includes((emp.nama || "")?.toLowerCase())
           )
         );
         if (matchedEditor) {
@@ -413,7 +413,7 @@ export default function PemberitaanMediaBaruView({
         }
 
         let normPrograma: 'Programa 1' | 'Programa 2' | 'Programa 3' | 'Programa 4' = 'Programa 1';
-        const progLower = String(programa).toLowerCase();
+        const progLower = String(programa)?.toLowerCase();
         if (progLower.includes('2')) normPrograma = 'Programa 2';
         else if (progLower.includes('3')) normPrograma = 'Programa 3';
         else if (progLower.includes('4')) normPrograma = 'Programa 4';
@@ -567,7 +567,7 @@ export default function PemberitaanMediaBaruView({
       if (ag.level === 'Pegawai' && ag.assignedToEmployeeId) {
         const emp = employees.find(e => e.id === ag.assignedToEmployeeId);
         const empName = emp ? emp.nama : ag.assignedToName;
-        ag.objectives.forEach(obj => {
+        ag?.objectives?.forEach(obj => {
           list.push({
             id: obj.id,
             indicatorName: obj.indicatorName,
@@ -749,12 +749,12 @@ export default function PemberitaanMediaBaruView({
   const filteredReports = useMemo(() => {
     return newsReports.filter(rep => {
       const emp = employees.find(e => e.id === rep.employeeId);
-      const empName = emp ? emp.nama.toLowerCase() : '';
-      const matchSearch = rep.title.toLowerCase().includes(reportSearch.toLowerCase()) || 
-                          (rep.url && rep.url.toLowerCase().includes(reportSearch.toLowerCase())) ||
-                          (rep.category && rep.category.toLowerCase().includes(reportSearch.toLowerCase())) ||
-                          (rep.programa && rep.programa.toLowerCase().includes(reportSearch.toLowerCase())) ||
-                          empName.includes(reportSearch.toLowerCase());
+      const empName = emp ? (emp.nama || "")?.toLowerCase() : '';
+      const matchSearch = (rep.title || "")?.toLowerCase().includes(reportSearch?.toLowerCase()) || 
+                          (rep.url && (rep.url || "")?.toLowerCase().includes(reportSearch?.toLowerCase())) ||
+                          (rep.category && (rep.category || "")?.toLowerCase().includes(reportSearch?.toLowerCase())) ||
+                          (rep.programa && (rep.programa || "")?.toLowerCase().includes(reportSearch?.toLowerCase())) ||
+                          empName.includes(reportSearch?.toLowerCase());
       
       let matchType = false;
       if (activeSubTab === 'online') {
@@ -801,7 +801,7 @@ export default function PemberitaanMediaBaruView({
     let l3Agreement: any = null;
     agreements.forEach(ag => {
       if (ag.level === 'Pegawai' && ag.assignedToEmployeeId === selectedTrackerEmployeeId) {
-        const found = ag.objectives.find(obj => obj.id === target.linkedIndicatorId);
+        const found = ag?.objectives?.find(obj => obj.id === target.linkedIndicatorId);
         if (found) {
           l3Obj = found;
           l3Agreement = ag;
@@ -816,7 +816,7 @@ export default function PemberitaanMediaBaruView({
     let l2Agreement: any = null;
     agreements.forEach(ag => {
       if (ag.level !== 'Kepala Stasiun' && ag.level !== 'Pegawai') {
-        const found = ag.objectives.find(obj => obj.id === l3Obj.parentIndicatorId);
+        const found = ag?.objectives?.find(obj => obj.id === l3Obj.parentIndicatorId);
         if (found) {
           l2Obj = found;
           l2Agreement = ag;
@@ -830,7 +830,7 @@ export default function PemberitaanMediaBaruView({
     if (l2Obj) {
       agreements.forEach(ag => {
         if (ag.level === 'Kepala Stasiun') {
-          const found = ag.objectives.find(obj => obj.id === l2Obj.parentIndicatorId);
+          const found = ag?.objectives?.find(obj => obj.id === l2Obj.parentIndicatorId);
           if (found) {
             l1Obj = found;
             l1Agreement = ag;
@@ -2002,7 +2002,7 @@ export default function PemberitaanMediaBaruView({
                 <input
                   type="text"
                   placeholder="e.g. Bandar Lampung, Surakarta, Jakarta"
-                  value={reportDaerah}
+                  value={reportDaerah || ""}
                   onChange={(e) => setReportDaerah(e.target.value)}
                   className="w-full bg-slate-50 border border-slate-200 focus:bg-white focus:outline-hidden rounded-xl px-3 py-2 text-xs font-semibold text-slate-700"
                 />
@@ -2018,7 +2018,7 @@ export default function PemberitaanMediaBaruView({
                   <input
                     type="url"
                     placeholder="https://drive.google.com/file/d/... / https://rri.co.id/..."
-                    value={reportUrl}
+                    value={reportUrl || ""}
                     onChange={(e) => setReportUrl(e.target.value)}
                     className="w-full bg-slate-50 border border-slate-200 focus:bg-white focus:outline-hidden rounded-xl pl-9 pr-3 py-2 text-xs font-semibold text-slate-700 font-mono"
                   />
@@ -2177,7 +2177,7 @@ export default function PemberitaanMediaBaruView({
               <div className="space-y-2">
                 <label className="text-[10px] font-extrabold text-slate-500 uppercase tracking-wider block">Tempel data terformat JSON berita di bawah</label>
                 <textarea
-                  value={newsImportText}
+                  value={newsImportText || ""}
                   onChange={(e) => setNewsImportText(e.target.value)}
                   placeholder={`[\n  {\n    "Judul Berita": "Dialog Digitalisasi RRI",\n    "Waktu Publish": "2026-07-06 10:00:00",\n    "Penulis": "NIP_ATAU_NAMA_STAFF",\n    "Editor": "NIP_ATAU_NAMA_EDITOR",\n    "Daerah": "Bandung",\n    "URL": "https://rri.co.id/swara/news/1"\n  }\n]`}
                   rows={8}

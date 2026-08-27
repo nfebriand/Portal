@@ -40,9 +40,9 @@ export interface FilterNewsOptions {
  */
 export function isEligibleNewsIndicator(indicator?: { indicatorName?: string; mediaType?: string; unit?: string }): boolean {
   if (!indicator) return false;
-  const nameLower = (indicator.indicatorName || '').toLowerCase();
+  const nameLower = (indicator.indicatorName || '')?.toLowerCase();
   const mediaType = indicator.mediaType || '';
-  const unitLower = (indicator.unit || '').toLowerCase();
+  const unitLower = (indicator.unit || '')?.toLowerCase();
 
   // Non-quantity indicators (Skor, %, Nilai) are manual input indicators, not report count list indicators
   if (unitLower === '%' || unitLower === 'skor' || unitLower === 'nilai' || unitLower.includes('persen')) {
@@ -119,7 +119,7 @@ export function filterNewsForIndicator({
   typeLabel: string;
   isEligible: boolean;
 } {
-  const nameLower = (indicator?.indicatorName || '').toLowerCase();
+  const nameLower = (indicator?.indicatorName || '')?.toLowerCase();
   const mediaType = indicator?.mediaType || '';
 
   let isEligible = false;
@@ -165,7 +165,7 @@ export function filterNewsForIndicator({
   ) {
     isEligible = true;
     typeLabel = 'Konten Siaran';
-    matchesType = (r: NewsReport) => r.type === 'Konten Siaran' || (r.type as string)?.toLowerCase().includes('siaran');
+    matchesType = (r: NewsReport) => r.type === 'Konten Siaran' || ((r.type as string) || '')?.toLowerCase().includes('siaran');
   }
 
   if (!isEligible) {
@@ -181,7 +181,7 @@ export function filterNewsForIndicator({
   let periodLabel = `Tahunan (${selectedYear})`;
   let matchesPeriod = (_r: NewsReport) => true;
 
-  const pLower = (period || '').toLowerCase().trim();
+  const pLower = (period || '')?.toLowerCase().trim();
 
   const monthNames = [
     'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
@@ -275,7 +275,7 @@ export function filterNewsForIndicator({
     };
   } else {
     // Check if month name was directly passed
-    const foundMonthIdx = monthNames.findIndex(m => m.toLowerCase() === pLower);
+    const foundMonthIdx = monthNames.findIndex(m => m?.toLowerCase() === pLower);
     if (foundMonthIdx !== -1) {
       periodLabel = `Bulanan - ${monthNames[foundMonthIdx]} ${selectedYear}`;
       matchesPeriod = (r: NewsReport) => {
@@ -293,13 +293,13 @@ export function filterNewsForIndicator({
   let matchesEmployee = (_r: NewsReport) => true;
   if (agreement?.level === 'Pegawai' && (agreement.assignedToEmployeeId || agreement.assignedToName)) {
     const empId = agreement.assignedToEmployeeId;
-    const empName = (agreement.assignedToName || '').toLowerCase().trim();
+    const empName = (agreement.assignedToName || '')?.toLowerCase().trim();
     
     matchesEmployee = (r: NewsReport) => {
       if (empId && r.employeeId === empId) return true;
       if (empName) {
-        const wName = (r.writerName || '').toLowerCase().trim();
-        const rName = (r.reporterName || '').toLowerCase().trim();
+        const wName = (r.writerName || '')?.toLowerCase().trim();
+        const rName = (r.reporterName || '')?.toLowerCase().trim();
         if (wName && (wName.includes(empName) || empName.includes(wName))) return true;
         if (rName && (rName.includes(empName) || empName.includes(rName))) return true;
       }

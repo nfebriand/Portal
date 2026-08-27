@@ -110,14 +110,14 @@ export default function RekapitulasiKepegawaian({
 
     employees.forEach(emp => {
       // Status
-      const st = (emp.status || 'aktif').toLowerCase();
+      const st = (emp.status || 'aktif')?.toLowerCase();
       if (st === 'aktif') aktif++;
       else if (st === 'pindah') pindah++;
       else if (st === 'keluar') keluar++;
       else aktif++;
 
       // Jalur Jabatan
-      const jj = (emp.jenisJabatan || 'fungsional').toLowerCase();
+      const jj = (emp.jenisJabatan || 'fungsional')?.toLowerCase();
       if (jj === 'struktural') struktural++;
       else fungsional++;
 
@@ -132,7 +132,7 @@ export default function RekapitulasiKepegawaian({
       }
 
       // Jabatan
-      const jb = (emp.jabatan || 'staf').toLowerCase();
+      const jb = (emp.jabatan || 'staf')?.toLowerCase();
       if (jb.includes('kepala') || jb.includes('satker')) jabatanCount['Kepala Satker']++;
       else if (jb.includes('ketua') || jb.includes('bidang')) jabatanCount['Ketua Bidang']++;
       else if (jb.includes('admin')) jabatanCount['Admin Bidang']++;
@@ -195,17 +195,17 @@ export default function RekapitulasiKepegawaian({
   // 2. Filtered & Paginated Employees List (20 per page)
   const filteredEmployees = useMemo(() => {
     return employees.filter(emp => {
-      const q = searchQuery.toLowerCase().trim();
+      const q = searchQuery?.toLowerCase().trim();
       const matchSearch = !q || (
-        emp.nama.toLowerCase().includes(q) ||
-        (emp.nip && emp.nip.toLowerCase().includes(q)) ||
-        (emp.nik && emp.nik.toLowerCase().includes(q)) ||
-        (emp.jabatan && emp.jabatan.toLowerCase().includes(q)) ||
-        (emp.divisi && emp.divisi.toLowerCase().includes(q))
+        (emp.nama || "")?.toLowerCase().includes(q) ||
+        (emp.nip && (emp.nip || "")?.toLowerCase().includes(q)) ||
+        (emp.nik && (emp.nik || "")?.toLowerCase().includes(q)) ||
+        (emp.jabatan && (emp.jabatan || "")?.toLowerCase().includes(q)) ||
+        (emp.divisi && (emp.divisi || "")?.toLowerCase().includes(q))
       );
 
       const matchDiv = selectedDivision === 'all' || emp.divisi === selectedDivision;
-      const matchStat = selectedStatus === 'all' || (emp.status || 'aktif').toLowerCase() === selectedStatus.toLowerCase();
+      const matchStat = selectedStatus === 'all' || (emp.status || 'aktif')?.toLowerCase() === selectedStatus?.toLowerCase();
       const matchGen = selectedGender === 'all' || emp.jenisKelamin === selectedGender;
 
       return matchSearch && matchDiv && matchStat && matchGen;
@@ -663,7 +663,7 @@ export default function RekapitulasiKepegawaian({
             <input
               type="text"
               placeholder="Cari nama, NIP, NIK, jabatan..."
-              value={searchQuery}
+              value={searchQuery || ""}
               onChange={(e) => handleSearchChange(e.target.value)}
               className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:bg-white focus:outline-hidden focus:border-indigo-600 transition-all font-medium"
             />
@@ -744,7 +744,7 @@ export default function RekapitulasiKepegawaian({
                   const currTr = annuals[currentYear];
                   const totalJP = currTr ? currTr.totalHours : 0;
                   const isCompliant = currTr ? currTr.isCompliant : false;
-                  const st = (emp.status || 'aktif').toLowerCase();
+                  const st = (emp.status || 'aktif')?.toLowerCase();
 
                   return (
                     <tr 

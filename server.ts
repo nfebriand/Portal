@@ -20,6 +20,23 @@ import {
 
 dotenv.config();
 
+async function withRetry<T>(operation: () => Promise<T>, maxRetries = 5): Promise<T> {
+  let attempt = 0;
+  let delay = 500;
+  while (attempt < maxRetries) {
+    try {
+      return await operation();
+    } catch (error: any) {
+      attempt++;
+      console.warn(`Database operation failed (attempt ${attempt}/${maxRetries}):`, error.message);
+      if (attempt >= maxRetries) throw error;
+      await new Promise(resolve => setTimeout(resolve, delay));
+      delay *= 1.5; // Exponential backoff
+    }
+  }
+  throw new Error("Maximum retries exceeded");
+}
+
 async function startServer() {
   const app = express();
   const PORT = 3000;
@@ -39,7 +56,7 @@ async function startServer() {
   // Contoh rute API aman untuk mengambil data dari PostgreSQL
   app.get("/api/users", requireAuth, async (req: AuthRequest, res) => {
     try {
-      const allUsers = await db.select().from(users).limit(10);
+      const allUsers = await withRetry(() => db.select().from(users).limit(10));
       res.json({ data: allUsers });
     } catch (error) {
       console.error("Database error:", error);
@@ -57,7 +74,7 @@ async function startServer() {
       // Import Employees
       if (data.employees && Array.isArray(data.employees)) {
         for (const emp of data.employees) {
-          await db.insert(employees).values({
+          await withRetry(() => db.insert(employees).values({
             id: emp.id,
             nik: emp.nik || emp.nip || '',
             nip: emp.nip || '',
@@ -90,7 +107,7 @@ async function startServer() {
             role: emp.role,
             isEditor: emp.isEditor,
             createdAt: emp.createdAt ? new Date(emp.createdAt) : new Date(),
-          }).onConflictDoNothing();
+          }).onConflictDoNothing());
           importCount++;
         }
       }
@@ -98,7 +115,7 @@ async function startServer() {
       // Import Performance Agreements
       if (data.agreements && Array.isArray(data.agreements)) {
         for (const ag of data.agreements) {
-          await db.insert(performanceAgreements).values({
+          await withRetry(() => db.insert(performanceAgreements).values({
             id: ag.id,
             year: ag.year || 2024,
             level: ag.level || 'Pegawai',
@@ -109,7 +126,7 @@ async function startServer() {
             signaturePembuat: ag.signaturePembuat,
             signaturePenerima: ag.signaturePenerima,
             createdAt: ag.createdAt ? new Date(ag.createdAt) : new Date(),
-          }).onConflictDoNothing();
+          }).onConflictDoNothing());
           importCount++;
         }
       }
@@ -117,7 +134,7 @@ async function startServer() {
       // Import Cooperation Contracts
       if (data.contracts && Array.isArray(data.contracts)) {
         for (const c of data.contracts) {
-          await db.insert(cooperationContracts).values({
+          await withRetry(() => db.insert(cooperationContracts).values({
             id: c.id,
             partnerName: c.partnerName || 'Unknown',
             contractNo: c.contractNo || '-',
@@ -130,7 +147,7 @@ async function startServer() {
             endDate: c.endDate || new Date().toISOString(),
             notes: c.notes,
             linkedIndicatorId: c.linkedIndicatorId || '',
-          }).onConflictDoNothing();
+          }).onConflictDoNothing());
           importCount++;
         }
       }
@@ -138,7 +155,7 @@ async function startServer() {
       // Import News Reports
       if (data.newsReports && Array.isArray(data.newsReports)) {
         for (const nr of data.newsReports) {
-          await db.insert(newsReports).values({
+          await withRetry(() => db.insert(newsReports).values({
             id: nr.id,
             employeeId: nr.employeeId || '',
             editorId: nr.editorId,
@@ -153,7 +170,7 @@ async function startServer() {
             publishDateTime: nr.publishDateTime,
             reporterName: nr.reporterName,
             daerah: nr.daerah,
-          }).onConflictDoNothing();
+          }).onConflictDoNothing());
           importCount++;
         }
       }
@@ -161,7 +178,7 @@ async function startServer() {
       // Import Promotion Activities
       if (data.promotions && Array.isArray(data.promotions)) {
         for (const p of data.promotions) {
-          await db.insert(promotionActivities).values({
+          await withRetry(() => db.insert(promotionActivities).values({
             id: p.id,
             tanggal: p.tanggal || new Date().toISOString(),
             namaKegiatan: p.namaKegiatan || p.judul || 'Untitled',
@@ -183,7 +200,7 @@ async function startServer() {
             creatorName: p.creatorName,
             divisi: p.divisi,
             createdAt: p.createdAt ? new Date(p.createdAt) : new Date(),
-          }).onConflictDoNothing();
+          }).onConflictDoNothing());
           importCount++;
         }
       }
@@ -220,7 +237,7 @@ async function startServer() {
       const table = getTable(req.params.collection);
       if (!table) return res.status(404).json({ error: "Collection not found" });
       
-      const records = await db.select().from(table);
+      const records = await withRetry(() => db.select().from(table));
       res.json(records);
     } catch (error: any) {
       console.error(`Error fetching ${req.params.collection}:`, error);
@@ -234,7 +251,7 @@ async function startServer() {
       const table = getTable(req.params.collection);
       if (!table) return res.status(404).json({ error: "Collection not found" });
       
-      const records = await db.select().from(table).where(eq(table.id, req.params.id));
+      const records = await withRetry(() => db.select().from(table).where(eq(table.id, req.params.id)));
       if (records.length === 0) return res.status(404).json({ error: "Not found" });
       res.json(records[0]);
     } catch (error: any) {
@@ -242,6 +259,7 @@ async function startServer() {
     }
   });
 
+  
   // Generic POST/UPSERT document
   app.post("/api/data/:collection/:id", async (req, res) => {
     try {
@@ -250,13 +268,29 @@ async function startServer() {
       
       const data = { ...req.body, id: req.params.id };
       
+      // Clean dates (convert integers to Dates)
+      const dateFields = ['createdAt', 'updatedAt'];
+      for (const field of dateFields) {
+        if (data[field]) {
+          if (typeof data[field] === 'number') {
+            data[field] = new Date(data[field]);
+          } else if (typeof data[field] === 'string') {
+            data[field] = new Date(data[field]);
+          }
+        }
+      }
+      
+      // Also handle 'timestamp' if the schema expects a string or date, but schema for critical_notifications expects string timestamp.
+      // Wait, let's just do it generally:
+
+      
       // Upsert logic (insert or update on conflict)
-      await db.insert(table)
+      await withRetry(() => db.insert(table)
         .values(data)
         .onConflictDoUpdate({
           target: table.id,
           set: data
-        });
+        }));
         
       res.json({ success: true, id: req.params.id });
     } catch (error: any) {
@@ -271,7 +305,7 @@ async function startServer() {
       const table = getTable(req.params.collection);
       if (!table) return res.status(404).json({ error: "Collection not found" });
       
-      await db.delete(table).where(eq(table.id, req.params.id));
+      await withRetry(() => db.delete(table).where(eq(table.id, req.params.id)));
       res.json({ success: true });
     } catch (error: any) {
       res.status(500).json({ error: error.message });

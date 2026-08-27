@@ -6,7 +6,7 @@ import { parseFlexibleDate } from './dateUtils';
  */
 export function isPromotionIndicator(indicatorName?: string): boolean {
   if (!indicatorName) return false;
-  const nameLower = indicatorName.toLowerCase().trim();
+  const nameLower = indicatorName?.toLowerCase().trim();
   return (
     nameLower.includes('kegiatan promosi') ||
     nameLower.includes('jumlah kegiatan promosi') ||
@@ -106,9 +106,9 @@ export function syncPromotionAchievements(
     // Increment employee count
     let empId = promo.creatorId;
     if (!empId && promo.creatorName) {
-      const cName = promo.creatorName.toLowerCase().trim();
+      const cName = (promo.creatorName || "")?.toLowerCase().trim();
       const matched = employees.find(e => {
-        const eName = e.nama.toLowerCase().trim();
+        const eName = (e.nama || "")?.toLowerCase().trim();
         return eName === cName || eName.includes(cName) || cName.includes(eName);
       });
       if (matched) empId = matched.id;
@@ -131,9 +131,9 @@ export function syncPromotionAchievements(
     if (ag.level === 'Pegawai') {
       let empId = ag.assignedToEmployeeId;
       if (!empId && ag.assignedToName) {
-        const nameLower = ag.assignedToName.toLowerCase().trim();
+        const nameLower = (ag.assignedToName || "")?.toLowerCase().trim();
         const found = employees.find(e => {
-          const eName = e.nama.toLowerCase().trim();
+          const eName = (e.nama || "")?.toLowerCase().trim();
           return eName === nameLower || eName.includes(nameLower) || nameLower.includes(eName);
         });
         if (found) empId = found.id;

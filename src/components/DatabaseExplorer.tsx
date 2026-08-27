@@ -89,12 +89,12 @@ export default function DatabaseExplorer({
   // Search filter
   const filteredData = activeCol.data.filter((item: any) => {
     if (!searchQuery) return true;
-    const q = searchQuery.toLowerCase();
+    const q = searchQuery?.toLowerCase();
     return Object.entries(item).some(([key, val]) => {
-      if (key === 'foto' || key === 'ttdElektronik' || key === 'signaturePembuat' || key === 'signaturePenerima' || key.toLowerCase().includes('ttd')) {
+      if (key === 'foto' || key === 'ttdElektronik' || key === 'signaturePembuat' || key === 'signaturePenerima' || key?.toLowerCase().includes('ttd')) {
         return false; // skip large base64 strings
       }
-      return val !== null && val !== undefined && String(val).toLowerCase().includes(q);
+      return val !== null && val !== undefined && String(val)?.toLowerCase().includes(q);
     });
   });
 
@@ -496,7 +496,7 @@ export default function DatabaseExplorer({
               <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
               <input
                 type="text"
-                value={searchQuery}
+                value={searchQuery || ""}
                 onChange={(e) => {
                   setSearchQuery(e.target.value);
                   setCurrentPage(1);
@@ -603,7 +603,7 @@ export default function DatabaseExplorer({
                 PENTING: Masukkan array JSON objek data yang valid. Ini akan menimpa seluruh baris data pada tabel {activeCol.label} secara permanen.
               </p>
               <textarea
-                value={bulkImportText}
+                value={bulkImportText || ""}
                 onChange={(e) => setBulkImportText(e.target.value)}
                 placeholder="[ { &quot;id&quot;: &quot;...&quot;, &quot;nama&quot;: &quot;...&quot; } ]"
                 rows={5}
@@ -813,7 +813,7 @@ export default function DatabaseExplorer({
                 <div className="space-y-1.5">
                   <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wide block">Raw JSON Data</label>
                   <textarea
-                    value={docJsonText}
+                    value={docJsonText || ""}
                     onChange={(e) => setDocJsonText(e.target.value)}
                     rows={12}
                     className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs font-mono text-slate-800 focus:bg-white focus:outline-hidden focus:ring-1 focus:ring-slate-400"
@@ -856,7 +856,7 @@ export default function DatabaseExplorer({
                           </select>
                         ) : key === 'jenjangPendidikan' ? (
                           <select
-                            value={value}
+                            value={value || ""}
                             onChange={(e) => handleFieldChange(key, e.target.value)}
                             className="w-full bg-slate-50/50 border border-slate-200 rounded-xl px-3 py-1.5 text-xs font-medium text-slate-800"
                           >
@@ -878,7 +878,7 @@ export default function DatabaseExplorer({
                           </select>
                         ) : key === 'divisi' ? (
                           <select
-                            value={value}
+                            value={value || ""}
                             onChange={(e) => handleFieldChange(key, e.target.value)}
                             className="w-full bg-slate-50/50 border border-slate-200 rounded-xl px-3 py-1.5 text-xs font-medium text-slate-800"
                           >
@@ -891,7 +891,7 @@ export default function DatabaseExplorer({
                           </select>
                         ) : key === 'jenisKelamin' ? (
                           <select
-                            value={value}
+                            value={value || ""}
                             onChange={(e) => handleFieldChange(key, e.target.value)}
                             className="w-full bg-slate-50/50 border border-slate-200 rounded-xl px-3 py-1.5 text-xs font-medium text-slate-800"
                           >
@@ -900,7 +900,7 @@ export default function DatabaseExplorer({
                           </select>
                         ) : key === 'paymentStatus' ? (
                           <select
-                            value={value}
+                            value={value || ""}
                             onChange={(e) => handleFieldChange(key, e.target.value)}
                             className="w-full bg-slate-50/50 border border-slate-200 rounded-xl px-3 py-1.5 text-xs font-medium text-slate-800"
                           >
@@ -910,7 +910,7 @@ export default function DatabaseExplorer({
                           </select>
                         ) : key === 'cooperationType' ? (
                           <select
-                            value={value}
+                            value={value || ""}
                             onChange={(e) => handleFieldChange(key, e.target.value)}
                             className="w-full bg-slate-50/50 border border-slate-200 rounded-xl px-3 py-1.5 text-xs font-medium text-slate-800"
                           >

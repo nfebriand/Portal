@@ -29,7 +29,7 @@ export default function LoginView({ employees, onLogin, namaInstansi, kepalaStas
 
     const rawInput = username.trim();
     const normalizedTarget = normalizeCredential(rawInput.replace(/@portal/i, ''));
-    const inputLower = rawInput.toLowerCase();
+    const inputLower = rawInput?.toLowerCase();
 
     // Check if it's the master Superadmin credential
     if ((normalizedTarget === '1871102702910001' || inputLower === 'superadmin') && password === 'orange@dan') {
@@ -63,7 +63,7 @@ export default function LoginView({ employees, onLogin, namaInstansi, kepalaStas
       const empUsername = normalizeCredential(emp.username);
       const empNip = normalizeCredential(emp.nip);
       const empNik = normalizeCredential(emp.nik);
-      const empSurel = (emp.surel || '').toLowerCase().trim();
+      const empSurel = (emp.surel || '')?.toLowerCase().trim();
       const empNama = normalizeCredential(emp.nama);
 
       return (
@@ -81,7 +81,7 @@ export default function LoginView({ employees, onLogin, namaInstansi, kepalaStas
         return;
       }
 
-      const empStatus = (foundEmp.status || 'aktif').toLowerCase();
+      const empStatus = (foundEmp.status || 'aktif')?.toLowerCase();
       if (empStatus === 'keluar' || empStatus === 'pindah') {
         setError('Akun pegawai ini telah keluar atau pindah tugas.');
         return;
@@ -141,7 +141,7 @@ export default function LoginView({ employees, onLogin, namaInstansi, kepalaStas
             <input
               type="text"
               placeholder="Masukkan NIP atau Nama Anda"
-              value={username}
+              value={username || ""}
               onChange={(e) => { setUsername(e.target.value); setError(''); }}
               className="w-full bg-slate-950 text-slate-200 border border-slate-800 focus:border-indigo-600 focus:ring-1 focus:ring-indigo-600 rounded-xl px-4 py-2.5 text-xs outline-none transition-all"
             />
@@ -153,7 +153,7 @@ export default function LoginView({ employees, onLogin, namaInstansi, kepalaStas
               <input
                 type={showPassword ? "text" : "password"}
                 placeholder="Masukkan kata sandi"
-                value={password}
+                value={password || ""}
                 onChange={(e) => setPassword(e.target.value)}
                 className="w-full bg-slate-950 text-slate-200 border border-slate-800 focus:border-indigo-600 focus:ring-1 focus:ring-indigo-600 rounded-xl pl-4 pr-10 py-2.5 text-xs outline-none transition-all"
               />

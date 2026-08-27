@@ -45,11 +45,11 @@ export default function NewsDetailModal({
     return newsReports.filter(rep => {
       const matchesSearch = 
         !searchTerm.trim() ||
-        rep.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (rep.writerName || rep.reporterName || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (rep.editorName || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (rep.category || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (rep.daerah || '').toLowerCase().includes(searchTerm.toLowerCase());
+        (rep.title || "")?.toLowerCase().includes(searchTerm?.toLowerCase()) ||
+        (rep.writerName || rep.reporterName || '')?.toLowerCase().includes(searchTerm?.toLowerCase()) ||
+        (rep.editorName || '')?.toLowerCase().includes(searchTerm?.toLowerCase()) ||
+        (rep.category || '')?.toLowerCase().includes(searchTerm?.toLowerCase()) ||
+        (rep.daerah || '')?.toLowerCase().includes(searchTerm?.toLowerCase());
 
       const matchesType = typeFilter === 'all' || rep.type === typeFilter;
 
@@ -134,7 +134,7 @@ export default function NewsDetailModal({
               <input
                 type="text"
                 placeholder="Cari judul, reporter, editor..."
-                value={searchTerm}
+                value={searchTerm || ""}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="w-full text-xs pl-8 pr-3 py-1.5 bg-white border border-slate-200 rounded-xl focus:outline-hidden focus:border-indigo-500 font-medium text-slate-700"
               />

@@ -145,9 +145,9 @@ export default function InputCapaianPKView({
         // Employee matching check
         let empId = rep.employeeId;
         if (!empId && (rep.reporterName || rep.writerName)) {
-          const repName = (rep.reporterName || rep.writerName || '').toLowerCase().trim();
+          const repName = (rep.reporterName || rep.writerName || '')?.toLowerCase().trim();
           const matched = employees.find(e => {
-            const eName = e.nama.toLowerCase().trim();
+            const eName = (e.nama || "")?.toLowerCase().trim();
             return eName === repName || eName.includes(repName) || repName.includes(eName);
           });
           if (matched) empId = matched.id;
@@ -195,6 +195,7 @@ export default function InputCapaianPKView({
       // Also synchronize competency achievements for all levels
       updatedAgs = syncCompetencyAchievements(employees, updatedAgs);
       onUpdateAgreements(updatedAgs);
+      setInitializedAgreementId(null);
 
       if (onAddNotification) {
         onAddNotification({
@@ -236,6 +237,7 @@ export default function InputCapaianPKView({
       }));
 
       onUpdateAgreements(updatedAgs);
+      setInitializedAgreementId(null);
 
       if (onAddNotification) {
         onAddNotification({
@@ -267,7 +269,7 @@ export default function InputCapaianPKView({
 
     // Find updated objective in target agreement
     const targetAg = updatedAgs.find(ag => ag.level === selectedLevel);
-    const updatedObj = targetAg?.objectives.find(o => o.id === obj.id);
+    const updatedObj = targetAg?.objectives?.find(o => o.id === obj.id);
 
     if (updatedObj && Array.isArray(updatedObj.monthlyAchievements)) {
       setLocalAchievements(prev => ({
@@ -277,6 +279,7 @@ export default function InputCapaianPKView({
     }
 
     onUpdateAgreements(updatedAgs);
+      setInitializedAgreementId(null);
 
     const isNews = isEligibleNewsIndicator(obj);
     if (onAddNotification) {
@@ -316,7 +319,7 @@ export default function InputCapaianPKView({
 
   const userDivision = (currentUser.division || currentEmpRecord?.divisi || '').trim();
   const userLoginRole = (currentUser as any).loginRole || currentEmpRecord?.loginRole;
-  const userJabatan = ((currentUser as any).jabatan || currentEmpRecord?.jabatan || '').toLowerCase();
+  const userJabatan = ((currentUser as any).jabatan || currentEmpRecord?.jabatan || '')?.toLowerCase();
 
   // Access check: Only Admin Bidang / Ketua / Kasatker / Superadmin
   const isAuthorized = useMemo(() => {
@@ -330,12 +333,12 @@ export default function InputCapaianPKView({
 
   // Determine user's matched level based on division
   const userMatchedLevelOption = useMemo(() => {
-    const div = userDivision.toLowerCase();
+    const div = userDivision?.toLowerCase();
     if (!div) return level2Options[0];
 
     const matched = level2Options.find(opt => {
-      const optDiv = opt.division.toLowerCase();
-      const optVal = opt.value.toLowerCase();
+      const optDiv = opt.division?.toLowerCase();
+      const optVal = opt.value?.toLowerCase();
       return (
         optDiv === div ||
         optDiv.includes(div) ||
@@ -377,7 +380,7 @@ export default function InputCapaianPKView({
 
   // Temporary local state for draft edits to avoid updating database on every keystroke
   // Formatted as { [indicatorId]: number[] }
-  const [localAchievements, setLocalAchievements] = useState<{ [key: string]: number[] }>({});
+  const [localAchievements, setLocalAchievements] = useState<{ [key: string]: (number | string)[] }>({});
   const [localPeriodTypes, setLocalPeriodTypes] = useState<{ [key: string]: 'tahunan' | 'triwulanan' | 'semesteran' }>({});
   const [activeObjectiveId, setActiveObjectiveId] = useState<string | null>(null);
 
@@ -387,39 +390,41 @@ export default function InputCapaianPKView({
   }, [agreements, selectedLevel]);
 
   // Initialize local achievements and period types from agreement objectives
+  const [initializedAgreementId, setInitializedAgreementId] = useState<string | null>(null);
+
   React.useEffect(() => {
     if (activeAgreement) {
-      const initial: { [key: string]: number[] } = {};
-      const initialPeriods: { [key: string]: 'tahunan' | 'triwulanan' | 'semesteran' } = {};
-      activeAgreement.objectives.forEach(obj => {
-        if (Array.isArray(obj.monthlyAchievements) && obj.monthlyAchievements.length === 12) {
-          initial[obj.id] = [...obj.monthlyAchievements];
-        } else {
-          initial[obj.id] = Array(12).fill(obj.achievement / 12 || 0);
+      if (initializedAgreementId !== activeAgreement.id) {
+        const initial: { [key: string]: (number | string)[] } = {};
+        const initialPeriods: { [key: string]: 'tahunan' | 'triwulanan' | 'semesteran' } = {};
+        activeAgreement?.objectives?.forEach(obj => {
+          if (Array.isArray(obj.monthlyAchievements) && obj.monthlyAchievements.length === 12) {
+            initial[obj.id] = obj.monthlyAchievements.map(v => String(v));
+          } else {
+            initial[obj.id] = Array(12).fill(String(obj.achievement / 12 || 0));
+          }
+          initialPeriods[obj.id] = obj.periodType || 'tahunan';
+        });
+        setLocalAchievements(initial);
+        setLocalPeriodTypes(initialPeriods);
+        setInitializedAgreementId(activeAgreement.id);
+        if (activeAgreement?.objectives?.length > 0 && !activeObjectiveId) {
+          setActiveObjectiveId(activeAgreement.objectives[0].id);
         }
-        initialPeriods[obj.id] = obj.periodType || 'tahunan';
-      });
-      setLocalAchievements(initial);
-      setLocalPeriodTypes(initialPeriods);
-      if (activeAgreement.objectives.length > 0) {
-        setActiveObjectiveId(activeAgreement.objectives[0].id);
       }
     } else {
       setLocalAchievements({});
       setLocalPeriodTypes({});
       setActiveObjectiveId(null);
+      setInitializedAgreementId(null);
     }
-  }, [activeAgreement]);
+  }, [activeAgreement, initializedAgreementId, activeObjectiveId]);
 
   // Handle local change of achievements
   const handleLocalChange = (objId: string, monthIdx: number, valStr: string) => {
-    // allow empty string or numeric
-    const parsed = valStr === '' ? 0 : parseFloat(valStr);
-    const cleanVal = isNaN(parsed) ? 0 : parsed;
-
     setLocalAchievements(prev => {
-      const current = prev[objId] ? [...prev[objId]] : Array(12).fill(0);
-      current[monthIdx] = cleanVal;
+      const current = prev[objId] ? [...prev[objId]] : Array(12).fill("");
+      current[monthIdx] = valStr;
       return {
         ...prev,
         [objId]: current
@@ -445,8 +450,13 @@ export default function InputCapaianPKView({
       if (ag.id === activeAgreement.id) {
         return {
           ...ag,
-          objectives: ag.objectives.map(obj => {
-            const currentAchievements = localAchievements[obj.id] || Array(12).fill(0);
+          objectives: ag?.objectives?.map(obj => {
+            const rawCurrentAchievements = localAchievements[obj.id] || Array(12).fill(0);
+            const currentAchievements = rawCurrentAchievements.map(v => {
+              if (v === "") return 0;
+              const p = parseFloat(String(v));
+              return isNaN(p) ? 0 : p;
+            });
             
             // For news indicators, calculate the manual delta
             let manualAchievements = obj.manualAchievements;
@@ -460,8 +470,8 @@ export default function InputCapaianPKView({
             // Recalculate annual value
             const type = obj.trajectoryType || (
               obj.unit === '%' || 
-              obj.indicatorName.toLowerCase().includes('ikpa') || 
-              obj.indicatorName.toLowerCase().includes('nilai') 
+               (obj.indicatorName || "")?.toLowerCase().includes('ikpa') || 
+               (obj.indicatorName || "")?.toLowerCase().includes('nilai') 
                 ? 'constant' 
                 : 'cumulative'
             );
@@ -506,18 +516,23 @@ export default function InputCapaianPKView({
   // Dynamic calculations for selected objective
   const activeObjective = useMemo(() => {
     if (!activeAgreement || !activeObjectiveId) return null;
-    return activeAgreement.objectives.find(o => o.id === activeObjectiveId) || null;
+    return activeAgreement?.objectives?.find(o => o.id === activeObjectiveId) || null;
   }, [activeAgreement, activeObjectiveId]);
 
   const activeCalculations = useMemo(() => {
     if (!activeObjective) return null;
-    const achievements = localAchievements[activeObjective.id] || Array(12).fill(0);
+    const rawAchievements = localAchievements[activeObjective.id] || Array(12).fill(0);
+    const achievements = rawAchievements.map(v => {
+      if (v === "") return 0;
+      const p = parseFloat(String(v));
+      return isNaN(p) ? 0 : p;
+    });
     const pType = localPeriodTypes[activeObjective.id] || activeObjective.periodType || 'tahunan';
     
     const type = activeObjective.trajectoryType || (
       activeObjective.unit === '%' || 
-      activeObjective.indicatorName.toLowerCase().includes('ikpa') || 
-      activeObjective.indicatorName.toLowerCase().includes('nilai') 
+       (activeObjective.indicatorName || "")?.toLowerCase().includes('ikpa') || 
+       (activeObjective.indicatorName || "")?.toLowerCase().includes('nilai') 
         ? 'constant' 
         : 'cumulative'
     );
@@ -754,17 +769,17 @@ export default function InputCapaianPKView({
           {/* Left Column: Indicator Navigation List */}
           <div className="lg:col-span-4 space-y-3">
             <h3 className="text-[10px] font-extrabold uppercase tracking-widest text-slate-400 pl-1">
-              Daftar Indikator Kinerja ({activeAgreement.objectives.length})
+              Daftar Indikator Kinerja ({activeAgreement?.objectives?.length})
             </h3>
             
             <div className="space-y-2">
-              {activeAgreement.objectives.map((obj) => {
+              {activeAgreement?.objectives?.map((obj) => {
                 const isActive = activeObjectiveId === obj.id;
                 const isTrajectory = Array.isArray(obj.trajectory) && obj.trajectory.length === 12;
                 const tType = obj.trajectoryType || (
                   obj.unit === '%' || 
-                  obj.indicatorName.toLowerCase().includes('ikpa') || 
-                  obj.indicatorName.toLowerCase().includes('nilai') 
+                   (obj.indicatorName || "")?.toLowerCase().includes('ikpa') || 
+                   (obj.indicatorName || "")?.toLowerCase().includes('nilai') 
                     ? 'constant' 
                     : 'cumulative'
                 );
@@ -1021,7 +1036,7 @@ export default function InputCapaianPKView({
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3.5">
                     {INDONESIAN_MONTHS.map((month, idx) => {
-                      const currentVal = (localAchievements[activeObjective.id] || Array(12).fill(0))[idx];
+                      const currentVal = (localAchievements[activeObjective.id] || Array(12).fill(""))[idx];
                       const targetProj = activeCalculations.isUsingTrajectory && Array.isArray(activeObjective.trajectory)
                         ? activeObjective.trajectory[idx]
                         : null;
@@ -1043,7 +1058,7 @@ export default function InputCapaianPKView({
                             <input
                               type="number"
                               step="any"
-                              value={currentVal === 0 && !localAchievements[activeObjective.id] ? '' : currentVal}
+                              value={currentVal ?? ""}
                               onChange={(e) => handleLocalChange(activeObjective.id, idx, e.target.value)}
                               placeholder="0.0"
                               className="w-full bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs font-semibold text-slate-800 focus:outline-hidden text-right pr-8"

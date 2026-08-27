@@ -154,10 +154,10 @@ export default function DokumentasiPromosiView({
 
       // Search Query
       if (searchQuery) {
-        const q = searchQuery.toLowerCase();
-        const matchName = p.namaKegiatan.toLowerCase().includes(q);
-        const matchKet = (p.keterangan || '').toLowerCase().includes(q);
-        const matchCreator = (p.creatorName || '').toLowerCase().includes(q);
+        const q = searchQuery?.toLowerCase();
+        const matchName = (p.namaKegiatan || "")?.toLowerCase().includes(q);
+        const matchKet = (p.keterangan || '')?.toLowerCase().includes(q);
+        const matchCreator = (p.creatorName || '')?.toLowerCase().includes(q);
         return matchName || matchKet || matchCreator;
       }
 
@@ -510,7 +510,7 @@ export default function DokumentasiPromosiView({
                 <input
                   type="text"
                   placeholder="Cari kegiatan, PIC, keterangan..."
-                  value={searchQuery}
+                  value={searchQuery || ""}
                   onChange={(e) => {
                     setSearchQuery(e.target.value);
                     setCurrentPage(1);
@@ -897,7 +897,7 @@ export default function DokumentasiPromosiView({
                     <input
                       type="date"
                       required
-                      value={formData.tanggal}
+                      value={formData.tanggal || ""}
                       onChange={(e) => setFormData({ ...formData, tanggal: e.target.value })}
                       className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:bg-white focus:outline-hidden focus:ring-2 focus:ring-indigo-500/20"
                     />
@@ -909,7 +909,7 @@ export default function DokumentasiPromosiView({
                       Unit Kerja / Bidang Pelaksana <span className="text-rose-500">*</span>
                     </label>
                     <select
-                      value={formData.divisi}
+                      value={formData.divisi || ""}
                       onChange={(e) => setFormData({ ...formData, divisi: e.target.value })}
                       className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:bg-white focus:outline-hidden focus:ring-2 focus:ring-indigo-500/20"
                     >
@@ -928,7 +928,7 @@ export default function DokumentasiPromosiView({
                       type="text"
                       required
                       placeholder="Contoh: Sosialisasi Aplikasi RRI Digital & Festival Suara Merdeka 2026"
-                      value={formData.namaKegiatan}
+                      value={formData.namaKegiatan || ""}
                       onChange={(e) => setFormData({ ...formData, namaKegiatan: e.target.value })}
                       className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:bg-white focus:outline-hidden focus:ring-2 focus:ring-indigo-500/20 font-medium"
                     />
@@ -942,7 +942,7 @@ export default function DokumentasiPromosiView({
                     <input
                       type="text"
                       placeholder="Nama Pegawai / Penanggung Jawab"
-                      value={formData.creatorName}
+                      value={formData.creatorName || ""}
                       onChange={(e) => setFormData({ ...formData, creatorName: e.target.value })}
                       className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:bg-white focus:outline-hidden focus:ring-2 focus:ring-indigo-500/20"
                     />
@@ -971,7 +971,7 @@ export default function DokumentasiPromosiView({
                     <input
                       type="number"
                       min="0"
-                      value={formData.baliho}
+                      value={formData.baliho ?? 0}
                       onChange={(e) => setFormData({ ...formData, baliho: Math.max(0, parseInt(e.target.value) || 0) })}
                       className="w-full px-3 py-1.5 bg-white border border-amber-200 rounded-xl text-xs font-mono font-bold text-slate-800 text-center"
                     />
@@ -983,7 +983,7 @@ export default function DokumentasiPromosiView({
                     <input
                       type="number"
                       min="0"
-                      value={formData.spanduk}
+                      value={formData.spanduk ?? 0}
                       onChange={(e) => setFormData({ ...formData, spanduk: Math.max(0, parseInt(e.target.value) || 0) })}
                       className="w-full px-3 py-1.5 bg-white border border-amber-200 rounded-xl text-xs font-mono font-bold text-slate-800 text-center"
                     />
@@ -995,7 +995,7 @@ export default function DokumentasiPromosiView({
                     <input
                       type="number"
                       min="0"
-                      value={formData.videotron}
+                      value={formData.videotron ?? 0}
                       onChange={(e) => setFormData({ ...formData, videotron: Math.max(0, parseInt(e.target.value) || 0) })}
                       className="w-full px-3 py-1.5 bg-white border border-amber-200 rounded-xl text-xs font-mono font-bold text-slate-800 text-center"
                     />
@@ -1007,7 +1007,7 @@ export default function DokumentasiPromosiView({
                     <input
                       type="number"
                       min="0"
-                      value={formData.umbulUmbul}
+                      value={formData.umbulUmbul ?? 0}
                       onChange={(e) => setFormData({ ...formData, umbulUmbul: Math.max(0, parseInt(e.target.value) || 0) })}
                       className="w-full px-3 py-1.5 bg-white border border-amber-200 rounded-xl text-xs font-mono font-bold text-slate-800 text-center"
                     />
@@ -1019,7 +1019,7 @@ export default function DokumentasiPromosiView({
                     <input
                       type="number"
                       min="0"
-                      value={formData.pamflet}
+                      value={formData.pamflet ?? 0}
                       onChange={(e) => setFormData({ ...formData, pamflet: Math.max(0, parseInt(e.target.value) || 0) })}
                       className="w-full px-3 py-1.5 bg-white border border-amber-200 rounded-xl text-xs font-mono font-bold text-slate-800 text-center"
                     />
@@ -1048,7 +1048,7 @@ export default function DokumentasiPromosiView({
                     <input
                       type="number"
                       min="0"
-                      value={formData.yt}
+                      value={formData.yt ?? 0}
                       onChange={(e) => setFormData({ ...formData, yt: Math.max(0, parseInt(e.target.value) || 0) })}
                       className="w-full px-3 py-1.5 bg-white border border-indigo-200 rounded-xl text-xs font-mono font-bold text-slate-800 text-center"
                     />
@@ -1060,7 +1060,7 @@ export default function DokumentasiPromosiView({
                     <input
                       type="number"
                       min="0"
-                      value={formData.ig}
+                      value={formData.ig ?? 0}
                       onChange={(e) => setFormData({ ...formData, ig: Math.max(0, parseInt(e.target.value) || 0) })}
                       className="w-full px-3 py-1.5 bg-white border border-indigo-200 rounded-xl text-xs font-mono font-bold text-slate-800 text-center"
                     />
@@ -1072,7 +1072,7 @@ export default function DokumentasiPromosiView({
                     <input
                       type="number"
                       min="0"
-                      value={formData.tiktok}
+                      value={formData.tiktok ?? 0}
                       onChange={(e) => setFormData({ ...formData, tiktok: Math.max(0, parseInt(e.target.value) || 0) })}
                       className="w-full px-3 py-1.5 bg-white border border-indigo-200 rounded-xl text-xs font-mono font-bold text-slate-800 text-center"
                     />
@@ -1084,7 +1084,7 @@ export default function DokumentasiPromosiView({
                     <input
                       type="number"
                       min="0"
-                      value={formData.fb}
+                      value={formData.fb ?? 0}
                       onChange={(e) => setFormData({ ...formData, fb: Math.max(0, parseInt(e.target.value) || 0) })}
                       className="w-full px-3 py-1.5 bg-white border border-indigo-200 rounded-xl text-xs font-mono font-bold text-slate-800 text-center"
                     />
@@ -1096,7 +1096,7 @@ export default function DokumentasiPromosiView({
                     <input
                       type="number"
                       min="0"
-                      value={formData.eFlyer}
+                      value={formData.eFlyer ?? 0}
                       onChange={(e) => setFormData({ ...formData, eFlyer: Math.max(0, parseInt(e.target.value) || 0) })}
                       className="w-full px-3 py-1.5 bg-white border border-indigo-200 rounded-xl text-xs font-mono font-bold text-slate-800 text-center"
                     />
@@ -1122,7 +1122,7 @@ export default function DokumentasiPromosiView({
                     <input
                       type="url"
                       placeholder="https://drive.google.com/... atau https://instagram.com/..."
-                      value={formData.linkDokumentasi}
+                      value={formData.linkDokumentasi || ""}
                       onChange={(e) => setFormData({ ...formData, linkDokumentasi: e.target.value })}
                       className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:bg-white focus:outline-hidden focus:ring-2 focus:ring-indigo-500/20"
                     />
@@ -1136,7 +1136,7 @@ export default function DokumentasiPromosiView({
                     <input
                       type="text"
                       placeholder="https://... URL Foto Dokumentasi"
-                      value={formData.fotoDokumentasi}
+                      value={formData.fotoDokumentasi || ""}
                       onChange={(e) => setFormData({ ...formData, fotoDokumentasi: e.target.value })}
                       className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:bg-white focus:outline-hidden focus:ring-2 focus:ring-indigo-500/20"
                     />
@@ -1150,7 +1150,7 @@ export default function DokumentasiPromosiView({
                     <textarea
                       rows={2}
                       placeholder="Catatan lokasi pemasangan baliho, jadwal penayangan videotron, link postingan medsos, dll."
-                      value={formData.keterangan}
+                      value={formData.keterangan || ""}
                       onChange={(e) => setFormData({ ...formData, keterangan: e.target.value })}
                       className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:bg-white focus:outline-hidden focus:ring-2 focus:ring-indigo-500/20"
                     />
@@ -1234,7 +1234,7 @@ export default function DokumentasiPromosiView({
                   <input
                     type="date"
                     required
-                    value={editingPromo.tanggal}
+                    value={editingPromo.tanggal || ""}
                     onChange={(e) => setEditingPromo({ ...editingPromo, tanggal: e.target.value })}
                     className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800"
                   />
@@ -1242,7 +1242,7 @@ export default function DokumentasiPromosiView({
                 <div>
                   <label className="block text-xs font-bold text-slate-700 mb-1">Unit Kerja / Bidang</label>
                   <select
-                    value={editingPromo.divisi || 'LPU'}
+                    value={editingPromo.divisi || "LPU"}
                     onChange={(e) => setEditingPromo({ ...editingPromo, divisi: e.target.value })}
                     className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800"
                   >
@@ -1256,7 +1256,7 @@ export default function DokumentasiPromosiView({
                   <input
                     type="text"
                     required
-                    value={editingPromo.namaKegiatan}
+                    value={editingPromo.namaKegiatan || ""}
                     onChange={(e) => setEditingPromo({ ...editingPromo, namaKegiatan: e.target.value })}
                     className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 font-bold"
                   />
@@ -1272,7 +1272,7 @@ export default function DokumentasiPromosiView({
                     <input
                       type="number"
                       min="0"
-                      value={editingPromo.baliho}
+                      value={editingPromo.baliho ?? 0}
                       onChange={(e) => setEditingPromo({ ...editingPromo, baliho: Math.max(0, parseInt(e.target.value) || 0) })}
                       className="w-full px-2 py-1 bg-white border border-amber-200 rounded-lg text-xs font-mono text-center"
                     />
@@ -1282,7 +1282,7 @@ export default function DokumentasiPromosiView({
                     <input
                       type="number"
                       min="0"
-                      value={editingPromo.spanduk}
+                      value={editingPromo.spanduk ?? 0}
                       onChange={(e) => setEditingPromo({ ...editingPromo, spanduk: Math.max(0, parseInt(e.target.value) || 0) })}
                       className="w-full px-2 py-1 bg-white border border-amber-200 rounded-lg text-xs font-mono text-center"
                     />
@@ -1292,7 +1292,7 @@ export default function DokumentasiPromosiView({
                     <input
                       type="number"
                       min="0"
-                      value={editingPromo.videotron}
+                      value={editingPromo.videotron ?? 0}
                       onChange={(e) => setEditingPromo({ ...editingPromo, videotron: Math.max(0, parseInt(e.target.value) || 0) })}
                       className="w-full px-2 py-1 bg-white border border-amber-200 rounded-lg text-xs font-mono text-center"
                     />
@@ -1302,7 +1302,7 @@ export default function DokumentasiPromosiView({
                     <input
                       type="number"
                       min="0"
-                      value={editingPromo.umbulUmbul}
+                      value={editingPromo.umbulUmbul ?? 0}
                       onChange={(e) => setEditingPromo({ ...editingPromo, umbulUmbul: Math.max(0, parseInt(e.target.value) || 0) })}
                       className="w-full px-2 py-1 bg-white border border-amber-200 rounded-lg text-xs font-mono text-center"
                     />
@@ -1312,7 +1312,7 @@ export default function DokumentasiPromosiView({
                     <input
                       type="number"
                       min="0"
-                      value={editingPromo.pamflet}
+                      value={editingPromo.pamflet ?? 0}
                       onChange={(e) => setEditingPromo({ ...editingPromo, pamflet: Math.max(0, parseInt(e.target.value) || 0) })}
                       className="w-full px-2 py-1 bg-white border border-amber-200 rounded-lg text-xs font-mono text-center"
                     />
@@ -1329,7 +1329,7 @@ export default function DokumentasiPromosiView({
                     <input
                       type="number"
                       min="0"
-                      value={editingPromo.yt}
+                      value={editingPromo.yt ?? 0}
                       onChange={(e) => setEditingPromo({ ...editingPromo, yt: Math.max(0, parseInt(e.target.value) || 0) })}
                       className="w-full px-2 py-1 bg-white border border-indigo-200 rounded-lg text-xs font-mono text-center"
                     />
@@ -1339,7 +1339,7 @@ export default function DokumentasiPromosiView({
                     <input
                       type="number"
                       min="0"
-                      value={editingPromo.ig}
+                      value={editingPromo.ig ?? 0}
                       onChange={(e) => setEditingPromo({ ...editingPromo, ig: Math.max(0, parseInt(e.target.value) || 0) })}
                       className="w-full px-2 py-1 bg-white border border-indigo-200 rounded-lg text-xs font-mono text-center"
                     />
@@ -1349,7 +1349,7 @@ export default function DokumentasiPromosiView({
                     <input
                       type="number"
                       min="0"
-                      value={editingPromo.tiktok}
+                      value={editingPromo.tiktok ?? 0}
                       onChange={(e) => setEditingPromo({ ...editingPromo, tiktok: Math.max(0, parseInt(e.target.value) || 0) })}
                       className="w-full px-2 py-1 bg-white border border-indigo-200 rounded-lg text-xs font-mono text-center"
                     />
@@ -1359,7 +1359,7 @@ export default function DokumentasiPromosiView({
                     <input
                       type="number"
                       min="0"
-                      value={editingPromo.fb}
+                      value={editingPromo.fb ?? 0}
                       onChange={(e) => setEditingPromo({ ...editingPromo, fb: Math.max(0, parseInt(e.target.value) || 0) })}
                       className="w-full px-2 py-1 bg-white border border-indigo-200 rounded-lg text-xs font-mono text-center"
                     />
@@ -1369,7 +1369,7 @@ export default function DokumentasiPromosiView({
                     <input
                       type="number"
                       min="0"
-                      value={editingPromo.eFlyer}
+                      value={editingPromo.eFlyer ?? 0}
                       onChange={(e) => setEditingPromo({ ...editingPromo, eFlyer: Math.max(0, parseInt(e.target.value) || 0) })}
                       className="w-full px-2 py-1 bg-white border border-indigo-200 rounded-lg text-xs font-mono text-center"
                     />

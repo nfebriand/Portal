@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Employee, AppSettings, InstitutionalIdentity, CriticalNotification, PerformanceAgreement, CooperationContract, ReporterTarget, NewsReport, PromotionActivity } from './types';
 import { syncNewsAchievements } from './utils/syncNewsAchievements';
 import { syncCompetencyAchievements, isCompetencyIndicator } from './utils/syncCompetencyAchievements';
@@ -98,7 +98,7 @@ const recalculateCascade = (
 
   // 2. Map through agreements to update the LPU PNBP objective (ind-11)
   let updated = currentAgs.map(ag => {
-    const objectives = ag.objectives.map(obj => {
+    const objectives = (ag.objectives || []).map(obj => {
       if (obj.id === 'ind-11') {
         return { ...obj, achievement: totalPnbpForInd11 };
       }
@@ -255,6 +255,17 @@ export default function App() {
     localStorage.removeItem('swara_current_user');
   };
 
+  const empsRef = useRef(employees);
+  useEffect(() => { empsRef.current = employees; }, [employees]);
+  const contractsRef = useRef(contracts);
+  useEffect(() => { contractsRef.current = contracts; }, [contracts]);
+  const newsReportsRef = useRef(newsReports);
+  useEffect(() => { newsReportsRef.current = newsReports; }, [newsReports]);
+  const reporterTargetsRef = useRef(reporterTargets);
+  useEffect(() => { reporterTargetsRef.current = reporterTargets; }, [reporterTargets]);
+  const promotionsRef = useRef(promotions);
+  useEffect(() => { promotionsRef.current = promotions; }, [promotions]);
+
   // Load from Firestore on initialization & real-time live synchronization
   useEffect(() => {
     let unsubscribeEmployees: (() => void) | undefined;
@@ -265,6 +276,7 @@ export default function App() {
     let unsubscribeTargets: (() => void) | undefined;
     let unsubscribeReports: (() => void) | undefined;
     let unsubscribePromotions: (() => void) | undefined;
+    let unsubscribeAgreements: (() => void) | undefined;
 
     async function loadData() {
       try {
@@ -320,20 +332,20 @@ export default function App() {
         // Sanitize agreements
         let hadPnbpDummy = false;
         fireAgreements = fireAgreements.map((ag) => {
-          const hasPnbp = ag.objectives.some(o => 
+          const hasPnbp = (ag.objectives || []).some(o => 
             o.id === 'ind-15-pnbp' || 
-            o.indicatorName.toLowerCase().includes('optimalisasi realisasi penerimaan negara bukan pajak') ||
-            o.indicatorName.toLowerCase().includes('optimalisasi penerimaan negara bukan pajak')
+            (o.indicatorName || '')?.toLowerCase().includes('optimalisasi realisasi penerimaan negara bukan pajak') ||
+            (o.indicatorName || '')?.toLowerCase().includes('optimalisasi penerimaan negara bukan pajak')
           );
-          const hasLinkedToPnbp = ag.objectives.some(o => o.parentIndicatorId === 'ind-15-pnbp');
+          const hasLinkedToPnbp = (ag.objectives || []).some(o => o.parentIndicatorId === 'ind-15-pnbp');
 
           if (hasPnbp || hasLinkedToPnbp) {
             hadPnbpDummy = true;
             let filteredObjectives = ag.objectives
               .filter(o => 
                 o.id !== 'ind-15-pnbp' && 
-                !o.indicatorName.toLowerCase().includes('optimalisasi realisasi penerimaan negara bukan pajak') &&
-                !o.indicatorName.toLowerCase().includes('optimalisasi penerimaan negara bukan pajak')
+                !(o.indicatorName || '')?.toLowerCase().includes('optimalisasi realisasi penerimaan negara bukan pajak') &&
+                !(o.indicatorName || '')?.toLowerCase().includes('optimalisasi penerimaan negara bukan pajak')
               )
               .map(o => o.parentIndicatorId === 'ind-15-pnbp' ? { ...o, parentIndicatorId: 'ind-1' } : o);
 
@@ -355,12 +367,12 @@ export default function App() {
 
         let hadTuCompetencyAdded = false;
         fireAgreements = fireAgreements.map(ag => {
-          if (ag.level === 'Kabid Tata Usaha' && !ag.objectives.some(o => isCompetencyIndicator(o))) {
+          if (ag.level === 'Kabid Tata Usaha' && !(ag.objectives || []).some(o => isCompetencyIndicator(o))) {
             hadTuCompetencyAdded = true;
             return {
               ...ag,
               objectives: [
-                ...ag.objectives.map(o => ({ ...o, weight: o.id === 'ind-5' || o.id === 'ind-6' ? 35 : o.weight })),
+                ...(ag.objectives || []).map(o => ({ ...o, weight: o.id === 'ind-5' || o.id === 'ind-6' ? 35 : o.weight })),
                 {
                   id: "ind-tu-kompetensi",
                   indicatorName: "Persentase pelaksanaan pengembangan kompetensi pegawai",
@@ -414,12 +426,6 @@ export default function App() {
             });
             setEmployees(migrated);
 
-            // Re-cascade competency training compliance
-            setAgreements(prevAgreements => {
-              const autoSynced = syncCompetencyAchievements(migrated, prevAgreements);
-              return recalculateCascade(autoSynced, contracts, newsReports, reporterTargets, migrated, promotions);
-            });
-
             // Synchronize active session if current logged-in employee was updated in database
             const savedUserStr = localStorage.getItem('swara_current_user');
             if (savedUserStr) {
@@ -428,7 +434,7 @@ export default function App() {
                 if (parsedUser && parsedUser.id !== 'superadmin' && parsedUser.id !== 'kepala') {
                   const matchEmp = migrated.find(e => e.id === parsedUser.id);
                   if (matchEmp) {
-                    if (matchEmp.isLoginActive === false || (matchEmp.status && matchEmp.status.toLowerCase() !== 'aktif')) {
+                    if (matchEmp.isLoginActive === false || (matchEmp.status && matchEmp.status?.toLowerCase() !== 'aktif')) {
                       handleLogout();
                     } else {
                       const updatedRole = mapEmployeeToAppRole(matchEmp);
@@ -474,16 +480,17 @@ export default function App() {
           if (liveReports) setNewsReports(liveReports);
         });
 
-        unsubscribePromotions = subscribeToCollection<PromotionActivity>('promotions', (livePromos) => {
-          if (livePromos) {
-            setPromotions(livePromos);
-            setAgreements(prevAgreements => {
-              const autoSynced = syncPromotionAchievements(livePromos, prevAgreements, employees);
-              return recalculateCascade(autoSynced, contracts, newsReports, reporterTargets, employees, livePromos);
-            });
+        unsubscribeAgreements = subscribeToCollection<PerformanceAgreement>('agreements', (liveAgs) => {
+          if (liveAgs && liveAgs.length > 0) {
+            setAgreements(liveAgs);
           }
         });
 
+        unsubscribePromotions = subscribeToCollection<PromotionActivity>('promotions', (livePromos) => {
+          if (livePromos) {
+            setPromotions(livePromos);
+          }
+        });
       } catch (err) {
         console.error("Critical error during live Firestore database sync:", err);
       } finally {
@@ -512,7 +519,7 @@ export default function App() {
 
     // Auto calculate 40 JP competency compliance and cascade to PK
     const autoSyncedAgreements = syncCompetencyAchievements(newEmployees, agreements);
-    const cascaded = recalculateCascade(autoSyncedAgreements, contracts, newsReports, reporterTargets, newEmployees);
+    const cascaded = recalculateCascade(autoSyncedAgreements, contracts, newsReports, reporterTargets, newEmployees, promotions);
     setAgreements(cascaded);
     await saveCollectionList('agreements', cascaded);
 
@@ -520,7 +527,7 @@ export default function App() {
     if (currentUser && currentUser.id !== 'superadmin' && currentUser.id !== 'kepala') {
       const matchEmp = newEmployees.find(e => e.id === currentUser.id);
       if (matchEmp) {
-        if (matchEmp.isLoginActive === false || (matchEmp.status && matchEmp.status.toLowerCase() !== 'aktif')) {
+        if (matchEmp.isLoginActive === false || (matchEmp.status && matchEmp.status?.toLowerCase() !== 'aktif')) {
           handleLogout();
         } else {
           const updatedRole = mapEmployeeToAppRole(matchEmp);
@@ -765,7 +772,7 @@ export default function App() {
   };
 
   const handleUpdateAgreements = async (newAgs: PerformanceAgreement[]) => {
-    const cascaded = recalculateCascade(newAgs, contracts, newsReports, reporterTargets, employees);
+    const cascaded = recalculateCascade(newAgs, contracts, newsReports, reporterTargets, employees, promotions);
     setAgreements(cascaded);
     await saveCollectionList('agreements', cascaded);
   };
@@ -774,7 +781,7 @@ export default function App() {
     setContracts(newContracts);
     
     // Auto cascade PNBP totals up to the agreements
-    const cascaded = recalculateCascade(agreements, newContracts, newsReports, reporterTargets, employees);
+    const cascaded = recalculateCascade(agreements, newContracts, newsReports, reporterTargets, employees, promotions);
     setAgreements(cascaded);
 
     await saveCollectionList('contracts', newContracts);
@@ -784,7 +791,7 @@ export default function App() {
   const handleUpdateReporterTargets = async (newTargets: ReporterTarget[]) => {
     setReporterTargets(newTargets);
     
-    const cascaded = recalculateCascade(agreements, contracts, newsReports, newTargets, employees);
+    const cascaded = recalculateCascade(agreements, contracts, newsReports, newTargets, employees, promotions);
     setAgreements(cascaded);
 
     await saveCollectionList('reporterTargets', newTargets);
@@ -949,7 +956,7 @@ export default function App() {
   // Access control for "Input Capaian PK": Accessible by Admin Bidang, Ketua Bidang/Tim, Kasatker, and Superadmin
   const currentEmpRecord = employees.find(e => e.id === currentUser.id || e.nip === currentUser.id || e.nik === currentUser.id);
   const currentLoginRole = (currentUser as any).loginRole || currentEmpRecord?.loginRole;
-  const currentJabatan = ((currentUser as any).jabatan || currentEmpRecord?.jabatan || '').toLowerCase();
+  const currentJabatan = ((currentUser as any).jabatan || currentEmpRecord?.jabatan || '')?.toLowerCase();
   
   const canAccessInputCapaianPK = 
     currentUser.role === 'Superadmin' || 

@@ -60,8 +60,8 @@ const getIndicatorScore = (obj: PerformanceIndicator) => {
 
   const tType = obj.trajectoryType || (
     obj.unit === '%' || 
-    obj.indicatorName.toLowerCase().includes('ikpa') || 
-    obj.indicatorName.toLowerCase().includes('nilai') 
+     (obj.indicatorName || "")?.toLowerCase().includes('ikpa') || 
+     (obj.indicatorName || "")?.toLowerCase().includes('nilai') 
       ? 'constant' 
       : 'cumulative'
   );
@@ -215,7 +215,7 @@ export default function PerformanceAgreementView({
   const allIndicatorsList = useMemo(() => {
     const list: { indicator: PerformanceIndicator; agreement: PerformanceAgreement }[] = [];
     agreements.forEach(ag => {
-      ag.objectives.forEach(ind => {
+      ag?.objectives?.forEach(ind => {
         list.push({ indicator: ind, agreement: ag });
       });
     });
@@ -235,7 +235,7 @@ export default function PerformanceAgreementView({
       setSimUnit(found.indicator.unit || '%');
       setSimLevel(found.agreement.level);
       
-      const nameLower = found.indicator.indicatorName.toLowerCase();
+      const nameLower = found.indicator.indicatorName?.toLowerCase();
       if (nameLower.includes('pnbp') || nameLower.includes('pendapatan') || nameLower.includes('usaha')) {
         setSimTheme('pnbp');
       } else if (nameLower.includes('berita') || nameLower.includes('pemberitaan') || nameLower.includes('konten') || nameLower.includes('siaran')) {
@@ -416,19 +416,19 @@ export default function PerformanceAgreementView({
 
     // Calculate direct Level 3 (Pegawai) and other base level achievements
     let tempAgs = yearAgs.map(ag => {
-      const objectives = ag.objectives.map(obj => {
+      const objectives = ag?.objectives?.map(obj => {
         let achievement = obj.achievement;
         let targetVal = parseFloat(obj.target) || 100;
         const isUsingTrajectory = !!obj.trajectory && obj.trajectory.length === 12;
 
-        if (obj.id === 'ind-11' || obj.indicatorName.toLowerCase().includes('pnbp')) {
+        if (obj.id === 'ind-11' ||  (obj.indicatorName || "")?.toLowerCase().includes('pnbp')) {
           achievement = totalPnbpForPeriod;
         }
 
         if (ag.level === 'Pegawai' && ag.assignedToEmployeeId) {
           const empId = ag.assignedToEmployeeId;
           const empReports = filteredReports.filter(r => r.employeeId === empId);
-          const nameLower = obj.indicatorName.toLowerCase();
+          const nameLower = obj.indicatorName?.toLowerCase();
           
           if (nameLower.includes('ringan') || nameLower.includes('lpu')) {
             achievement = empReports.filter(r => r.type === 'Berita Ringan' || r.type === 'Berita Ringan LPU').length;
@@ -455,7 +455,7 @@ export default function PerformanceAgreementView({
         // Apply trajectory calculations if configured
         if (isUsingTrajectory) {
           const activeMonths = getMonthIndicesForPeriod(evalPeriod);
-          const type = obj.trajectoryType || (obj.unit === '%' || obj.indicatorName.toLowerCase().includes('ikpa') || obj.indicatorName.toLowerCase().includes('nilai') ? 'constant' : 'cumulative');
+          const type = obj.trajectoryType || (obj.unit === '%' ||  (obj.indicatorName || "")?.toLowerCase().includes('ikpa') ||  (obj.indicatorName || "")?.toLowerCase().includes('nilai') ? 'constant' : 'cumulative');
 
           if (type === 'constant') {
             // Target is average of the period
@@ -510,7 +510,7 @@ export default function PerformanceAgreementView({
     // Roll up Level 3 to Level 2 (Ketua Tim / Kabid)
     tempAgs = tempAgs.map(ag => {
       if (ag.level !== 'Kepala Stasiun' && ag.level !== 'Pegawai') {
-        const objectives = ag.objectives.map(l2Obj => {
+        const objectives = ag?.objectives?.map(l2Obj => {
           // If Direct Intervention is enabled (manual), use Level 2's direct value instead of rolling up
           if (l2Obj.calculationType === 'manual') {
             return l2Obj;
@@ -519,7 +519,7 @@ export default function PerformanceAgreementView({
           const l3Objectives: { achievement: number; target: number; unit: string }[] = [];
           tempAgs.forEach(otherAg => {
             if (otherAg.level === 'Pegawai') {
-              otherAg.objectives.forEach(obj => {
+              otherAg?.objectives?.forEach(obj => {
                 if (obj.parentIndicatorId === l2Obj.id) {
                   l3Objectives.push({ 
                     achievement: obj.achievement || 0, 
@@ -532,7 +532,7 @@ export default function PerformanceAgreementView({
           });
 
           if (l3Objectives.length > 0) {
-            const isAbsolute = ['berita', 'konten', 'laporan', 'dokumen', 'video'].some(u => l2Obj.unit.toLowerCase().includes(u));
+            const isAbsolute = ['berita', 'konten', 'laporan', 'dokumen', 'video'].some(u =>  (l2Obj.unit || "")?.toLowerCase().includes(u));
             if (isAbsolute) {
               const sumAchievement = l3Objectives.reduce((sum, child) => sum + child.achievement, 0);
               return { ...l2Obj, achievement: Math.round(sumAchievement * 10) / 10 };
@@ -547,7 +547,7 @@ export default function PerformanceAgreementView({
               return { ...l2Obj, achievement: newAchievement };
             }
           } else {
-            const nameLower = l2Obj.indicatorName.toLowerCase();
+            const nameLower =  (l2Obj.indicatorName || "")?.toLowerCase();
             if (nameLower.includes('ringan') || nameLower.includes('lpu')) {
               const count = filteredReports.filter(r => r.type === 'Berita Ringan' || r.type === 'Berita Ringan LPU').length;
               return { ...l2Obj, achievement: count };
@@ -572,11 +572,11 @@ export default function PerformanceAgreementView({
     // Roll up Level 2 to Level 1 (Kepala Stasiun)
     tempAgs = tempAgs.map(ag => {
       if (ag.level === 'Kepala Stasiun') {
-        const objectives = ag.objectives.map(rootObj => {
+        const objectives = ag?.objectives?.map(rootObj => {
           const l2Objectives: { achievement: number; target: number }[] = [];
           tempAgs.forEach(otherAg => {
             if (otherAg.level !== 'Kepala Stasiun' && otherAg.level !== 'Pegawai') {
-              otherAg.objectives.forEach(obj => {
+              otherAg?.objectives?.forEach(obj => {
                 if (obj.parentIndicatorId === rootObj.id) {
                   l2Objectives.push({ 
                     achievement: obj.achievement || 0, 
@@ -612,7 +612,7 @@ export default function PerformanceAgreementView({
     // 1. PK Aktif & Total PK dihitung dari sasaran/indikator PK Level 1 (Kepala Stasiun)
     const level1Agreements = periodAgreements.filter(a => a.level === 'Kepala Stasiun');
     const level1Objectives = level1Agreements.flatMap(a => a.objectives);
-    const activePks = level1Agreements.filter(a => a.status === 'Aktif').reduce((sum, a) => sum + a.objectives.length, 0);
+    const activePks = level1Agreements.filter(a => a.status === 'Aktif').reduce((sum, a) => sum + a?.objectives?.length, 0);
     const totalPks = level1Objectives.length;
 
     // 2. Total Indikator & Rata-Rata Capaian dihitung dari seluruh sasaran PK Level 2 (Ketua Tim / Kabid)
@@ -624,7 +624,7 @@ export default function PerformanceAgreementView({
     let sumAchievement = 0;
 
     level2Agreements.forEach(a => {
-      a.objectives.forEach(obj => {
+      a?.objectives?.forEach(obj => {
         totalIndicators++;
         // Calculate achievement percentage score using dynamic getIndicatorScore helper
         const score = getIndicatorScore(obj);
@@ -649,7 +649,7 @@ export default function PerformanceAgreementView({
     
     if (!kepalaStasiunAg) return [];
 
-    return kepalaStasiunAg.objectives.map(rootObj => {
+    return kepalaStasiunAg?.objectives?.map(rootObj => {
       // Find level 2 indicators linked to this root
       const level2Objects: Array<{
         indicator: PerformanceIndicator;
@@ -662,7 +662,7 @@ export default function PerformanceAgreementView({
 
       periodAgreements.forEach(ag => {
         if (ag.level !== 'Kepala Stasiun' && ag.level !== 'Pegawai') {
-          ag.objectives.forEach(obj => {
+          ag?.objectives?.forEach(obj => {
             if (obj.parentIndicatorId === rootObj.id) {
               // Find level 3 indicators linked to this level 2 indicator
               const children: Array<{
@@ -672,7 +672,7 @@ export default function PerformanceAgreementView({
 
               periodAgreements.forEach(pPeg => {
                 if (pPeg.level === 'Pegawai') {
-                  pPeg.objectives.forEach(pegObj => {
+                  pPeg?.objectives?.forEach(pegObj => {
                     if (pegObj.parentIndicatorId === obj.id) {
                       children.push({ indicator: pegObj, agreement: pPeg });
                     }
@@ -708,7 +708,7 @@ export default function PerformanceAgreementView({
     
     agreements.forEach(ag => {
       if (ag.year === selectedYear) {
-        ag.objectives.forEach(obj => {
+        ag?.objectives?.forEach(obj => {
           if (obj.parentIndicatorId === delegatingIndicator.indicator.id) {
             list.push({ indicator: obj, agreement: ag });
           }
@@ -778,7 +778,7 @@ export default function PerformanceAgreementView({
         const currentId = queue.shift()!;
         // Find child indicators in all agreements
         agreements.forEach(ag => {
-          ag.objectives.forEach(obj => {
+          ag?.objectives?.forEach(obj => {
             if (obj.parentIndicatorId === currentId && !ids.includes(obj.id)) {
               ids.push(obj.id);
               queue.push(obj.id);
@@ -794,7 +794,7 @@ export default function PerformanceAgreementView({
     const updated = agreements.map(ag => {
       return {
         ...ag,
-        objectives: ag.objectives.filter(o => !allIdsToDelete.includes(o.id))
+        objectives: ag?.objectives?.filter(o => !allIdsToDelete.includes(o.id))
       };
     });
 
@@ -807,7 +807,7 @@ export default function PerformanceAgreementView({
       if (ag.id === agreementId) {
         return {
           ...ag,
-          objectives: ag.objectives.map(o => o.id === indicatorId ? { ...o, achievement: value } : o)
+          objectives: ag?.objectives?.map(o => o.id === indicatorId ? { ...o, achievement: value } : o)
         };
       }
       return ag;
@@ -835,7 +835,7 @@ export default function PerformanceAgreementView({
       if (ag.id === agreementId) {
         return {
           ...ag,
-          objectives: ag.objectives.map(o => o.id === indicatorId ? { ...o, target: newTarget } : o)
+          objectives: ag?.objectives?.map(o => o.id === indicatorId ? { ...o, target: newTarget } : o)
         };
       }
       return ag;
@@ -849,7 +849,7 @@ export default function PerformanceAgreementView({
       if (ag.id === agreementId) {
         return {
           ...ag,
-          objectives: ag.objectives.map(o => {
+          objectives: ag?.objectives?.map(o => {
             if (o.id === indicatorId) {
               const currentTrajectory = [...getSafeTrajectory(o)];
               currentTrajectory[monthIndex] = value;
@@ -878,7 +878,7 @@ export default function PerformanceAgreementView({
       if (ag.id === agreementId) {
         return {
           ...ag,
-          objectives: ag.objectives.map(o => {
+          objectives: ag?.objectives?.map(o => {
             if (o.id === indicatorId) {
               const currentAchievements = [...getSafeMonthlyAchievements(o)];
               currentAchievements[monthIndex] = value;
@@ -892,7 +892,7 @@ export default function PerformanceAgreementView({
               }
 
               // Recalculate annual value for backward compatibility & direct display
-              const type = o.trajectoryType || (o.unit === '%' || o.indicatorName.toLowerCase().includes('ikpa') || o.indicatorName.toLowerCase().includes('nilai') ? 'constant' : 'cumulative');
+              const type = o.trajectoryType || (o.unit === '%' ||  (o.indicatorName || "")?.toLowerCase().includes('ikpa') ||  (o.indicatorName || "")?.toLowerCase().includes('nilai') ? 'constant' : 'cumulative');
               let annualAchievement = 0;
               if (type === 'constant') {
                 annualAchievement = currentAchievements.reduce((sum, v) => sum + v, 0) / 12;
@@ -922,7 +922,7 @@ export default function PerformanceAgreementView({
       if (ag.id === agreementId) {
         return {
           ...ag,
-          objectives: ag.objectives.map(o => {
+          objectives: ag?.objectives?.map(o => {
             if (o.id === indicatorId) {
               const currentAchievements = [...getSafeMonthlyAchievements(o)];
               let annualAchievement = 0;
@@ -961,7 +961,7 @@ export default function PerformanceAgreementView({
       if (ag.id === agreementId) {
         return {
           ...ag,
-          objectives: ag.objectives.map(o => o.id === indicatorId ? { ...o, periodType: type } : o)
+          objectives: ag?.objectives?.map(o => o.id === indicatorId ? { ...o, periodType: type } : o)
         };
       }
       return ag;
@@ -975,7 +975,7 @@ export default function PerformanceAgreementView({
       if (ag.id === agreementId) {
         return {
           ...ag,
-          objectives: ag.objectives.map(o => {
+          objectives: ag?.objectives?.map(o => {
             if (o.id === indicatorId) {
               const updatedObj = { ...o };
               delete updatedObj.trajectory;
@@ -1013,7 +1013,7 @@ export default function PerformanceAgreementView({
       if (ag.id === agreementId) {
         return {
           ...ag,
-          objectives: ag.objectives.map(o => o.id === indicatorId ? { ...o, calculationType: type } : o)
+          objectives: ag?.objectives?.map(o => o.id === indicatorId ? { ...o, calculationType: type } : o)
         };
       }
       return ag;
@@ -1028,7 +1028,7 @@ export default function PerformanceAgreementView({
       if (ag.id === agreementId) {
         return {
           ...ag,
-          objectives: ag.objectives.map(o => o.id === indicatorId ? { ...o, supportedByKMB: !o.supportedByKMB } : o)
+          objectives: ag?.objectives?.map(o => o.id === indicatorId ? { ...o, supportedByKMB: !o.supportedByKMB } : o)
         };
       }
       return ag;
@@ -1042,7 +1042,7 @@ export default function PerformanceAgreementView({
       if (ag.id === agreementId) {
         return {
           ...ag,
-          objectives: ag.objectives.map(o => o.id === indicatorId ? { ...o, indicatorName: renamingNameValue } : o)
+          objectives: ag?.objectives?.map(o => o.id === indicatorId ? { ...o, indicatorName: renamingNameValue } : o)
         };
       }
       return ag;
@@ -1056,7 +1056,7 @@ export default function PerformanceAgreementView({
   const handleMoveObjective = (agreementId: string, indicatorId: string, direction: 'up' | 'down') => {
     const updated = agreements.map(ag => {
       if (ag.id === agreementId) {
-        const idx = ag.objectives.findIndex(o => o.id === indicatorId);
+        const idx = ag?.objectives?.findIndex(o => o.id === indicatorId);
         if (idx === -1) return ag;
 
         const newObjectives = [...ag.objectives];
@@ -1097,7 +1097,7 @@ export default function PerformanceAgreementView({
       if (ag.id === agreementId) {
         return {
           ...ag,
-          objectives: ag.objectives.map(o => {
+          objectives: ag?.objectives?.map(o => {
             if (o.id === indicatorId) {
               return {
                 ...o,
@@ -1117,7 +1117,7 @@ export default function PerformanceAgreementView({
     if (onAddNotification && (currentUser.role === 'Kepala' || currentUser.role === 'Ketua Bidang' || currentUser.role === 'Superadmin')) {
       const targetAgreement = agreements.find(ag => ag.id === agreementId);
       if (targetAgreement) {
-        const objName = targetAgreement.objectives.find(o => o.id === indicatorId)?.indicatorName || '';
+        const objName = targetAgreement?.objectives?.find(o => o.id === indicatorId)?.indicatorName || '';
         onAddNotification({
           id: `notif-comment-${Date.now()}`,
           title: 'Feedback Evaluasi Baru',
@@ -1136,7 +1136,7 @@ export default function PerformanceAgreementView({
       if (ag.id === agreementId) {
         return {
           ...ag,
-          objectives: ag.objectives.map(o => {
+          objectives: ag?.objectives?.map(o => {
             if (o.id === indicatorId) {
               return {
                 ...o,
@@ -1492,7 +1492,7 @@ export default function PerformanceAgreementView({
                             <div className="flex items-center gap-2 mt-1 max-w-xl">
                               <input
                                 type="text"
-                                value={renamingNameValue}
+                                value={renamingNameValue || ""}
                                 onChange={(e) => setRenamingNameValue(e.target.value)}
                                 className="flex-1 text-xs bg-white border border-indigo-400 rounded-lg px-2.5 py-1.5 font-medium text-slate-800 focus:outline-hidden focus:ring-1 focus:ring-indigo-500"
                                 autoFocus
@@ -1548,7 +1548,7 @@ export default function PerformanceAgreementView({
                           <div className="flex items-center gap-1.5">
                             <input 
                               type="text"
-                              value={node.root.target}
+                              value={node.root.target ?? 0}
                               onChange={(e) => handleUpdateTarget(node.agreement.id, rootId, e.target.value)}
                               disabled={!canEditAgreement('Kepala Stasiun')}
                               className="w-16 bg-slate-50 border border-slate-200 rounded px-1 py-0.5 text-center font-extrabold text-slate-800 text-[11px] focus:outline-hidden focus:bg-white focus:ring-1 focus:ring-indigo-400 disabled:opacity-60 disabled:cursor-not-allowed"
@@ -1562,7 +1562,7 @@ export default function PerformanceAgreementView({
                           <div className="flex items-center gap-1">
                             <input 
                               type="number"
-                              value={node.root.achievement}
+                              value={node.root.achievement ?? 0}
                               onChange={(e) => handleUpdateAchievement(node.agreement.id, rootId, parseFloat(e.target.value) || 0)}
                               disabled={!canEditAgreement('Kepala Stasiun')}
                               className="w-12 bg-slate-50 border border-slate-200 rounded px-1 text-center font-bold text-slate-800 text-[11px] focus:outline-hidden focus:bg-white focus:ring-1 focus:ring-indigo-400 disabled:opacity-60 disabled:cursor-not-allowed"
@@ -1680,7 +1680,7 @@ export default function PerformanceAgreementView({
                                   if (ag.id === node.agreement.id) {
                                     return {
                                       ...ag,
-                                      objectives: ag.objectives.map(o => o.id === rootId ? { ...o, trajectory: distrib } : o)
+                                      objectives: ag?.objectives?.map(o => o.id === rootId ? { ...o, trajectory: distrib } : o)
                                     };
                                   }
                                   return ag;
@@ -1722,7 +1722,7 @@ export default function PerformanceAgreementView({
                                   <span className="text-[7px] text-slate-400 font-mono block leading-none">TARGET</span>
                                   <input
                                     type="number"
-                                    value={val}
+                                    value={val ?? 0}
                                     onChange={(e) => handleUpdateTrajectory(node.agreement.id, rootId, mIdx, parseFloat(e.target.value) || 0)}
                                     disabled={!canEditAgreement('Kepala Stasiun')}
                                     className="w-full text-center font-black text-slate-800 text-[10px] bg-slate-50 hover:bg-slate-100 focus:bg-white border border-slate-100 p-0.5 rounded"
@@ -1733,7 +1733,7 @@ export default function PerformanceAgreementView({
                                   <span className="text-[7px] text-slate-400 font-mono block leading-none">REALISASI</span>
                                   <input
                                     type="number"
-                                    value={realVal}
+                                    value={realVal ?? 0}
                                     onChange={(e) => handleUpdateMonthlyAchievement(node.agreement.id, rootId, mIdx, parseFloat(e.target.value) || 0)}
                                     disabled={!canEditAgreement('Kepala Stasiun')}
                                     className="w-full text-center font-black text-indigo-600 text-[10px] bg-indigo-50/20 hover:bg-indigo-50 focus:bg-white border border-indigo-100/50 p-0.5 rounded"
@@ -1807,7 +1807,7 @@ export default function PerformanceAgreementView({
                                         <div className="flex items-center gap-2 mt-1">
                                           <input
                                             type="text"
-                                            value={renamingNameValue}
+                                            value={renamingNameValue || ""}
                                             onChange={(e) => setRenamingNameValue(e.target.value)}
                                             className="flex-1 text-xs bg-white border border-indigo-400 rounded-lg px-2 py-1 font-medium text-slate-800 focus:outline-hidden"
                                             autoFocus
@@ -1863,7 +1863,7 @@ export default function PerformanceAgreementView({
                                       <div className="flex items-center gap-1">
                                         <input 
                                           type="text"
-                                          value={l2.indicator.target}
+                                          value={l2.indicator.target ?? 0}
                                           onChange={(e) => handleUpdateTarget(l2.agreement.id, l2Id, e.target.value)}
                                           disabled={!canEditAgreement(l2.agreement.level)}
                                           className="w-14 bg-white border border-slate-200 rounded px-1 py-0 text-center font-bold text-slate-800 text-[10px] focus:outline-hidden disabled:opacity-60"
@@ -1877,7 +1877,7 @@ export default function PerformanceAgreementView({
                                       <div className="flex items-center gap-1">
                                         <input 
                                           type="number"
-                                          value={l2.indicator.achievement}
+                                          value={l2.indicator.achievement ?? 0}
                                           onChange={(e) => handleUpdateAchievement(l2.agreement.id, l2Id, parseFloat(e.target.value) || 0)}
                                           disabled={!canEditAgreement(l2.agreement.level)}
                                           className="w-11 bg-white border border-slate-200 rounded px-1 py-0 text-center font-bold text-slate-800 text-[10px] focus:outline-hidden disabled:opacity-60 disabled:cursor-not-allowed"
@@ -2012,7 +2012,7 @@ export default function PerformanceAgreementView({
                                               if (ag.id === l2.agreement.id) {
                                                 return {
                                                   ...ag,
-                                                  objectives: ag.objectives.map(o => o.id === l2Id ? { ...o, trajectory: distrib } : o)
+                                                  objectives: ag?.objectives?.map(o => o.id === l2Id ? { ...o, trajectory: distrib } : o)
                                                 };
                                               }
                                               return ag;
@@ -2054,7 +2054,7 @@ export default function PerformanceAgreementView({
                                               <span className="text-[7px] text-slate-400 font-mono block leading-none">TARGET</span>
                                               <input
                                                 type="number"
-                                                value={val}
+                                                value={val ?? 0}
                                                 onChange={(e) => handleUpdateTrajectory(l2.agreement.id, l2Id, mIdx, parseFloat(e.target.value) || 0)}
                                                 disabled={!canEditAgreement(l2.agreement.level)}
                                                 className="w-full text-center font-black text-slate-800 text-[10px] bg-slate-50 hover:bg-slate-100 focus:bg-white border border-slate-100 p-0.5 rounded"
@@ -2065,7 +2065,7 @@ export default function PerformanceAgreementView({
                                               <span className="text-[7px] text-slate-400 font-mono block leading-none">REALISASI</span>
                                               <input
                                                 type="number"
-                                                value={realVal}
+                                                value={realVal ?? 0}
                                                 onChange={(e) => handleUpdateMonthlyAchievement(l2.agreement.id, l2Id, mIdx, parseFloat(e.target.value) || 0)}
                                                 disabled={!canEditAgreement(l2.agreement.level)}
                                                 className="w-full text-center font-black text-indigo-600 text-[10px] bg-indigo-50/20 hover:bg-indigo-50 focus:bg-white border border-indigo-100/50 p-0.5 rounded"
@@ -2128,7 +2128,7 @@ export default function PerformanceAgreementView({
                                                 <div className="flex items-center gap-2 mt-1">
                                                   <input
                                                     type="text"
-                                                    value={renamingNameValue}
+                                                    value={renamingNameValue || ""}
                                                     onChange={(e) => setRenamingNameValue(e.target.value)}
                                                     className="flex-1 text-xs bg-white border border-indigo-400 rounded-lg px-2 py-0.5 font-medium text-slate-800 focus:outline-hidden"
                                                     autoFocus
@@ -2183,7 +2183,7 @@ export default function PerformanceAgreementView({
                                                 <div className="flex items-center gap-1">
                                                   <input 
                                                     type="text"
-                                                    value={l3.indicator.target}
+                                                    value={l3.indicator.target ?? 0}
                                                     onChange={(e) => handleUpdateTarget(l3.agreement.id, l3Id, e.target.value)}
                                                     disabled={!canEditAgreement('Pegawai')}
                                                     className="w-12 bg-slate-50 border border-slate-200 rounded px-1 py-0.5 text-center font-bold text-slate-800 text-[10px] focus:outline-hidden disabled:opacity-60"
@@ -2196,7 +2196,7 @@ export default function PerformanceAgreementView({
                                                 <span className="text-[7px] text-slate-400 block font-mono leading-none">REALISASI</span>
                                                 <input 
                                                   type="number"
-                                                  value={l3.indicator.achievement}
+                                                  value={l3.indicator.achievement ?? 0}
                                                   onChange={(e) => handleUpdateAchievement(l3.agreement.id, l3Id, parseFloat(e.target.value) || 0)}
                                                   disabled={!canEditAgreement('Pegawai')}
                                                   className="w-10 bg-slate-50 border border-slate-200 rounded px-1 py-0 text-center font-bold text-slate-800 text-[9px] focus:outline-hidden disabled:opacity-60 disabled:cursor-not-allowed"
@@ -2281,7 +2281,7 @@ export default function PerformanceAgreementView({
                                                           if (ag.id === l3.agreement.id) {
                                                             return {
                                                               ...ag,
-                                                              objectives: ag.objectives.map(o => o.id === l3Id ? { ...o, trajectory: distrib } : o)
+                                                              objectives: ag?.objectives?.map(o => o.id === l3Id ? { ...o, trajectory: distrib } : o)
                                                             };
                                                           }
                                                           return ag;
@@ -2321,7 +2321,7 @@ export default function PerformanceAgreementView({
                                                           <span className="text-[7px] text-slate-400 font-mono block leading-none">TARGET</span>
                                                           <input
                                                             type="number"
-                                                            value={val}
+                                                            value={val ?? 0}
                                                             onChange={(e) => handleUpdateTrajectory(l3.agreement.id, l3Id, mIdx, parseFloat(e.target.value) || 0)}
                                                             disabled={!canEditAgreement('Pegawai')}
                                                             className="w-full text-center font-black text-slate-800 text-[10px] bg-slate-50 hover:bg-slate-100 focus:bg-white border border-slate-100 p-0.5 rounded"
@@ -2332,7 +2332,7 @@ export default function PerformanceAgreementView({
                                                           <span className="text-[7px] text-slate-400 font-mono block leading-none">REALISASI</span>
                                                           <input
                                                             type="number"
-                                                            value={realVal}
+                                                            value={realVal ?? 0}
                                                             onChange={(e) => handleUpdateMonthlyAchievement(l3.agreement.id, l3Id, mIdx, parseFloat(e.target.value) || 0)}
                                                             disabled={!canEditAgreement('Pegawai')}
                                                             className="w-full text-center font-black text-indigo-600 text-[10px] bg-indigo-50/20 hover:bg-indigo-50 focus:bg-white border border-indigo-100/50 p-0.5 rounded"
@@ -2475,7 +2475,7 @@ export default function PerformanceAgreementView({
               let scoreSum = 0;
               
               periodAgreements.forEach(a => {
-                a.objectives.forEach(obj => {
+                a?.objectives?.forEach(obj => {
                   countIndicators++;
                   const targetVal = obj._scaledTargetVal !== undefined ? obj._scaledTargetVal : (parseFloat(obj.target) || 100);
                   const real = obj.achievement || 0;
@@ -2540,7 +2540,7 @@ export default function PerformanceAgreementView({
               {(() => {
                 const kepalaAg = periodAgreements.find(a => a.level === 'Kepala Stasiun');
                 
-                if (!kepalaAg || kepalaAg.objectives.length === 0) {
+                if (!kepalaAg || kepalaAg?.objectives?.length === 0) {
                   return (
                     <div className="p-12 text-center border border-dashed border-slate-200 rounded-3xl bg-slate-50/50">
                       <Award className="w-12 h-12 text-slate-300 mx-auto mb-3 animate-pulse" />
@@ -2552,7 +2552,7 @@ export default function PerformanceAgreementView({
 
                 return (
                   <div className="space-y-5">
-                    {kepalaAg.objectives.map((rootObj) => {
+                    {kepalaAg?.objectives?.map((rootObj) => {
                       const rootScore = getIndicatorScore(rootObj);
                       const rootReal = rootObj.achievement || 0;
                       
@@ -2861,7 +2861,7 @@ export default function PerformanceAgreementView({
                 <div className="space-y-1">
                   <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider block">1. Pilih Sasaran Kerja untuk Diperiksa:</label>
                   <select
-                    value={simSelectedIndicatorId}
+                    value={simSelectedIndicatorId || ""}
                     onChange={(e) => handleSelectIndicatorForSim(e.target.value)}
                     className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs font-bold text-slate-700 focus:outline-hidden focus:bg-white focus:ring-2 focus:ring-indigo-400"
                   >
@@ -2878,7 +2878,7 @@ export default function PerformanceAgreementView({
                 <div className="space-y-1">
                   <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider block">Nama Indikator Kinerja Utama (IKU):</label>
                   <textarea
-                    value={simCustomName}
+                    value={simCustomName || ""}
                     onChange={(e) => {
                       setSimCustomName(e.target.value);
                       if (simSelectedIndicatorId !== 'custom') setSimSelectedIndicatorId('custom');
@@ -2894,7 +2894,7 @@ export default function PerformanceAgreementView({
                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider block">Target Kinerja</label>
                     <input
                       type="number"
-                      value={simTarget}
+                      value={simTarget ?? 0}
                       onChange={(e) => {
                         setSimTarget(parseFloat(e.target.value) || 0);
                         if (simSelectedIndicatorId !== 'custom') setSimSelectedIndicatorId('custom');
@@ -2907,7 +2907,7 @@ export default function PerformanceAgreementView({
                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider block">Realisasi Riil</label>
                     <input
                       type="number"
-                      value={simRealization}
+                      value={simRealization ?? 0}
                       onChange={(e) => {
                         setSimRealization(parseFloat(e.target.value) || 0);
                         if (simSelectedIndicatorId !== 'custom') setSimSelectedIndicatorId('custom');
@@ -2920,7 +2920,7 @@ export default function PerformanceAgreementView({
                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider block">Satuan Ukur</label>
                     <input
                       type="text"
-                      value={simUnit}
+                      value={simUnit || ""}
                       onChange={(e) => {
                         setSimUnit(e.target.value);
                         if (simSelectedIndicatorId !== 'custom') setSimSelectedIndicatorId('custom');
@@ -2941,7 +2941,7 @@ export default function PerformanceAgreementView({
                     min="0"
                     max={simTarget * 1.2 || 120}
                     step={simTarget ? simTarget / 100 : 1}
-                    value={simRealization}
+                    value={simRealization ?? 0}
                     onChange={(e) => {
                       setSimRealization(parseFloat(e.target.value));
                       if (simSelectedIndicatorId !== 'custom') setSimSelectedIndicatorId('custom');
@@ -3124,7 +3124,7 @@ export default function PerformanceAgreementView({
 
                 // Dynamic periodic breakdown calculation
                 let periods: { label: string; code: string; calc: string; value: string }[] = [];
-                if (simUnit === '%' || simUnit.toLowerCase() === 'indeks') {
+                if (simUnit === '%' || simUnit?.toLowerCase() === 'indeks') {
                   const baseNum = simTarget || 90;
                   periods = [
                     { label: 'Bulanan (Jan - Des)', code: 'Bld', calc: 'Flat Target', value: `${baseNum} ${simUnit}` },
@@ -3541,7 +3541,7 @@ ${tindakLanjut}
                   <label className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wide block">Level Jabatan Bawahan</label>
                   {delegatingIndicator.sourceAgreement.level === 'Kepala Stasiun' ? (
                     <select
-                      value={delegateLevel}
+                      value={delegateLevel || ""}
                       onChange={(e) => {
                         setDelegateLevel(e.target.value);
                         setDelegateEmployeeId('');
@@ -3567,7 +3567,7 @@ ${tindakLanjut}
                   <label className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wide block">Pejabat / Staf Pegawai Penerima</label>
                   {delegateLevel === 'Pegawai' || delegatingIndicator.sourceAgreement.level !== 'Kepala Stasiun' ? (
                     <select
-                      value={delegateEmployeeId}
+                      value={delegateEmployeeId || ""}
                       onChange={(e) => setDelegateEmployeeId(e.target.value)}
                       className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs font-bold text-slate-700 focus:outline-hidden focus:bg-white focus:ring-1 focus:ring-indigo-400"
                     >
@@ -3592,7 +3592,7 @@ ${tindakLanjut}
               <div className="space-y-1">
                 <label className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wide block">Indikator Hasil Delegasi (Sasaran Kinerja Baru)</label>
                 <textarea
-                  value={delegatedIndicatorName}
+                  value={delegatedIndicatorName || ""}
                   onChange={(e) => setDelegatedIndicatorName(e.target.value)}
                   placeholder="Deskripsikan kontribusi spesifik atau sub-target dari bawahan"
                   className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs text-slate-700 font-bold focus:outline-hidden focus:bg-white focus:ring-1 focus:ring-indigo-400 h-16 resize-none"
@@ -3605,7 +3605,7 @@ ${tindakLanjut}
                   <label className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wide block">Target Kinerja</label>
                   <input
                     type="text"
-                    value={delegatedTarget}
+                    value={delegatedTarget ?? 0}
                     onChange={(e) => setDelegatedTarget(e.target.value)}
                     placeholder="Contoh: 90"
                     className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2 text-xs font-bold text-center focus:outline-hidden focus:bg-white focus:ring-1 focus:ring-indigo-400"
@@ -3616,7 +3616,7 @@ ${tindakLanjut}
                   <label className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wide block">Satuan Ukur</label>
                   <input
                     type="text"
-                    value={delegatedUnit}
+                    value={delegatedUnit || ""}
                     onChange={(e) => setDelegatedUnit(e.target.value)}
                     placeholder="Contoh: Laporan / %"
                     className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2 text-xs font-bold text-center focus:outline-hidden focus:bg-white focus:ring-1 focus:ring-indigo-400"
@@ -3627,7 +3627,7 @@ ${tindakLanjut}
                   <label className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wide block">Bobot (%)</label>
                   <input
                     type="number"
-                    value={delegatedWeight}
+                    value={delegatedWeight ?? 0}
                     onChange={(e) => setDelegatedWeight(parseInt(e.target.value) || 25)}
                     className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2 text-xs font-bold text-center focus:outline-hidden focus:bg-white focus:ring-1 focus:ring-indigo-400"
                   />
@@ -3685,7 +3685,7 @@ ${tindakLanjut}
               <div className="space-y-1">
                 <label className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wide block">Nama Indikator Kinerja Utama (IKU)</label>
                 <textarea
-                  value={newIndicatorName}
+                  value={newIndicatorName || ""}
                   onChange={(e) => setNewIndicatorName(e.target.value)}
                   placeholder="Contoh: Persentase efektivitas penyebaran informasi publik"
                   className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs text-slate-700 font-bold focus:outline-hidden focus:bg-white focus:ring-1 focus:ring-indigo-400 h-20 resize-none"
@@ -3697,7 +3697,7 @@ ${tindakLanjut}
                   <label className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wide block">Target Kinerja</label>
                   <input
                     type="text"
-                    value={newIndicatorTarget}
+                    value={newIndicatorTarget ?? 0}
                     onChange={(e) => setNewIndicatorTarget(e.target.value)}
                     placeholder="Contoh: 100"
                     className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2 text-xs font-bold text-center focus:outline-hidden focus:bg-white focus:ring-1 focus:ring-indigo-400"
@@ -3708,7 +3708,7 @@ ${tindakLanjut}
                   <label className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wide block">Satuan Ukur</label>
                   <input
                     type="text"
-                    value={newIndicatorUnit}
+                    value={newIndicatorUnit || ""}
                     onChange={(e) => setNewIndicatorUnit(e.target.value)}
                     placeholder="Contoh: % atau Laporan"
                     className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2 text-xs font-bold text-center focus:outline-hidden focus:bg-white focus:ring-1 focus:ring-indigo-400"
@@ -3719,7 +3719,7 @@ ${tindakLanjut}
                   <label className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wide block">Bobot (%)</label>
                   <input
                     type="number"
-                    value={newIndicatorWeight}
+                    value={newIndicatorWeight ?? 0}
                     onChange={(e) => setNewIndicatorWeight(parseInt(e.target.value) || 25)}
                     className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2 text-xs font-bold text-center focus:outline-hidden focus:bg-white focus:ring-1 focus:ring-indigo-400"
                   />
@@ -3756,7 +3756,7 @@ ${tindakLanjut}
         const realVal = ind.achievement || 0;
         const score = targetVal > 0 ? Math.min(120, Math.round((realVal / targetVal) * 100)) : 0;
         const unit = ind.unit || '%';
-        const indName = ind.indicatorName;
+        const indName = ind.indicatorName || "";
 
         // Calculate SAKIP Predicate
         let sakipPred = 'B';
@@ -3819,8 +3819,8 @@ ${tindakLanjut}
         }
 
         // Custom domain context matching
-        const isPnbp = indName.toLowerCase().includes('pnbp') || indName.toLowerCase().includes('pendapatan') || indName.toLowerCase().includes('usaha');
-        const isBerita = indName.toLowerCase().includes('berita') || indName.toLowerCase().includes('pemberitaan') || indName.toLowerCase().includes('konten') || indName.toLowerCase().includes('siaran');
+        const isPnbp = indName?.toLowerCase().includes('pnbp') || indName?.toLowerCase().includes('pendapatan') || indName?.toLowerCase().includes('usaha');
+        const isBerita = indName?.toLowerCase().includes('berita') || indName?.toLowerCase().includes('pemberitaan') || indName?.toLowerCase().includes('konten') || indName?.toLowerCase().includes('siaran');
 
         // Dynamic Cascading division and weights
         let cascadingList: { level: string; role: string; weight: number; reason: string }[] = [];
@@ -3864,7 +3864,7 @@ ${tindakLanjut}
 
         // Dynamic periodic breakdown calculation
         let periods: { label: string; code: string; calc: string; value: string }[] = [];
-        if (unit === '%' || unit.toLowerCase() === 'indeks') {
+        if (unit === '%' || unit?.toLowerCase() === 'indeks') {
           const baseNum = parseFloat(ind.target) || 90;
           periods = [
             { label: 'Bulanan (Jan - Des)', code: 'Bld', calc: 'Flat Target', value: `${baseNum} ${unit}` },

@@ -85,7 +85,7 @@ export default function EmployeeDetailDrawer({
           <div className="space-y-1">
             <div className="flex items-center gap-2">
               <span className={`px-2 py-0.5 rounded-md text-[10px] font-extrabold uppercase font-mono ${
-                (employee.status || 'aktif').toLowerCase() === 'aktif'
+                (employee.status || 'aktif')?.toLowerCase() === 'aktif'
                   ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
                   : 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
               }`}>

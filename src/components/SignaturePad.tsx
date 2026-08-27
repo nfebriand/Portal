@@ -255,7 +255,7 @@ export default function SignaturePad({
             <div className="flex gap-2">
               <input
                 type="text"
-                value={typedName}
+                value={typedName || ""}
                 onChange={handleTextChange}
                 placeholder="Ketik nama di sini..."
                 className="flex-1 bg-white border border-slate-200 rounded-lg px-3 py-1.5 text-sm focus:outline-hidden focus:ring-1 focus:ring-slate-400 text-slate-800 font-medium"

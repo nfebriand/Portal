@@ -14,9 +14,9 @@ export type ResolvedRole = 'Superadmin' | 'Kepala Satker' | 'Kepala Bidang' | 'A
 export function mapEmployeeToAppRole(emp?: Partial<Employee> | null): 'Kepala' | 'Staff' | 'Ketua Bidang' | 'Superadmin' {
   if (!emp) return 'Staff';
 
-  const loginRole = (emp.loginRole || '').toLowerCase().trim();
-  const jabatan = (emp.jabatan || '').toLowerCase().trim();
-  const role = (emp.role || '').toLowerCase().trim();
+  const loginRole = (emp.loginRole || '')?.toLowerCase().trim();
+  const jabatan = (emp.jabatan || '')?.toLowerCase().trim();
+  const role = (emp.role || '')?.toLowerCase().trim();
 
   // Superadmin check
   if (loginRole.includes('super') || role.includes('super')) {
@@ -50,7 +50,7 @@ export function mapEmployeeToAppRole(emp?: Partial<Employee> | null): 'Kepala' |
 
 export function isTataUsahaDivision(division?: string | null): boolean {
   if (!division) return false;
-  const d = division.toLowerCase().trim();
+  const d = division?.toLowerCase().trim();
   return d.includes('tata usaha') || d.includes('tu') || d === 'umum' || d.includes('tu / umum');
 }
 
@@ -70,9 +70,9 @@ export function resolveKepegawaianRole(
 ): ResolvedRole {
   if (!currentUser && !employeeRecord) return 'Staff';
 
-  const loginRole = (currentUser?.loginRole || employeeRecord?.loginRole || '').toLowerCase().trim();
-  const jabatan = (employeeRecord?.jabatan || '').toLowerCase().trim();
-  const appRole = (currentUser?.role || employeeRecord?.role || '').toLowerCase().trim();
+  const loginRole = (currentUser?.loginRole || employeeRecord?.loginRole || '')?.toLowerCase().trim();
+  const jabatan = (employeeRecord?.jabatan || '')?.toLowerCase().trim();
+  const appRole = (currentUser?.role || employeeRecord?.role || '')?.toLowerCase().trim();
 
   if (loginRole.includes('super') || appRole.includes('super') || currentUser?.id === '1871102702910001' || currentUser?.id === 'superadmin') {
     return 'Superadmin';
@@ -281,7 +281,7 @@ export function getKepegawaianPermissions(
  */
 export function normalizeCredential(input?: string | null): string {
   if (!input) return '';
-  return input.trim().toLowerCase().replace(/[\s.-]/g, '');
+  return input.trim()?.toLowerCase().replace(/[\s.-]/g, '');
 }
 
 /**

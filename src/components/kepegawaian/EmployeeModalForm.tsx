@@ -496,7 +496,7 @@ export default function EmployeeModalForm({
                   </label>
                   <input
                     type="text"
-                    value={nik}
+                    value={nik || ""}
                     onChange={(e) => setNik(e.target.value.replace(/\D/g, '').slice(0, 16))}
                     placeholder="Contoh: 1871021503750002"
                     className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs focus:bg-white focus:outline-hidden focus:border-indigo-600"
@@ -509,7 +509,7 @@ export default function EmployeeModalForm({
                   </label>
                   <input
                     type="text"
-                    value={nip}
+                    value={nip || ""}
                     onChange={(e) => setNip(e.target.value.replace(/\D/g, '').slice(0, 18))}
                     placeholder="Contoh: 197503151998031001"
                     className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs focus:bg-white focus:outline-hidden focus:border-indigo-600"
@@ -524,7 +524,7 @@ export default function EmployeeModalForm({
                   <label className="text-[11px] font-bold text-slate-600 block mb-1">Gelar Depan</label>
                   <input
                     type="text"
-                    value={gelarDepan}
+                    value={gelarDepan || ""}
                     onChange={(e) => setGelarDepan(e.target.value)}
                     placeholder="Contoh: Drs. / Ir. / Dr."
                     className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs focus:bg-white focus:outline-hidden focus:border-indigo-600"
@@ -534,7 +534,7 @@ export default function EmployeeModalForm({
                   <label className="text-[11px] font-bold text-slate-600 block mb-1">Nama Lengkap *</label>
                   <input
                     type="text"
-                    value={nama}
+                    value={nama || ""}
                     onChange={(e) => setNama(e.target.value)}
                     placeholder="Masukkan nama lengkap"
                     className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs focus:bg-white focus:outline-hidden focus:border-indigo-600 font-bold"
@@ -545,7 +545,7 @@ export default function EmployeeModalForm({
                   <label className="text-[11px] font-bold text-slate-600 block mb-1">Gelar Belakang</label>
                   <input
                     type="text"
-                    value={gelarBelakang}
+                    value={gelarBelakang || ""}
                     onChange={(e) => setGelarBelakang(e.target.value)}
                     placeholder="Contoh: M.Si. / S.Kom."
                     className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs focus:bg-white focus:outline-hidden focus:border-indigo-600"
@@ -559,7 +559,7 @@ export default function EmployeeModalForm({
                   <label className="text-[11px] font-bold text-slate-600 block mb-1">Tempat Lahir</label>
                   <input
                     type="text"
-                    value={tempatLahir}
+                    value={tempatLahir || ""}
                     onChange={(e) => setTempatLahir(e.target.value)}
                     placeholder="Contoh: Bandar Lampung"
                     className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs focus:bg-white focus:outline-hidden focus:border-indigo-600"
@@ -569,7 +569,7 @@ export default function EmployeeModalForm({
                   <label className="text-[11px] font-bold text-slate-600 block mb-1">Tanggal Lahir</label>
                   <input
                     type="date"
-                    value={tanggalLahir}
+                    value={tanggalLahir || ""}
                     onChange={(e) => setTanggalLahir(e.target.value)}
                     className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs focus:bg-white focus:outline-hidden focus:border-indigo-600 text-slate-700"
                   />
@@ -582,7 +582,7 @@ export default function EmployeeModalForm({
                   <label className="text-[11px] font-bold text-slate-600 block mb-1">Surel (Email Pegawai)</label>
                   <input
                     type="email"
-                    value={surel}
+                    value={surel || ""}
                     onChange={(e) => setSurel(e.target.value)}
                     placeholder="nama.pegawai@rri.go.id"
                     className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs focus:bg-white focus:outline-hidden focus:border-indigo-600"
@@ -592,7 +592,7 @@ export default function EmployeeModalForm({
                   <label className="text-[11px] font-bold text-slate-600 block mb-1">No. HP / WhatsApp</label>
                   <input
                     type="text"
-                    value={noHp}
+                    value={noHp || ""}
                     onChange={(e) => setNoHp(e.target.value)}
                     placeholder="081234567890"
                     className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs focus:bg-white focus:outline-hidden focus:border-indigo-600"
@@ -601,7 +601,7 @@ export default function EmployeeModalForm({
                 <div>
                   <label className="text-[11px] font-bold text-slate-600 block mb-1">Golongan Darah</label>
                   <select
-                    value={golDarah}
+                    value={golDarah || ""}
                     onChange={(e) => setGolDarah(e.target.value as any)}
                     className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs focus:bg-white focus:outline-hidden focus:border-indigo-600"
                   >
@@ -621,7 +621,7 @@ export default function EmployeeModalForm({
                     Jabatan Pegawai *
                   </label>
                   <select
-                    value={jabatan}
+                    value={jabatan || ""}
                     onChange={(e) => setJabatan(e.target.value as any)}
                     className="w-full bg-white border border-indigo-200 rounded-xl px-3 py-2 text-xs font-semibold text-slate-800 focus:outline-hidden focus:border-indigo-600"
                   >
@@ -660,7 +660,7 @@ export default function EmployeeModalForm({
                     Status Pegawai *
                   </label>
                   <select
-                    value={status}
+                    value={status || ""}
                     onChange={(e) => setStatus(e.target.value as any)}
                     className="w-full bg-white border border-indigo-200 rounded-xl px-3 py-2 text-xs font-semibold text-slate-800 focus:outline-hidden focus:border-indigo-600 capitalize"
                   >
@@ -676,7 +676,7 @@ export default function EmployeeModalForm({
                 <div>
                   <label className="text-[11px] font-bold text-slate-600 block mb-1">Divisi / Bidang Kerja</label>
                   <select
-                    value={divisi}
+                    value={divisi || ""}
                     onChange={(e) => setDivisi(e.target.value as any)}
                     className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs focus:bg-white focus:outline-hidden focus:border-indigo-600"
                   >
@@ -691,7 +691,7 @@ export default function EmployeeModalForm({
                 <div>
                   <label className="text-[11px] font-bold text-slate-600 block mb-1">Pendidikan Terakhir</label>
                   <select
-                    value={jenjangPendidikan}
+                    value={jenjangPendidikan || ""}
                     onChange={(e) => setJenjangPendidikan(e.target.value as any)}
                     className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs focus:bg-white focus:outline-hidden focus:border-indigo-600"
                   >
@@ -727,7 +727,7 @@ export default function EmployeeModalForm({
               <div>
                 <label className="text-[11px] font-bold text-slate-600 block mb-1">Alamat Lengkap Domisili</label>
                 <textarea
-                  value={alamat}
+                  value={alamat || ""}
                   onChange={(e) => setAlamat(e.target.value)}
                   rows={2}
                   placeholder="Masukkan alamat tempat tinggal..."
@@ -1482,7 +1482,7 @@ export default function EmployeeModalForm({
                   </label>
                   <input
                     type="text"
-                    value={username}
+                    value={username || ""}
                     onChange={(e) => setUsername(e.target.value)}
                     placeholder={nip || "Masukkan username"}
                     className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-mono focus:bg-white focus:outline-hidden focus:border-indigo-600"
@@ -1497,7 +1497,7 @@ export default function EmployeeModalForm({
                   <div className="relative">
                     <input
                       type={showPassword ? 'text' : 'password'}
-                      value={password}
+                      value={password || ""}
                       onChange={(e) => setPassword(e.target.value)}
                       placeholder="Masukkan kata sandi..."
                       className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-3 pr-10 py-2 text-xs font-mono focus:bg-white focus:outline-hidden focus:border-indigo-600"

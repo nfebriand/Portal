@@ -330,7 +330,7 @@ export default function AppAdminView({
           delimiter = ';';
         }
 
-        const headers = lines[0].split(delimiter).map(h => h.trim().replace(/^["']|["']$/g, '').toLowerCase());
+        const headers = lines[0].split(delimiter).map(h => h.trim().replace(/^["']|["']$/g, '')?.toLowerCase());
 
         for (let i = 1; i < lines.length; i++) {
           const row = lines[i].split(delimiter).map(cell => cell.trim().replace(/^["']|["']$/g, ''));
@@ -354,7 +354,7 @@ export default function AppAdminView({
         // Safe case/spacing-insensitive header getter
         const getVal = (keys: string[]) => {
           for (const key of keys) {
-            const foundKey = Object.keys(item).find(k => k.toLowerCase().replace(/[\s_-]/g, '') === key.toLowerCase().replace(/[\s_-]/g, ''));
+            const foundKey = Object.keys(item).find(k => k?.toLowerCase().replace(/[\s_-]/g, '') === key?.toLowerCase().replace(/[\s_-]/g, ''));
             if (foundKey) return item[foundKey];
           }
           return undefined;
@@ -364,7 +364,7 @@ export default function AppAdminView({
         const link = getVal(['link eviden', 'link_eviden', 'url', 'link', 'eviden', 'linkeviden', 'website']) || '';
         const pembuat = getVal(['penulis', 'pembuat', 'reporter', 'creator', 'writer', 'penyiar', 'author', 'penulis (reporter)', 'penulis/reporter']) || '';
         const kategoriRaw = getVal(['jenis berita', 'jenis_berita', 'tipe berita', 'tipe_berita', 'kategori', 'category', 'type', 'jenis', 'jenis/tipe berita']) || 'Berita Online';
-        const kategoriStr = String(kategoriRaw).toLowerCase().trim();
+        const kategoriStr = String(kategoriRaw)?.toLowerCase().trim();
         const publishRaw = getVal(['waktu publish', 'waktu_publish', 'waktupublish', 'tgl_jam_publish', 'tgl jampublish', 'publishdatetime', 'publish_date', 'date', 'tanggal', 'publish', 'tgl', 'tanggal publish', 'waktu terbit']);
         const parsedDate = parseFlexibleDate(publishRaw);
         const datePart = parsedDate.dateISO;
@@ -382,9 +382,9 @@ export default function AppAdminView({
         let reporterId = '';
         let matchedReporter = employees.find(emp => 
           emp.nip === pembuat || 
-          emp.nama.toLowerCase().trim() === String(pembuat).toLowerCase().trim() ||
-          emp.nama.toLowerCase().includes(String(pembuat).toLowerCase()) || 
-          String(pembuat).toLowerCase().includes(emp.nama.toLowerCase())
+          (emp.nama || "")?.toLowerCase().trim() === String(pembuat)?.toLowerCase().trim() ||
+          (emp.nama || "")?.toLowerCase().includes(String(pembuat)?.toLowerCase()) || 
+          String(pembuat)?.toLowerCase().includes((emp.nama || "")?.toLowerCase())
         );
 
         if (matchedReporter) {
@@ -400,9 +400,9 @@ export default function AppAdminView({
         let matchedEditor = employees.find(emp => 
           (emp.isEditor || emp.role === 'Superadmin' || emp.divisi === 'Tata Usaha / Umum' || emp.role === 'Ketua Bidang') && (
             emp.nip === editor || 
-            emp.nama.toLowerCase().trim() === String(editor).toLowerCase().trim() ||
-            emp.nama.toLowerCase().includes(String(editor).toLowerCase()) || 
-            String(editor).toLowerCase().includes(emp.nama.toLowerCase())
+            (emp.nama || "")?.toLowerCase().trim() === String(editor)?.toLowerCase().trim() ||
+            (emp.nama || "")?.toLowerCase().includes(String(editor)?.toLowerCase()) || 
+            String(editor)?.toLowerCase().includes((emp.nama || "")?.toLowerCase())
           )
         );
         if (matchedEditor) {
@@ -699,7 +699,7 @@ export default function AppAdminView({
               <label className="text-[10px] font-bold text-slate-600 uppercase tracking-wider">Nama Instansi / Lembaga</label>
               <input
                 type="text"
-                value={instansiNama}
+                value={instansiNama || ""}
                 onChange={(e) => setInstansiNama(e.target.value)}
                 placeholder="Contoh: RRI Stasiun Pemancar Utama"
                 className="w-full bg-slate-50/50 border border-slate-200 focus:bg-white focus:outline-hidden focus:ring-1 focus:ring-slate-400 rounded-xl px-3 py-2 text-xs text-slate-800 font-medium"
@@ -711,7 +711,7 @@ export default function AppAdminView({
                 <label className="text-[10px] font-bold text-slate-600 uppercase tracking-wider">Nomor Telepon</label>
                 <input
                   type="text"
-                  value={instansiNoTelp}
+                  value={instansiNoTelp || ""}
                   onChange={(e) => setInstansiNoTelp(e.target.value)}
                   placeholder="Contoh: (021) 123456"
                   className="w-full bg-slate-50/50 border border-slate-200 focus:bg-white focus:outline-hidden focus:ring-1 focus:ring-slate-400 rounded-xl px-3 py-2 text-xs text-slate-800 font-medium"
@@ -722,7 +722,7 @@ export default function AppAdminView({
                 <label className="text-[10px] font-bold text-slate-600 uppercase tracking-wider">Alamat Instansi</label>
                 <input
                   type="text"
-                  value={instansiAlamat}
+                  value={instansiAlamat || ""}
                   onChange={(e) => setInstansiAlamat(e.target.value)}
                   placeholder="Jl. Radio Pemancar No. 45, Jakarta"
                   className="w-full bg-slate-50/50 border border-slate-200 focus:bg-white focus:outline-hidden focus:ring-1 focus:ring-slate-400 rounded-xl px-3 py-2 text-xs text-slate-800 font-medium"
@@ -787,7 +787,7 @@ export default function AppAdminView({
                     <label className="text-[10px] font-bold text-slate-500 uppercase">Nama Lengkap & Gelar (Kustom)</label>
                     <input
                       type="text"
-                      value={stasiunNama}
+                      value={stasiunNama || ""}
                       onChange={(e) => setStasiunNama(e.target.value)}
                       placeholder="Budi Rahardjo, M.Sn."
                       className="w-full bg-white border border-slate-200 focus:outline-hidden focus:ring-1 focus:ring-slate-400 rounded-lg px-2.5 py-1.5 text-xs text-slate-800 font-semibold"
@@ -797,7 +797,7 @@ export default function AppAdminView({
                     <label className="text-[10px] font-bold text-slate-500 uppercase">Username Akun Kepala</label>
                     <input
                       type="text"
-                      value={stasiunUsername}
+                      value={stasiunUsername || ""}
                       onChange={(e) => setStasiunUsername(e.target.value)}
                       placeholder="Masukkan username"
                       className="w-full bg-white border border-slate-200 focus:outline-hidden focus:ring-1 focus:ring-slate-400 rounded-lg px-2.5 py-1.5 text-xs text-slate-800 font-semibold"
@@ -807,7 +807,7 @@ export default function AppAdminView({
                     <label className="text-[10px] font-bold text-slate-500 uppercase">Kata Sandi Akun Kepala</label>
                     <input
                       type="text"
-                      value={stasiunPassword}
+                      value={stasiunPassword || ""}
                       onChange={(e) => setStasiunPassword(e.target.value)}
                       placeholder="Masukkan kata sandi"
                       className="w-full bg-white border border-slate-200 focus:outline-hidden focus:ring-1 focus:ring-slate-400 rounded-lg px-2.5 py-1.5 text-xs text-slate-800 font-semibold font-mono"
@@ -815,7 +815,7 @@ export default function AppAdminView({
                   </div>
                 </div>
                 <SignaturePad
-                  value={stasiunTtd}
+                  value={stasiunTtd || ""}
                   onChange={(dataUrl) => setStasiunTtd(dataUrl)}
                   height={135}
                   label="Tanda Tangan Kepala Stasiun"
@@ -886,7 +886,7 @@ export default function AppAdminView({
                     <label className="text-[10px] font-bold text-slate-500 uppercase">Nama Lengkap & Gelar (Kustom)</label>
                     <input
                       type="text"
-                      value={bidangNama}
+                      value={bidangNama || ""}
                       onChange={(e) => setBidangNama(e.target.value)}
                       placeholder="Ir. H. Ahmad Fauzi, M.T."
                       className="w-full bg-white border border-slate-200 focus:outline-hidden focus:ring-1 focus:ring-slate-400 rounded-lg px-2.5 py-1.5 text-xs text-slate-800 font-semibold"
@@ -894,7 +894,7 @@ export default function AppAdminView({
                   </div>
                 </div>
                 <SignaturePad
-                  value={bidangTtd}
+                  value={bidangTtd || ""}
                   onChange={(dataUrl) => setBidangTtd(dataUrl)}
                   height={100}
                   label="Tanda Tangan Kepala Bagian Tata Usaha"
@@ -933,7 +933,7 @@ export default function AppAdminView({
                     <label className="text-[10px] font-bold text-slate-500 uppercase">Nama Lengkap & Gelar (Kustom)</label>
                     <input
                       type="text"
-                      value={timSiaranNama}
+                      value={timSiaranNama || ""}
                       onChange={(e) => setTimSiaranNama(e.target.value)}
                       placeholder="Rina Kartika, S.Sos."
                       className="w-full bg-white border border-slate-200 focus:outline-hidden focus:ring-1 focus:ring-slate-400 rounded-lg px-2.5 py-1.5 text-xs text-slate-800 font-semibold"
@@ -941,7 +941,7 @@ export default function AppAdminView({
                   </div>
                 </div>
                 <SignaturePad
-                  value={timSiaranTtd}
+                  value={timSiaranTtd || ""}
                   onChange={(dataUrl) => setTimSiaranTtd(dataUrl)}
                   height={100}
                   label="Tanda Tangan Ketua Tim Siaran"
@@ -980,7 +980,7 @@ export default function AppAdminView({
                     <label className="text-[10px] font-bold text-slate-500 uppercase">Nama Lengkap & Gelar (Kustom)</label>
                     <input
                       type="text"
-                      value={timPemberitaanNama}
+                      value={timPemberitaanNama || ""}
                       onChange={(e) => setTimPemberitaanNama(e.target.value)}
                       placeholder="Fahri Hamzah, M.I.Kom."
                       className="w-full bg-white border border-slate-200 focus:outline-hidden focus:ring-1 focus:ring-slate-400 rounded-lg px-2.5 py-1.5 text-xs text-slate-800 font-semibold"
@@ -988,7 +988,7 @@ export default function AppAdminView({
                   </div>
                 </div>
                 <SignaturePad
-                  value={timPemberitaanTtd}
+                  value={timPemberitaanTtd || ""}
                   onChange={(dataUrl) => setTimPemberitaanTtd(dataUrl)}
                   height={100}
                   label="Tanda Tangan Ketua Tim Pemberitaan"
@@ -1027,7 +1027,7 @@ export default function AppAdminView({
                     <label className="text-[10px] font-bold text-slate-500 uppercase">Nama Lengkap & Gelar (Kustom)</label>
                     <input
                       type="text"
-                      value={timTeknikNama}
+                      value={timTeknikNama || ""}
                       onChange={(e) => setTimTeknikNama(e.target.value)}
                       placeholder="Andi Wijaya, M.T."
                       className="w-full bg-white border border-slate-200 focus:outline-hidden focus:ring-1 focus:ring-slate-400 rounded-lg px-2.5 py-1.5 text-xs text-slate-800 font-semibold"
@@ -1035,7 +1035,7 @@ export default function AppAdminView({
                   </div>
                 </div>
                 <SignaturePad
-                  value={timTeknikTtd}
+                  value={timTeknikTtd || ""}
                   onChange={(dataUrl) => setTimTeknikTtd(dataUrl)}
                   height={100}
                   label="Tanda Tangan Ketua Tim Teknologi & Media Baru"
@@ -1074,7 +1074,7 @@ export default function AppAdminView({
                     <label className="text-[10px] font-bold text-slate-500 uppercase">Nama Lengkap & Gelar (Kustom)</label>
                     <input
                       type="text"
-                      value={timKontenNama}
+                      value={timKontenNama || ""}
                       onChange={(e) => setTimKontenNama(e.target.value)}
                       placeholder="Siti Rahmawati, S.I.Kom."
                       className="w-full bg-white border border-slate-200 focus:outline-hidden focus:ring-1 focus:ring-slate-400 rounded-lg px-2.5 py-1.5 text-xs text-slate-800 font-semibold"
@@ -1082,7 +1082,7 @@ export default function AppAdminView({
                   </div>
                 </div>
                 <SignaturePad
-                  value={timKontenTtd}
+                  value={timKontenTtd || ""}
                   onChange={(dataUrl) => setTimKontenTtd(dataUrl)}
                   height={100}
                   label="Tanda Tangan Ketua Tim Konten Media Baru"
@@ -1121,7 +1121,7 @@ export default function AppAdminView({
                     <label className="text-[10px] font-bold text-slate-500 uppercase">Nama Lengkap & Gelar (Kustom)</label>
                     <input
                       type="text"
-                      value={timLayananNama}
+                      value={timLayananNama || ""}
                       onChange={(e) => setTimLayananNama(e.target.value)}
                       placeholder="Budi Santoso, S.E., M.M."
                       className="w-full bg-white border border-slate-200 focus:outline-hidden focus:ring-1 focus:ring-slate-400 rounded-lg px-2.5 py-1.5 text-xs text-slate-800 font-semibold"
@@ -1129,7 +1129,7 @@ export default function AppAdminView({
                   </div>
                 </div>
                 <SignaturePad
-                  value={timLayananTtd}
+                  value={timLayananTtd || ""}
                   onChange={(dataUrl) => setTimLayananTtd(dataUrl)}
                   height={100}
                   label="Tanda Tangan Ketua Tim Layanan Pengembangan Usaha"

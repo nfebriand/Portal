@@ -28,7 +28,7 @@ export function getReportMonthIndex(rep: NewsReport): number {
  */
 export function getReportTypeCategory(typeStr?: string): 'online' | 'lpu' | 'radio' | 'siaran' | 'total' {
   if (!typeStr) return 'online';
-  const t = typeStr.toLowerCase();
+  const t = typeStr?.toLowerCase();
   if (t.includes('lpu') || t.includes('ringan')) return 'lpu';
   if (t.includes('radio')) return 'radio';
   if (t.includes('siaran') || t.includes('konten siaran')) return 'siaran';
@@ -91,9 +91,9 @@ export function syncNewsAchievements(
 
     // Fuzzy fallback matching by reporter/writer name if employeeId missing
     if (!empId && (rep.reporterName || rep.writerName)) {
-      const repName = (rep.reporterName || rep.writerName || '').toLowerCase().trim();
+      const repName = (rep.reporterName || rep.writerName || '')?.toLowerCase().trim();
       const matchedEmp = employees.find(e => {
-        const eName = e.nama.toLowerCase().trim();
+        const eName = (e.nama || "")?.toLowerCase().trim();
         return eName === repName || eName.includes(repName) || repName.includes(eName);
       });
       if (matchedEmp) empId = matchedEmp.id;
@@ -125,9 +125,9 @@ export function syncNewsAchievements(
     if (ag.level === 'Pegawai') {
       let empId = ag.assignedToEmployeeId;
       if (!empId && ag.assignedToName) {
-        const nameLower = ag.assignedToName.toLowerCase().trim();
+        const nameLower = (ag.assignedToName || "")?.toLowerCase().trim();
         const found = employees.find(e => {
-          const eName = e.nama.toLowerCase().trim();
+          const eName = (e.nama || "")?.toLowerCase().trim();
           return eName === nameLower || eName.includes(nameLower) || nameLower.includes(eName);
         });
         if (found) empId = found.id;
@@ -138,8 +138,8 @@ export function syncNewsAchievements(
       ag.objectives.forEach(obj => {
         objMap[obj.id] = obj;
 
-        const nameLower = (obj.indicatorName || '').toLowerCase();
-        const unitLower = (obj.unit || '').toLowerCase();
+        const nameLower = (obj.indicatorName || '')?.toLowerCase();
+        const unitLower = (obj.unit || '')?.toLowerCase();
 
         // Match reporter target if explicitly linked
         const target = reporterTargets.find(t => (t.employeeId === empId || !t.employeeId) && t.linkedIndicatorId === obj.id);
@@ -183,8 +183,8 @@ export function syncNewsAchievements(
 
   // Helper to determine news category for Level 1 or Level 2 objectives
   const getObjectiveCategory = (name: string, unit: string): 'online' | 'lpu' | 'radio' | 'siaran' | 'total' | null => {
-    const nameLower = name.toLowerCase();
-    const unitLower = unit.toLowerCase();
+    const nameLower = name?.toLowerCase();
+    const unitLower = unit?.toLowerCase();
 
     // If unit is %, Skor, Nilai, or non-quantity metrics, it is NOT a news count report indicator
     if (unitLower === '%' || unitLower === 'skor' || unitLower === 'nilai' || unitLower.includes('persen')) {
@@ -213,7 +213,7 @@ export function syncNewsAchievements(
           l2Obj.achievement = l2Obj.monthlyAchievements.reduce((s, v) => s + v, 0);
         } else if (l3Children.length > 0) {
           // Non-news indicators rollup from L3 if children exist
-          const isConstantType = l2Obj.unit === '%' || l2Obj.unit === 'Skor' || l2Obj.unit === 'Nilai' || (l2Obj.indicatorName || '').toLowerCase().includes('ikpa') || l2Obj.trajectoryType === 'constant';
+          const isConstantType = l2Obj.unit === '%' || l2Obj.unit === 'Skor' || l2Obj.unit === 'Nilai' || (l2Obj.indicatorName || '')?.toLowerCase().includes('ikpa') || l2Obj.trajectoryType === 'constant';
           const rolledUpMonthly = new Array(12).fill(0);
 
           for (let idx = 0; idx < 12; idx++) {
@@ -229,7 +229,7 @@ export function syncNewsAchievements(
           l2Obj.achievement = isConstantType ? Math.round((totalVal / 12) * 10) / 10 : Math.round(totalVal * 10) / 10;
         } else if (Array.isArray(l2Obj.monthlyAchievements) && l2Obj.monthlyAchievements.length === 12) {
           // Non-news indicators with NO children preserve their manual input values
-          const isConstantType = l2Obj.unit === '%' || l2Obj.unit === 'Skor' || l2Obj.unit === 'Nilai' || (l2Obj.indicatorName || '').toLowerCase().includes('ikpa') || l2Obj.trajectoryType === 'constant';
+          const isConstantType = l2Obj.unit === '%' || l2Obj.unit === 'Skor' || l2Obj.unit === 'Nilai' || (l2Obj.indicatorName || '')?.toLowerCase().includes('ikpa') || l2Obj.trajectoryType === 'constant';
           const totalVal = l2Obj.monthlyAchievements.reduce((s, v) => s + v, 0);
           l2Obj.achievement = isConstantType ? Math.round((totalVal / 12) * 10) / 10 : Math.round(totalVal * 10) / 10;
         }
@@ -254,7 +254,7 @@ export function syncNewsAchievements(
           l1Obj.achievement = l1Obj.monthlyAchievements.reduce((s, v) => s + v, 0);
         } else if (l2Children.length > 0) {
           // Non-news indicators rollup from L2 if children exist
-          const isConstantType = l1Obj.unit === '%' || l1Obj.unit === 'Skor' || l1Obj.unit === 'Nilai' || (l1Obj.indicatorName || '').toLowerCase().includes('ikpa') || l1Obj.trajectoryType === 'constant';
+          const isConstantType = l1Obj.unit === '%' || l1Obj.unit === 'Skor' || l1Obj.unit === 'Nilai' || (l1Obj.indicatorName || '')?.toLowerCase().includes('ikpa') || l1Obj.trajectoryType === 'constant';
           const rolledUpMonthly = new Array(12).fill(0);
 
           for (let idx = 0; idx < 12; idx++) {
@@ -270,7 +270,7 @@ export function syncNewsAchievements(
           l1Obj.achievement = isConstantType ? Math.round((totalVal / 12) * 10) / 10 : Math.round(totalVal * 10) / 10;
         } else if (Array.isArray(l1Obj.monthlyAchievements) && l1Obj.monthlyAchievements.length === 12) {
           // Non-news indicators with NO children preserve their manual input values
-          const isConstantType = l1Obj.unit === '%' || l1Obj.unit === 'Skor' || l1Obj.unit === 'Nilai' || (l1Obj.indicatorName || '').toLowerCase().includes('ikpa') || l1Obj.trajectoryType === 'constant';
+          const isConstantType = l1Obj.unit === '%' || l1Obj.unit === 'Skor' || l1Obj.unit === 'Nilai' || (l1Obj.indicatorName || '')?.toLowerCase().includes('ikpa') || l1Obj.trajectoryType === 'constant';
           const totalVal = l1Obj.monthlyAchievements.reduce((s, v) => s + v, 0);
           l1Obj.achievement = isConstantType ? Math.round((totalVal / 12) * 10) / 10 : Math.round(totalVal * 10) / 10;
         }

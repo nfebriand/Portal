@@ -72,9 +72,9 @@ export default function CooperationPnbpView({
   const pnbpIndicators = useMemo(() => {
     const list: { id: string; name: string; owner: string; target: string; unit: string }[] = [];
     agreements.forEach(ag => {
-      ag.objectives.forEach(obj => {
+      ag?.objectives?.forEach(obj => {
         // If name matches pnbp or id is ind-11
-        if (obj.id === 'ind-11' || obj.indicatorName.toLowerCase().includes('pnbp') || obj.indicatorName.toLowerCase().includes('penerimaan negara')) {
+        if (obj.id === 'ind-11' ||  (obj.indicatorName || "")?.toLowerCase().includes('pnbp') ||  (obj.indicatorName || "")?.toLowerCase().includes('penerimaan negara')) {
           list.push({
             id: obj.id,
             name: obj.indicatorName,
@@ -102,7 +102,7 @@ export default function CooperationPnbpView({
   // Find the dynamically selected PK level/indicator
   const selectedRenstraPK = useMemo(() => {
     for (const ag of agreements) {
-      const obj = ag.objectives.find(o => o.id === selectedRenstraPKId);
+      const obj = ag?.objectives?.find(o => o.id === selectedRenstraPKId);
       if (obj) {
         return {
           ...obj,
@@ -130,7 +130,7 @@ export default function CooperationPnbpView({
   const parentIndicator = useMemo(() => {
     if (!selectedRenstraPK || !selectedRenstraPK.parentIndicatorId) return null;
     for (const ag of agreements) {
-      const obj = ag.objectives.find(o => o.id === selectedRenstraPK.parentIndicatorId);
+      const obj = ag?.objectives?.find(o => o.id === selectedRenstraPK.parentIndicatorId);
       if (obj) {
         return {
           ...obj,
@@ -242,9 +242,9 @@ export default function CooperationPnbpView({
   const filteredContracts = useMemo(() => {
     return contracts.filter(c => {
       const matchesSearch = 
-        c.partnerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        c.contractNo.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        c.activityName.toLowerCase().includes(searchTerm.toLowerCase());
+        (c.partnerName || "")?.toLowerCase().includes(searchTerm?.toLowerCase()) ||
+        (c.contractNo || "")?.toLowerCase().includes(searchTerm?.toLowerCase()) ||
+        (c.activityName || "")?.toLowerCase().includes(searchTerm?.toLowerCase());
       
       const matchesType = selectedTypeFilter === 'Semua' || c.cooperationType === selectedTypeFilter;
       const matchesStatus = selectedStatusFilter === 'Semua' || c.paymentStatus === selectedStatusFilter;
@@ -426,7 +426,7 @@ export default function CooperationPnbpView({
                 {agreements
                   .map(ag => (
                     <optgroup key={ag.id} label={`${ag.level} (${ag.assignedToName}) [${ag.status}]`}>
-                      {ag.objectives.map(obj => (
+                      {ag?.objectives?.map(obj => (
                         <option key={obj.id} value={obj.id}>
                           {obj.id} - {obj.indicatorName} (Target: {obj.target} {obj.unit})
                         </option>
@@ -671,7 +671,7 @@ export default function CooperationPnbpView({
             <input 
               type="text"
               placeholder="Cari nama mitra, no kontrak, kegiatan..."
-              value={searchTerm}
+              value={searchTerm || ""}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="bg-transparent border-none text-xs text-slate-700 font-semibold focus:outline-hidden placeholder-slate-400 w-full md:w-64"
             />
@@ -836,7 +836,7 @@ export default function CooperationPnbpView({
                   <label className="font-extrabold text-slate-500 uppercase block text-[9px]">Nomor Kontrak *</label>
                   <input 
                     type="text" 
-                    value={contractNo}
+                    value={contractNo || ""}
                     onChange={(e) => setContractNo(e.target.value)}
                     className="w-full border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 font-semibold focus:outline-hidden focus:ring-1 focus:ring-indigo-500"
                     placeholder="e.g. KTR/LPU/2026/012"
@@ -848,7 +848,7 @@ export default function CooperationPnbpView({
                 <div className="space-y-1">
                   <label className="font-extrabold text-slate-500 uppercase block text-[9px]">Jenis Kerjasama</label>
                   <select
-                    value={cooperationType}
+                    value={cooperationType || ""}
                     onChange={(e) => setCooperationType(e.target.value as any)}
                     className="w-full border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 font-bold focus:outline-hidden focus:ring-1 focus:ring-indigo-500"
                   >
@@ -865,7 +865,7 @@ export default function CooperationPnbpView({
                 <label className="font-extrabold text-slate-500 uppercase block text-[9px]">Nama Mitra / Partner *</label>
                 <input 
                   type="text" 
-                  value={partnerName}
+                  value={partnerName || ""}
                   onChange={(e) => setPartnerName(e.target.value)}
                   className="w-full border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 font-semibold focus:outline-hidden focus:ring-1 focus:ring-indigo-500"
                   placeholder="e.g. Bank SulutGo, BPBD, Telkomsel"
@@ -878,7 +878,7 @@ export default function CooperationPnbpView({
                 <label className="font-extrabold text-slate-500 uppercase block text-[9px]">Nama Kegiatan / Nama Sewa *</label>
                 <input 
                   type="text" 
-                  value={activityName}
+                  value={activityName || ""}
                   onChange={(e) => setActivityName(e.target.value)}
                   className="w-full border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 font-semibold focus:outline-hidden focus:ring-1 focus:ring-indigo-500"
                   placeholder="e.g. Siar Layanan Informasi Kebencanaan Terpadu"
@@ -893,7 +893,7 @@ export default function CooperationPnbpView({
                   <input 
                     type="number" 
                     step="0.1"
-                    value={value}
+                    value={value ?? 0}
                     onChange={(e) => setValue(parseFloat(e.target.value) || 0)}
                     className="w-full border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 font-extrabold focus:outline-hidden focus:ring-1 focus:ring-indigo-500"
                     placeholder="e.g. 50"
@@ -907,7 +907,7 @@ export default function CooperationPnbpView({
                   <input 
                     type="number" 
                     step="0.1"
-                    value={realizedPnbp}
+                    value={realizedPnbp ?? 0}
                     onChange={(e) => setRealizedPnbp(parseFloat(e.target.value) || 0)}
                     className="w-full border border-slate-200 rounded-xl px-3 py-2 text-xs text-emerald-600 font-extrabold focus:outline-hidden focus:ring-1 focus:ring-indigo-500"
                     placeholder="e.g. 25"
@@ -920,7 +920,7 @@ export default function CooperationPnbpView({
                 <div className="space-y-1">
                   <label className="font-extrabold text-slate-500 uppercase block text-[9px]">Status Pembayaran</label>
                   <select
-                    value={paymentStatus}
+                    value={paymentStatus || ""}
                     onChange={(e) => setPaymentStatus(e.target.value as any)}
                     className="w-full border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 font-bold focus:outline-hidden focus:ring-1 focus:ring-indigo-500"
                   >
@@ -934,7 +934,7 @@ export default function CooperationPnbpView({
                 <div className="space-y-1">
                   <label className="font-extrabold text-slate-500 uppercase block text-[9px]">Hubungkan ke Sasaran PK</label>
                   <select
-                    value={linkedIndicatorId}
+                    value={linkedIndicatorId || ""}
                     onChange={(e) => setLinkedIndicatorId(e.target.value)}
                     className="w-full border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 font-bold focus:outline-hidden focus:ring-1 focus:ring-indigo-500"
                   >
@@ -953,7 +953,7 @@ export default function CooperationPnbpView({
                   <label className="font-extrabold text-slate-500 uppercase block text-[9px]">Masa Mulai</label>
                   <input 
                     type="date" 
-                    value={startDate}
+                    value={startDate || ""}
                     onChange={(e) => setStartDate(e.target.value)}
                     className="w-full border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 font-semibold focus:outline-hidden focus:ring-1 focus:ring-indigo-500"
                     required
@@ -965,7 +965,7 @@ export default function CooperationPnbpView({
                   <label className="font-extrabold text-slate-500 uppercase block text-[9px]">Masa Selesai</label>
                   <input 
                     type="date" 
-                    value={endDate}
+                    value={endDate || ""}
                     onChange={(e) => setEndDate(e.target.value)}
                     className="w-full border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 font-semibold focus:outline-hidden focus:ring-1 focus:ring-indigo-500"
                     required
@@ -977,7 +977,7 @@ export default function CooperationPnbpView({
               <div className="space-y-1">
                 <label className="font-extrabold text-slate-500 uppercase block text-[9px]">Catatan / Keterangan</label>
                 <textarea 
-                  value={notes}
+                  value={notes || ""}
                   onChange={(e) => setNotes(e.target.value)}
                   className="w-full border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 focus:outline-hidden focus:ring-1 focus:ring-indigo-500"
                   placeholder="e.g. Pembayaran dilakukan dalam 2 termin"

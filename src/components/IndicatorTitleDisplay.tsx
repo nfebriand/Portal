@@ -20,7 +20,7 @@ export function parseIndicatorTitle(name: string): { main: string; sub: string |
     existingSub = parenMatch[2].trim();
   }
 
-  const lowerBase = cleanBase.toLowerCase();
+  const lowerBase = cleanBase?.toLowerCase();
 
   // Rule 1: Persentase konten siaran yang menunjang program Prioritas Presiden -> (TalkShow, Dialog Interaktif, ILM)
   if (lowerBase.includes('prioritas presiden')) {

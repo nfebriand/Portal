@@ -59,7 +59,8 @@ export function subscribeToCollection<T extends { id: string }>(
     } catch (e) {
       if (onError) onError(e);
     }
-    if (isSubscribed) setTimeout(poll, 5000); // poll every 5s
+    // Disabled auto-polling (run once) to prevent Cloud SQL connection overload
+    // if (isSubscribed) setTimeout(poll, 5000);
   };
   
   poll();
@@ -98,7 +99,8 @@ export function subscribeToDocument<T>(
     } catch (e) {
       if (onError) onError(e);
     }
-    if (isSubscribed) setTimeout(poll, 5000); // poll every 5s
+    // Disabled auto-polling (run once) to prevent Cloud SQL connection overload
+    // if (isSubscribed) setTimeout(poll, 5000);
   };
   
   poll();
