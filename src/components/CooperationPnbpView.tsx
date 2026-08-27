@@ -93,7 +93,7 @@ export default function CooperationPnbpView({
         name: 'Capaian PNBP dari Iklan & Kerjasama',
         owner: 'Ketua Tim Layanan Pengembangan Usaha',
         target: '150',
-        unit: 'Juta Rupiah'
+        unit: 'Rupiah'
       });
     }
     return list;
@@ -336,9 +336,9 @@ export default function CooperationPnbpView({
             </div>
           </div>
           <div className="space-y-1">
-            <h3 className="text-xl font-extrabold text-slate-800">Rp {stats.totalRealized.toFixed(1)} Juta</h3>
+            <h3 className="text-xl font-extrabold text-slate-800">Rp {stats.totalRealized.toLocaleString('id-ID')}</h3>
             <p className="text-[10px] text-slate-400 flex items-center gap-1">
-              Dari target sasaran Rp {stats.targetValue} Juta
+              Dari target sasaran Rp {stats.targetValue.toLocaleString('id-ID')}
             </p>
           </div>
           {/* Progress Bar */}
@@ -365,7 +365,7 @@ export default function CooperationPnbpView({
             </div>
           </div>
           <div className="space-y-1">
-            <h3 className="text-xl font-extrabold text-slate-800">Rp {stats.totalValue.toFixed(1)} Juta</h3>
+            <h3 className="text-xl font-extrabold text-slate-800">Rp {stats.totalValue.toLocaleString('id-ID')}</h3>
             <p className="text-[10px] text-indigo-600 font-bold">
               {contracts.length} Dokumen Kerjasama Aktif
             </p>
@@ -384,7 +384,7 @@ export default function CooperationPnbpView({
             </div>
           </div>
           <div className="space-y-1">
-            <h3 className="text-xl font-extrabold text-slate-800">Rp {stats.totalReceivable.toFixed(1)} Juta</h3>
+            <h3 className="text-xl font-extrabold text-slate-800">Rp {stats.totalReceivable.toLocaleString('id-ID')}</h3>
             <p className="text-[10px] text-slate-400">
               Menunggu termin pembayaran berikutnya
             </p>
@@ -407,7 +407,7 @@ export default function CooperationPnbpView({
               </div>
             </div>
             <div className="space-y-1 mt-1">
-              <h3 className="text-xl font-extrabold text-slate-800">Rp {stats.targetValue.toFixed(1)} Juta</h3>
+              <h3 className="text-xl font-extrabold text-slate-800">Rp {stats.targetValue.toLocaleString('id-ID')}</h3>
               <p className="text-[10px] text-slate-400 font-medium line-clamp-2 min-h-[30px]">
                 Indikator: <span className="font-bold text-indigo-600">{selectedRenstraPK?.indicatorName || 'PNBP'}</span> ({selectedRenstraPK?.level})
               </p>
@@ -479,7 +479,7 @@ export default function CooperationPnbpView({
               <p className="text-[10px] text-slate-500">Kalkulasi kumulatif dari {contracts.length} kontrak.</p>
               <div className="pt-1.5 flex justify-between items-end">
                 <span className="text-[10px] text-slate-400">Total PNBP:</span>
-                <span className="text-xs font-black text-indigo-600">Rp {stats.totalRealized} Juta</span>
+                <span className="text-xs font-black text-indigo-600">Rp {stats.totalRealized.toLocaleString('id-ID')}</span>
               </div>
             </div>
           </div>
@@ -539,7 +539,7 @@ export default function CooperationPnbpView({
               <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider font-mono">
                 Rekap Pendapatan per Jenis Kerjasama
               </h3>
-              <p className="text-[10px] text-slate-400">Perbandingan Nilai Kontrak vs Realisasi PNBP Terbayar (Juta Rupiah)</p>
+              <p className="text-[10px] text-slate-400">Perbandingan Nilai Kontrak vs Realisasi PNBP Terbayar (Rupiah)</p>
             </div>
             <span className="p-1.5 bg-slate-50 text-slate-400 rounded-lg">
               <TrendingUp className="w-4 h-4 text-indigo-600" />
@@ -752,11 +752,11 @@ export default function CooperationPnbpView({
                       </td>
 
                       <td className="px-6 py-4 text-right font-extrabold text-slate-700">
-                        Rp {c.value.toFixed(1)} Juta
+                        Rp {c.value.toLocaleString('id-ID')}
                       </td>
 
                       <td className="px-6 py-4 text-right font-extrabold text-emerald-600">
-                        Rp {c.realizedPnbp.toFixed(1)} Juta
+                        Rp {c.realizedPnbp.toLocaleString('id-ID')}
                       </td>
 
                       <td className="px-6 py-4 text-center">
@@ -889,7 +889,7 @@ export default function CooperationPnbpView({
               <div className="grid grid-cols-2 gap-4">
                 {/* Nilai Kontrak */}
                 <div className="space-y-1">
-                  <label className="font-extrabold text-slate-500 uppercase block text-[9px]">Nilai Kontrak (Juta Rupiah) *</label>
+                  <label className="font-extrabold text-slate-500 uppercase block text-[9px]">Nilai Kontrak (Rupiah) *</label>
                   <input 
                     type="number" 
                     step="0.1"
@@ -903,7 +903,7 @@ export default function CooperationPnbpView({
 
                 {/* Realisasi PNBP */}
                 <div className="space-y-1">
-                  <label className="font-extrabold text-slate-500 uppercase block text-[9px]">Realisasi Terbayar (Juta Rupiah)</label>
+                  <label className="font-extrabold text-slate-500 uppercase block text-[9px]">Realisasi Terbayar (Rupiah)</label>
                   <input 
                     type="number" 
                     step="0.1"

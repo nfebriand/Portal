@@ -42,22 +42,6 @@ export default function LoginView({ employees, onLogin, namaInstansi, kepalaStas
       return;
     }
 
-    // Check if it's Kepala Stasiun default/custom account
-    const expectedKepalaUsername = normalizeCredential(kepalaStasiunUsername || 'kepala');
-    if (normalizedTarget === expectedKepalaUsername || normalizedTarget === '196501012026121001' || inputLower === 'kepala') {
-      const isCorrectPassword = password === '123456' || password === 'kepala' || (kepalaStasiunPassword && password === kepalaStasiunPassword);
-      if (!isCorrectPassword) {
-        setError('Kata sandi salah. Silakan periksa kembali.');
-        return;
-      }
-      onLogin({
-        id: 'kepala',
-        name: kepalaStasiunNama || 'Drs. H. Mulyadi Kusuma, M.M.',
-        role: 'Kepala'
-      });
-      return;
-    }
-
     // Try finding in employees collection
     const foundEmp = employees.find(emp => {
       const empUsername = normalizeCredential(emp.username);

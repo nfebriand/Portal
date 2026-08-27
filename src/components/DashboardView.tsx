@@ -1161,11 +1161,11 @@ export default function DashboardView({
       const match = (ag.objectives || []).find((obj: any) => {
         const nameLower = (obj.indicatorName || '')?.toLowerCase();
         return (
+          nameLower.includes('kinerja anggaran') ||
           nameLower.includes('penyerapan anggaran') ||
           nameLower.includes('realisasi anggaran') ||
-          nameLower.includes('anggaran dipa') ||
-          nameLower.includes('ikpa')
-        );
+          nameLower.includes('anggaran dipa')
+        ) && !nameLower.includes('ikpa');
       });
       if (match) {
         budgetObj = match;

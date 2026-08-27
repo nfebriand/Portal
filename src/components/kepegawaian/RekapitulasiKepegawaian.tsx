@@ -50,7 +50,7 @@ export default function RekapitulasiKepegawaian({
   const [selectedStatus, setSelectedStatus] = useState<string>('all');
   const [selectedGender, setSelectedGender] = useState<string>('all');
   const [currentPage, setCurrentPage] = useState<number>(1);
-  const PAGE_SIZE = 20;
+  const PAGE_SIZE = 10;
 
   // 1. Employee Status & Demographic Calculations
   const stats = useMemo(() => {
@@ -192,7 +192,7 @@ export default function RekapitulasiKepegawaian({
     };
   }, [employees, currentYear]);
 
-  // 2. Filtered & Paginated Employees List (20 per page)
+  // 2. Filtered & Paginated Employees List (10 per page)
   const filteredEmployees = useMemo(() => {
     return employees.filter(emp => {
       const q = searchQuery?.toLowerCase().trim();
@@ -862,7 +862,7 @@ export default function RekapitulasiKepegawaian({
           </table>
         </div>
 
-        {/* Pagination Bar (20 per page) */}
+        {/* Pagination Bar (10 per page) */}
         {totalPages > 1 && (
           <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-3 border-t border-slate-100 text-xs">
             <p className="text-slate-500 text-[11px]">

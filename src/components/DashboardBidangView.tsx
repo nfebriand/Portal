@@ -42,7 +42,8 @@ import {
   FolderKanban,
   Check,
   Info,
-  AlertTriangle
+  AlertTriangle,
+  Calendar
 } from 'lucide-react';
 import NewsDetailModal from './NewsDetailModal';
 import PromotionDetailModal from './PromotionDetailModal';
@@ -53,6 +54,12 @@ import { filterPromotionsForIndicator, isPromotionIndicator } from '../utils/syn
 import { isCompetencyIndicator } from '../utils/syncCompetencyAchievements';
 import { PromotionActivity } from '../types';
 import StatistikKepatuhanPelatihanBidang from './kepegawaian/StatistikKepatuhanPelatihanBidang';
+import NotifikasiSdmBidang from './kepegawaian/NotifikasiSdmBidang';
+
+const INDONESIAN_MONTHS = [
+  'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
+  'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
+];
 
 export interface SubTeamInfo {
   id: string;
@@ -280,7 +287,11 @@ export default function DashboardBidangView({
   }
 }: DashboardBidangViewProps) {
   
-  const [activeTab, setActiveTab] = useState<'summary' | 'delegation' | 'pelatihan40jam'>('summary');
+  const [selectedKpiYear, setSelectedKpiYear] = useState<number>(new Date().getFullYear());
+  const [selectedKpiPeriod, setSelectedKpiPeriod] = useState<string>('Tahunan');
+  const [selectedKpiMonth, setSelectedKpiMonth] = useState<number>(new Date().getMonth());
+  
+  const [activeTab, setActiveTab] = useState<'summary' | 'delegation' | 'pelatihan40jam' | 'performa'>('summary');
   const [isReportModalOpen, setIsReportModalOpen] = useState<boolean>(false);
   const [delegatingIndicator, setDelegatingIndicator] = useState<{ indicator: any; agreement: any } | null>(null);
   const [delegateEmployeeId, setDelegateEmployeeId] = useState('');
@@ -597,15 +608,144 @@ export default function DashboardBidangView({
 
   // Extract objectives
   const { ownObjectives, teamObjectives, teamAgreement } = useMemo(() => {
-    const own = divisionAgreements.find(ag => ag.assignedToEmployeeId === currentUser.id);
-    const team = divisionAgreements.find(ag => ag.level !== 'Pegawai');
+    const selectedYear = selectedKpiYear;
+    const evalPeriod = selectedKpiPeriod === 'Triwulan 1' ? 'q1'
+      : selectedKpiPeriod === 'Triwulan 2' ? 'q2'
+      : selectedKpiPeriod === 'Triwulan 3' ? 'q3'
+      : selectedKpiPeriod === 'Triwulan 4' ? 'q4'
+      : selectedKpiPeriod === 'Semester 1' ? 's1'
+      : selectedKpiPeriod === 'Semester 2' ? 's2'
+      : 'tahunan';
+
+    const isReportInPeriod = (r: NewsReport) => {
+      const d = new Date(r.date);
+      if (d.getFullYear() !== selectedYear) return false;
+      const m = d.getMonth();
+      if (evalPeriod === 'q1') return m >= 0 && m <= 2;
+      if (evalPeriod === 'q2') return m >= 3 && m <= 5;
+      if (evalPeriod === 'q3') return m >= 6 && m <= 8;
+      if (evalPeriod === 'q4') return m >= 9 && m <= 11;
+      if (evalPeriod === 's1') return m >= 0 && m <= 5;
+      if (evalPeriod === 's2') return m >= 6 && m <= 11;
+      if (selectedKpiPeriod === 'Bulanan') return m === selectedKpiMonth;
+      return true;
+    };
+
+    const isContractInPeriod = (c: any) => {
+      const d = new Date(c.startDate);
+      if (d.getFullYear() !== selectedYear) return false;
+      const m = d.getMonth();
+      if (evalPeriod === 'q1') return m >= 0 && m <= 2;
+      if (evalPeriod === 'q2') return m >= 3 && m <= 5;
+      if (evalPeriod === 'q3') return m >= 6 && m <= 8;
+      if (evalPeriod === 'q4') return m >= 9 && m <= 11;
+      if (evalPeriod === 's1') return m >= 0 && m <= 5;
+      if (evalPeriod === 's2') return m >= 6 && m <= 11;
+      if (selectedKpiPeriod === 'Bulanan') return m === selectedKpiMonth;
+      return true;
+    };
+
+    const filteredContracts = (contracts || []).filter(c => isContractInPeriod(c));
+    const totalPnbpForPeriod = filteredContracts
+      .filter(c => c.linkedIndicatorId === 'ind-11')
+      .reduce((sum, c) => sum + c.value, 0);
+
+    const activeMonthIndices = selectedKpiPeriod === 'Triwulan 1' ? [0, 1, 2]
+      : selectedKpiPeriod === 'Triwulan 2' ? [3, 4, 5]
+      : selectedKpiPeriod === 'Triwulan 3' ? [6, 7, 8]
+      : selectedKpiPeriod === 'Triwulan 4' ? [9, 10, 11]
+      : selectedKpiPeriod === 'Semester 1' ? [0, 1, 2, 3, 4, 5]
+      : selectedKpiPeriod === 'Semester 2' ? [6, 7, 8, 9, 10, 11]
+      : selectedKpiPeriod === 'Bulanan' ? [selectedKpiMonth]
+      : [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11];
+
+    const scaledAgreements = divisionAgreements.map(ag => {
+      const empReports = (newsReports || []).filter(r => r.employeeId === ag.assignedToEmployeeId && isReportInPeriod(r));
+      
+      const newObjectives = ag?.objectives?.map(obj => {
+        let baseTgt = parseFloat(obj.target) || 100;
+        let scaledTarget = baseTgt;
+
+        if (evalPeriod.startsWith('q')) {
+          scaledTarget = baseTgt / 4;
+        } else if (evalPeriod.startsWith('s')) {
+          scaledTarget = baseTgt / 2;
+        } else if (selectedKpiPeriod === 'Bulanan') {
+          scaledTarget = baseTgt / 12;
+        }
+
+        const isConstant = obj.unit === '%' || obj.indicatorName?.toLowerCase().includes('ikpa') || obj.indicatorName?.toLowerCase().includes('nilai');
+        if (isConstant) {
+          scaledTarget = baseTgt;
+        }
+
+        let computedAch = obj.achievement || 0;
+        if (obj.id === 'ind-11') {
+          computedAch = totalPnbpForPeriod;
+        } else if (ag.level === 'Pegawai' && ag.assignedToEmployeeId) {
+          const empId = ag.assignedToEmployeeId;
+          const nameLower = obj.indicatorName?.toLowerCase();
+          if (nameLower.includes('ringan') || nameLower.includes('lpu')) {
+            computedAch = empReports.filter(r => r.type === 'Berita Ringan' || r.type === 'Berita Ringan LPU').length;
+          } else if (nameLower.includes('radio')) {
+            computedAch = empReports.filter(r => r.type === 'Berita Radio').length;
+          } else if (nameLower.includes('konten siaran') || (nameLower.includes('siaran') && !nameLower.includes('radio'))) {
+            computedAch = empReports.filter(r => r.type === 'Konten Siaran').length;
+          } else if (nameLower.includes('online') || nameLower.includes('media baru') || nameLower.includes('medsos') || nameLower.includes('konten')) {
+            computedAch = empReports.filter(r => r.type === 'Berita Online').length;
+          } else {
+            const empTargets = (reporterTargets || []).filter(t => t.employeeId === empId);
+            const matchedTarget = empTargets.find(t => t.linkedIndicatorId === obj.id);
+            if (matchedTarget) {
+              computedAch = empReports.filter(r => {
+                if (matchedTarget.mediaType === 'Berita Ringan LPU' || matchedTarget.mediaType === 'Berita Ringan') {
+                  return r.type === 'Berita Ringan' || r.type === 'Berita Ringan LPU';
+                }
+                return !matchedTarget.mediaType || r.type === matchedTarget.mediaType;
+              }).length;
+            }
+          }
+        } else if (obj.monthlyAchievements && Array.isArray(obj.monthlyAchievements) && obj.monthlyAchievements.length === 12) {
+          const tType = obj.trajectoryType || (isConstant ? 'constant' : 'cumulative');
+          if (obj.trajectory && obj.trajectory.length === 12) {
+            const activeTrajectoryTarget = activeMonthIndices.reduce((sum, idx) => sum + (obj.trajectory?.[idx] ?? 0), 0);
+            scaledTarget = tType === 'constant' ? (activeTrajectoryTarget / activeMonthIndices.length) : activeTrajectoryTarget;
+          }
+          const activeReal = activeMonthIndices.reduce((sum, idx) => sum + (obj.monthlyAchievements?.[idx] ?? 0), 0);
+          computedAch = tType === 'constant' ? (activeReal / activeMonthIndices.length) : activeReal;
+        } else if (obj.trajectory && obj.trajectory.length === 12) {
+          const tType = obj.trajectoryType || (isConstant ? 'constant' : 'cumulative');
+          const activeTrajectoryTarget = activeMonthIndices.reduce((sum, idx) => sum + (obj.trajectory?.[idx] ?? 0), 0);
+          scaledTarget = tType === 'constant' ? (activeTrajectoryTarget / activeMonthIndices.length) : activeTrajectoryTarget;
+        }
+
+        const tgtVal = scaledTarget > 0 ? scaledTarget : 1;
+        const pct = Math.min(120, Math.max(0, Math.round((computedAch / tgtVal) * 100)));
+
+        return {
+          ...obj,
+          target: isConstant ? `${baseTgt} ${obj.unit}` : `${Math.round(scaledTarget * 10) / 10} ${obj.unit}`,
+          achievement: Math.round(computedAch * 10) / 10,
+          _scaledTargetVal: scaledTarget,
+          _computedPct: pct
+        };
+      });
+
+      return {
+        ...ag,
+        objectives: newObjectives
+      };
+    });
+
+    const own = scaledAgreements.find(ag => ag.assignedToEmployeeId === currentUser.id);
+    const team = scaledAgreements.find(ag => ag.level !== 'Pegawai');
     
     return {
       ownObjectives: own ? own.objectives : [],
       teamObjectives: team ? team.objectives : [],
       teamAgreement: team
     };
-  }, [divisionAgreements, currentUser]);
+  }, [divisionAgreements, currentUser, selectedKpiYear, selectedKpiPeriod, selectedKpiMonth, newsReports, contracts, reporterTargets]);
 
   // Filtered team objectives by sub-team
   const filteredTeamObjectives = useMemo(() => {
@@ -1041,6 +1181,62 @@ export default function DashboardBidangView({
           </div>
         </div>
 
+        {/* Filter Periode Waktu */}
+        <div className="pt-3 border-t border-slate-100 flex flex-col sm:flex-row sm:items-center gap-3">
+          <label className="text-[11px] font-bold uppercase tracking-wider text-slate-600 flex items-center gap-1.5 font-mono mr-2">
+            <Calendar className="w-3.5 h-3.5 text-indigo-600" />
+            Periode Penilaian
+          </label>
+          <div className="flex flex-wrap items-center gap-2.5">
+            {/* Filter Tahun */}
+            <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1">
+              <span className="text-[10px] font-extrabold text-slate-700 uppercase font-mono">Tahun:</span>
+              <select
+                value={selectedKpiYear}
+                onChange={(e) => setSelectedKpiYear(parseInt(e.target.value))}
+                className="bg-transparent border-none text-xs font-black text-indigo-600 focus:outline-hidden cursor-pointer"
+              >
+                {[2024, 2025, 2026, 2027].map((yr) => (
+                  <option key={yr} value={yr}>{yr}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Filter Periode (Tahunan, Semester 1/2, Triwulan 1-4, Bulanan) */}
+            <div className="w-48 sm:w-52">
+              <select
+                value={selectedKpiPeriod}
+                onChange={(e) => setSelectedKpiPeriod(e.target.value)}
+                className="w-full bg-slate-50 hover:bg-slate-100/80 border border-slate-300 rounded-xl px-3 py-1.5 text-xs font-black text-slate-800 focus:ring-2 focus:ring-indigo-500 focus:outline-hidden transition-all cursor-pointer shadow-2xs"
+              >
+                <option value="Tahunan">Tahunan (Jan - Des)</option>
+                <option value="Semester 1">Semester 1 (Jan - Jun)</option>
+                <option value="Semester 2">Semester 2 (Jul - Des)</option>
+                <option value="Triwulan 1">Triwulan 1 (Jan - Mar)</option>
+                <option value="Triwulan 2">Triwulan 2 (Apr - Jun)</option>
+                <option value="Triwulan 3">Triwulan 3 (Jul - Sep)</option>
+                <option value="Triwulan 4">Triwulan 4 (Okt - Des)</option>
+                <option value="Bulanan">Bulanan</option>
+              </select>
+            </div>
+
+            {/* Selector Bulan jika memilih Bulanan */}
+            {selectedKpiPeriod === 'Bulanan' && (
+              <div className="w-36 sm:w-40 animate-in fade-in slide-in-from-left-2 duration-150">
+                <select
+                  value={selectedKpiMonth}
+                  onChange={(e) => setSelectedKpiMonth(parseInt(e.target.value))}
+                  className="w-full bg-slate-50 hover:bg-slate-100/80 border border-slate-300 rounded-xl px-3 py-1.5 text-xs font-black text-slate-800 focus:ring-2 focus:ring-indigo-500 focus:outline-hidden transition-all cursor-pointer shadow-2xs"
+                >
+                  {INDONESIAN_MONTHS.map((month, idx) => (
+                    <option key={idx} value={idx}>{month}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+          </div>
+        </div>
+
         {/* Quick Sub-Team Chips */}
         {currentSubTeams.length > 0 && (
           <div className="space-y-1.5 pt-1">
@@ -1134,6 +1330,16 @@ export default function DashboardBidangView({
             Kepatuhan Pelatihan 40 Jam SDM
           </button>
         )}
+        <button
+          onClick={() => setActiveTab('performa')}
+          className={`px-5 py-2.5 font-bold text-xs tracking-wider uppercase border-b-2 transition-all flex items-center gap-1.5 cursor-pointer ${
+            activeTab === 'performa'
+              ? 'border-indigo-600 text-indigo-600'
+              : 'border-transparent text-slate-500 hover:text-slate-800'
+          }`}
+        >
+          <Users className="w-4 h-4" /> Performa
+        </button>
         <button
           onClick={() => setActiveTab('delegation')}
           className={`px-5 py-2.5 font-bold text-xs tracking-wider uppercase border-b-2 transition-all flex items-center gap-1.5 cursor-pointer ${
@@ -1504,16 +1710,17 @@ export default function DashboardBidangView({
 
           </div>
 
-          {/* KHUSUS BIDANG TATA USAHA / UMUM: STATISTIK PENCAPAIAN KEPATUHAN 40 JAM PELATIHAN SDM */}
-          {activeDivision === 'Tata Usaha / Umum' && (
-            <div className="space-y-4">
-              <StatistikKepatuhanPelatihanBidang 
-                employees={employees} 
-                selectedDivision="Tata Usaha / Umum"
-              />
-            </div>
-          )}
 
+
+          
+          {activeDivision === 'Tata Usaha / Umum' && (
+            <NotifikasiSdmBidang employees={employees} />
+          )}
+        </>
+      )}
+
+
+      {activeTab === 'performa' && (<>
           {/* TABEL & PERFORMA STAF PELAKSANA BIDANG */}
           <div className="bg-white rounded-3xl border border-slate-200/90 shadow-sm p-6 space-y-5">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-100">

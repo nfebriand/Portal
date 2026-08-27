@@ -2610,7 +2610,7 @@ export default function PerformanceAgreementView({
                     </div>
                     <div>
                       <p className="text-[9px] font-bold text-slate-400 uppercase font-mono leading-none">PNBP Terkumpul</p>
-                      <p className="text-sm font-black text-slate-800 mt-1 leading-none">{filteredPnbpAmount} Juta</p>
+                      <p className="text-sm font-black text-slate-800 mt-1 leading-none">Rp {Number(filteredPnbpAmount).toLocaleString('id-ID')}</p>
                     </div>
                   </div>
                 </div>

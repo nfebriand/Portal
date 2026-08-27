@@ -156,8 +156,8 @@ export interface CooperationContract {
   contractNo: string; // Nomor Kontrak
   activityName: string; // Nama Kegiatan/Sewa
   cooperationType: 'Iklan/Siar Layanan' | 'Sewa Lahan/Menara' | 'Sponsorship Acara' | 'Lainnya'; // Jenis Kerjasama
-  value: number; // Nilai Kontrak (dalam Juta Rupiah)
-  realizedPnbp: number; // Realisasi Pendapatan PNBP (dalam Juta Rupiah)
+  value: number; // Nilai Kontrak (dalam Rupiah)
+  realizedPnbp: number; // Realisasi Pendapatan PNBP (dalam Rupiah)
   paymentStatus: 'Belum Bayar' | 'Selesai Sebagian' | 'Lunas'; // Status Pembayaran
   startDate: string; // Tanggal Mulai
   endDate: string; // Tanggal Selesai
