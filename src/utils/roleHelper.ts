@@ -182,32 +182,13 @@ export function getKepegawaianPermissions(
           canViewProfile: true,
         };
       } else {
-        // Admin Bidang Non-TU: Hanya lihat pegawai bidang sendiri, tanpa fitur edit/tambah
+        // Admin Bidang Non-TU: Tidak dapat akses Rekapitulasi & 40 JP statistik
         return {
           resolvedRole: 'Admin Bidang',
           isTataUsaha: false,
           canViewRekapitulasi: false,
           canViewPengaturanTab: true,
           canViewMatriksTab: false, // Hanya admin TU, kasatker, superadmin, ketua bidang
-          canViewAllEmployees: false, // Hanya tampilkan pegawai bidang sendiri
-          canAddEmployee: false,
-          canEditEmployee: false, // Tanpa fitur edit jika bukan bagian dari bidang tata usaha
-          canDeleteEmployee: false,
-          canDeleteTraining: false,
-          canDeleteCompetency: false,
-          canDeleteEducation: false,
-          canViewProfile: true,
-        };
-      }
-
-    case 'Kepala Bidang':
-      if (isTU) {
-        return {
-          resolvedRole: 'Kepala Bidang',
-          isTataUsaha: true,
-          canViewRekapitulasi: true,
-          canViewPengaturanTab: true,
-          canViewMatriksTab: true,
           canViewAllEmployees: true,
           canAddEmployee: false,
           canEditEmployee: true,
@@ -217,24 +198,25 @@ export function getKepegawaianPermissions(
           canDeleteEducation: false,
           canViewProfile: true,
         };
-      } else {
-        // Ketua Bidang Non-TU: Hanya lihat pegawai bidang sendiri, tanpa fitur edit/tambah
-        return {
-          resolvedRole: 'Kepala Bidang',
-          isTataUsaha: false,
-          canViewRekapitulasi: false,
-          canViewPengaturanTab: true,
-          canViewMatriksTab: true, // Seluruh Ketua Bidang berhak melihat statistik kepatuhan 40 JP
-          canViewAllEmployees: false, // Hanya tampilkan pegawai bidang sendiri
-          canAddEmployee: false,
-          canEditEmployee: false, // Tanpa fitur edit jika bukan bagian dari bidang tata usaha
-          canDeleteEmployee: false,
-          canDeleteTraining: false,
-          canDeleteCompetency: false,
-          canDeleteEducation: false,
-          canViewProfile: true,
-        };
       }
+
+    case 'Kepala Bidang':
+      // Ketua Bidang: Dapat melihat statistik 40 jam SDM & mengedit data pegawainya
+      return {
+        resolvedRole: 'Kepala Bidang',
+        isTataUsaha: isTU,
+        canViewRekapitulasi: isTU, // Rekapitulasi khusus untuk Bidang Tata Usaha, Kasatker & Superadmin
+        canViewPengaturanTab: true,
+        canViewMatriksTab: true, // Seluruh Ketua Bidang berhak melihat statistik kepatuhan 40 JP
+        canViewAllEmployees: true,
+        canAddEmployee: false,
+        canEditEmployee: true,
+        canDeleteEmployee: false,
+        canDeleteTraining: false,
+        canDeleteCompetency: false,
+        canDeleteEducation: false,
+        canViewProfile: true,
+      };
 
     case 'Staff':
     default:
