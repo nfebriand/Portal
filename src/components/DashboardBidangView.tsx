@@ -41,7 +41,8 @@ import {
   RotateCcw,
   FolderKanban,
   Check,
-  Info
+  Info,
+  AlertTriangle
 } from 'lucide-react';
 import NewsDetailModal from './NewsDetailModal';
 import PromotionDetailModal from './PromotionDetailModal';
@@ -1120,17 +1121,19 @@ export default function DashboardBidangView({
         >
           Ringkasan Kinerja Bidang
         </button>
-        <button
-          onClick={() => setActiveTab('pelatihan40jam')}
-          className={`px-5 py-2.5 font-bold text-xs tracking-wider uppercase border-b-2 transition-all flex items-center gap-1.5 cursor-pointer ${
-            activeTab === 'pelatihan40jam'
-              ? 'border-indigo-600 text-indigo-600 bg-indigo-50/50'
-              : 'border-transparent text-slate-500 hover:text-slate-800'
-          }`}
-        >
-          <Award className="w-4 h-4 text-indigo-600" />
-          Kepatuhan Pelatihan 40 Jam SDM
-        </button>
+        {activeDivision === 'Tata Usaha / Umum' && (
+          <button
+            onClick={() => setActiveTab('pelatihan40jam')}
+            className={`px-5 py-2.5 font-bold text-xs tracking-wider uppercase border-b-2 transition-all flex items-center gap-1.5 cursor-pointer ${
+              activeTab === 'pelatihan40jam'
+                ? 'border-indigo-600 text-indigo-600 bg-indigo-50/50'
+                : 'border-transparent text-slate-500 hover:text-slate-800'
+            }`}
+          >
+            <Award className="w-4 h-4 text-indigo-600" />
+            Kepatuhan Pelatihan 40 Jam SDM
+          </button>
+        )}
         <button
           onClick={() => setActiveTab('delegation')}
           className={`px-5 py-2.5 font-bold text-xs tracking-wider uppercase border-b-2 transition-all flex items-center gap-1.5 cursor-pointer ${
@@ -1284,13 +1287,15 @@ export default function DashboardBidangView({
                     return { qNum, target: qTarget, ach: qAch, pct: qPct };
                   });
 
+                  const isCritical = pct < 50;
+
                   return (
                     <div
                       key={obj.id}
-                      className={`relative ${style.bgColor} p-5 rounded-2xl border ${style.borderColor} hover:ring-2 ${style.hoverRingColor} shadow-xs hover:shadow-md transition-all duration-300 flex flex-col justify-between space-y-3 select-none overflow-hidden pt-6`}
+                      className={`relative ${isCritical ? 'bg-rose-50/20' : style.bgColor} p-5 rounded-2xl border ${isCritical ? 'border-rose-400/80 shadow-[0_0_12px_rgba(244,63,94,0.2)]' : style.borderColor} ${!isCritical ? `hover:ring-2 ${style.hoverRingColor} shadow-xs hover:shadow-md` : ''} transition-all duration-300 flex flex-col justify-between space-y-3 select-none overflow-hidden pt-6`}
                     >
                       {/* Top status bar */}
-                      <div className={`absolute top-0 left-0 right-0 h-[3.5px] ${style.accentColor}`} />
+                      <div className={`absolute top-0 left-0 right-0 h-[3.5px] ${isCritical ? 'bg-rose-500 animate-pulse' : style.accentColor}`} />
 
                       {/* Header block */}
                       <div className="w-full space-y-1">
@@ -1298,14 +1303,21 @@ export default function DashboardBidangView({
                           <span className="text-[8px] font-black text-slate-400 font-mono tracking-wider uppercase">
                             INDIKATOR BIDANG
                           </span>
-                          <span className={`text-[8px] font-bold px-2 py-0.5 rounded-full uppercase font-mono ${
-                            mode === 'akumulatif' ? 'bg-indigo-50 text-indigo-600 border border-indigo-200' :
-                            mode === 'triwulanan' ? 'bg-emerald-50 text-emerald-600 border border-emerald-200' :
-                            mode === 'bulanan_tahunan' ? 'bg-amber-50 text-amber-600 border border-amber-200' :
-                            'bg-slate-100 text-slate-600 border border-slate-200'
-                          }`}>
-                            {mode === 'akumulatif' ? 'Akumulatif' : mode === 'triwulanan' ? 'Q1-Q4' : mode === 'bulanan_tahunan' ? 'Bln vs Thn' : 'Gauge'}
-                          </span>
+                          <div className="flex items-center gap-1.5">
+                            {isCritical && (
+                              <span className="text-[8px] font-bold px-2 py-0.5 rounded-full uppercase font-mono bg-rose-100 text-rose-700 border border-rose-300 animate-pulse flex items-center gap-1 shadow-xs">
+                                <AlertTriangle className="w-2.5 h-2.5" /> KRITIS
+                              </span>
+                            )}
+                            <span className={`text-[8px] font-bold px-2 py-0.5 rounded-full uppercase font-mono ${
+                              mode === 'akumulatif' ? 'bg-indigo-50 text-indigo-600 border border-indigo-200' :
+                              mode === 'triwulanan' ? 'bg-emerald-50 text-emerald-600 border border-emerald-200' :
+                              mode === 'bulanan_tahunan' ? 'bg-amber-50 text-amber-600 border border-amber-200' :
+                              'bg-slate-100 text-slate-600 border border-slate-200'
+                            }`}>
+                              {mode === 'akumulatif' ? 'Akumulatif' : mode === 'triwulanan' ? 'Q1-Q4' : mode === 'bulanan_tahunan' ? 'Bln vs Thn' : 'Gauge'}
+                            </span>
+                          </div>
                         </div>
                         <IndicatorTitleDisplay 
                           title={obj.indicatorName}

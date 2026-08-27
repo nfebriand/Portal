@@ -1111,7 +1111,7 @@ export default function App() {
           )}
 
           {/* Dokumentasi Promosi */}
-          {currentUser.role !== 'Superadmin' && (
+          {currentUser.role !== 'Superadmin' && (currentUser.division === 'Layanan Pengembangan Usaha' || currentUser.role === 'Kepala') && (
             <button
               onClick={() => setActiveTab('promosi')}
               className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-semibold tracking-wide transition-all cursor-pointer ${
@@ -1291,7 +1291,7 @@ export default function App() {
           )}
 
           {/* Dokumentasi Promosi */}
-          {currentUser.role !== 'Superadmin' && (
+          {currentUser.role !== 'Superadmin' && (currentUser.division === 'Layanan Pengembangan Usaha' || currentUser.role === 'Kepala') && (
             <button
               onClick={() => { setActiveTab('promosi'); setIsMobileMenuOpen(false); }}
               className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-semibold tracking-wide transition-colors ${

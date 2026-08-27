@@ -2133,13 +2133,15 @@ export default function DashboardView({
                       return { qNum, target: Math.round(qTarget * 10) / 10, ach: Math.round(qAch * 10) / 10, pct: qPct };
                     });
 
+                    const isCritical = objPercentage < 50;
+
                     return (
                       <div 
                         key={obj.id} 
-                        className={`relative p-5 rounded-2xl border ${palette.borderColor} ${palette.bgColor} flex flex-col justify-between space-y-3 shadow-xs hover:shadow-md ${palette.hoverBorderColor} transition-all duration-300 overflow-hidden pt-6`}
+                        className={`relative p-5 rounded-2xl border ${isCritical ? 'border-rose-400/80 shadow-[0_0_12px_rgba(244,63,94,0.2)] bg-rose-50/20' : `${palette.borderColor} ${palette.bgColor} shadow-xs hover:shadow-md ${palette.hoverBorderColor}`} flex flex-col justify-between space-y-3 transition-all duration-300 overflow-hidden pt-6`}
                       >
                         {/* Status bar header */}
-                        <div className={`absolute top-0 left-0 right-0 h-[3.5px] ${palette.accentColor}`} />
+                        <div className={`absolute top-0 left-0 right-0 h-[3.5px] ${isCritical ? 'bg-rose-500 animate-pulse' : palette.accentColor}`} />
 
                         {/* Card Header & Title */}
                         <div className="space-y-1.5 min-w-0">
@@ -2147,16 +2149,23 @@ export default function DashboardView({
                             <span className="text-[8px] font-black text-slate-400 font-mono tracking-wider uppercase block">
                               INDIKATOR SASARAN
                             </span>
-                            <span className={`text-[8px] font-bold px-2 py-0.5 rounded-full uppercase font-mono ${
-                              cardMode === 'akumulatif' ? 'bg-indigo-50 text-indigo-600 border border-indigo-200' :
-                              cardMode === 'triwulanan' ? 'bg-emerald-50 text-emerald-600 border border-emerald-200' :
-                              cardMode === 'bulanan_tahunan' ? 'bg-amber-50 text-amber-600 border border-amber-200' :
-                              'bg-slate-100 text-slate-600 border border-slate-200'
-                            }`}>
-                              {cardMode === 'akumulatif' ? 'Akumulatif Bulanan' :
-                               cardMode === 'triwulanan' ? 'Breakdown Triwulan' :
-                               cardMode === 'bulanan_tahunan' ? 'Bulanan vs Tahunan' : 'Gauge'}
-                            </span>
+                            <div className="flex items-center gap-1.5">
+                              {isCritical && (
+                                <span className="text-[8px] font-bold px-2 py-0.5 rounded-full uppercase font-mono bg-rose-100 text-rose-700 border border-rose-300 animate-pulse flex items-center gap-1 shadow-xs">
+                                  <AlertTriangle className="w-2.5 h-2.5" /> KRITIS
+                                </span>
+                              )}
+                              <span className={`text-[8px] font-bold px-2 py-0.5 rounded-full uppercase font-mono ${
+                                cardMode === 'akumulatif' ? 'bg-indigo-50 text-indigo-600 border border-indigo-200' :
+                                cardMode === 'triwulanan' ? 'bg-emerald-50 text-emerald-600 border border-emerald-200' :
+                                cardMode === 'bulanan_tahunan' ? 'bg-amber-50 text-amber-600 border border-amber-200' :
+                                'bg-slate-100 text-slate-600 border border-slate-200'
+                              }`}>
+                                {cardMode === 'akumulatif' ? 'Akumulatif Bulanan' :
+                                 cardMode === 'triwulanan' ? 'Breakdown Triwulan' :
+                                 cardMode === 'bulanan_tahunan' ? 'Bulanan vs Tahunan' : 'Gauge'}
+                              </span>
+                            </div>
                           </div>
                           <IndicatorTitleDisplay 
                             title={obj.indicatorName}
