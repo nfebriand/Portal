@@ -1399,6 +1399,7 @@ export default function App() {
                 agreements={agreements}
                 reporterTargets={reporterTargets}
                 newsReports={newsReports}
+                promotions={promotions}
                 identity={identity}
                 settings={settings}
               />
@@ -1410,6 +1411,7 @@ export default function App() {
                 contracts={contracts}
                 reporterTargets={reporterTargets}
                 newsReports={newsReports}
+                promotions={promotions}
                 onUpdateAgreements={handleUpdateAgreements}
                 onAddNotification={addNotification}
                 identity={identity}
@@ -1467,6 +1469,7 @@ export default function App() {
               newsReports={newsReports}
               contracts={contracts}
               reporterTargets={reporterTargets}
+              promotions={promotions}
             />
           )}
 

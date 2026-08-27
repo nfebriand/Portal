@@ -1,5 +1,9 @@
 import { NewsReport } from '../types';
 import { parseFlexibleDate } from './dateUtils';
+import { isPromotionIndicator } from './syncPromotionAchievements';
+import { isCompetencyIndicator } from './syncCompetencyAchievements';
+
+export { isPromotionIndicator, isCompetencyIndicator };
 
 function getReportMonth(r: NewsReport): number {
   if (r.publishDateTime) {

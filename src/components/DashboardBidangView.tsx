@@ -44,8 +44,13 @@ import {
   Info
 } from 'lucide-react';
 import NewsDetailModal from './NewsDetailModal';
+import PromotionDetailModal from './PromotionDetailModal';
+import CompetencyDetailModal from './CompetencyDetailModal';
 import QuickReportModal from './QuickReportModal';
 import { filterNewsForIndicator, isEligibleNewsIndicator } from '../utils/newsFilter';
+import { filterPromotionsForIndicator, isPromotionIndicator } from '../utils/syncPromotionAchievements';
+import { isCompetencyIndicator } from '../utils/syncCompetencyAchievements';
+import { PromotionActivity } from '../types';
 import StatistikKepatuhanPelatihanBidang from './kepegawaian/StatistikKepatuhanPelatihanBidang';
 
 export interface SubTeamInfo {
@@ -234,6 +239,7 @@ interface DashboardBidangViewProps {
   contracts?: CooperationContract[];
   reporterTargets?: ReporterTarget[];
   newsReports?: NewsReport[];
+  promotions?: PromotionActivity[];
   onUpdateAgreements?: (agreements: PerformanceAgreement[]) => void;
   onAddNotification?: (notification: any) => void;
   identity?: InstitutionalIdentity;
@@ -247,6 +253,7 @@ export default function DashboardBidangView({
   contracts = [],
   reporterTargets = [],
   newsReports = [],
+  promotions = [],
   onUpdateAgreements,
   onAddNotification,
   identity = {
@@ -352,6 +359,42 @@ export default function DashboardBidangView({
     newsReports: []
   });
 
+  // Promotion detail modal state
+  const [promotionModalConfig, setPromotionModalConfig] = useState<{
+    isOpen: boolean;
+    title: string;
+    indicatorName: string;
+    periodLabel: string;
+    promotions: PromotionActivity[];
+    targetValue?: string | number;
+    achievementValue?: number;
+    assignedToName?: string;
+    division?: string;
+  }>({
+    isOpen: false,
+    title: '',
+    indicatorName: '',
+    periodLabel: '',
+    promotions: []
+  });
+
+  // Competency detail modal state
+  const [competencyModalConfig, setCompetencyModalConfig] = useState<{
+    isOpen: boolean;
+    title: string;
+    indicatorName: string;
+    periodLabel: string;
+    targetValue?: string | number;
+    achievementValue?: number;
+    assignedToName?: string;
+    division?: string;
+  }>({
+    isOpen: false,
+    title: '',
+    indicatorName: '',
+    periodLabel: ''
+  });
+
   const handleOpenNewsModal = (obj: any, agreement?: any) => {
     const { filteredReports, periodLabel, typeLabel, isEligible } = filterNewsForIndicator({
       indicator: obj,
@@ -374,6 +417,46 @@ export default function DashboardBidangView({
       targetValue: obj.target,
       achievementValue: obj.achievement || 0,
       assignedToName: agreement?.assignedToName || currentUser.name
+    });
+  };
+
+  const handleOpenPromotionModal = (obj: any, agreement?: any) => {
+    const { filteredPromotions, periodLabel, isEligible } = filterPromotionsForIndicator({
+      indicator: obj,
+      agreement: agreement,
+      promotions: promotions || [],
+      period: 'tahunan',
+      selectedYear: new Date().getFullYear(),
+      division: currentUser.division
+    });
+
+    if (!isEligible) {
+      return;
+    }
+
+    setPromotionModalConfig({
+      isOpen: true,
+      title: 'Rincian Eviden Kegiatan Promosi',
+      indicatorName: obj.indicatorName,
+      periodLabel: periodLabel,
+      promotions: filteredPromotions,
+      targetValue: obj.target,
+      achievementValue: obj.achievement || 0,
+      assignedToName: agreement?.assignedToName || currentUser.name,
+      division: currentUser.division
+    });
+  };
+
+  const handleOpenCompetencyModal = (obj: any, agreement?: any) => {
+    setCompetencyModalConfig({
+      isOpen: true,
+      title: 'Rincian Eviden Kepatuhan 40 Jam Pelatihan Pegawai (ASN)',
+      indicatorName: obj.indicatorName,
+      periodLabel: `Tahun ${new Date().getFullYear()}`,
+      targetValue: obj.target || '100%',
+      achievementValue: obj.achievement || 0,
+      assignedToName: agreement?.assignedToName || currentUser.name,
+      division: currentUser.division
     });
   };
 
@@ -1352,7 +1435,33 @@ export default function DashboardBidangView({
                           <span className="text-[8px] text-slate-500 font-bold block uppercase font-mono">Target</span>
                           <span className="font-extrabold text-slate-800 font-mono truncate block" title={`${obj.target} ${obj.unit}`}>{obj.target} {obj.unit}</span>
                         </div>
-                        {isEligibleNewsIndicator(obj) ? (
+                        {isPromotionIndicator(obj) ? (
+                          <button
+                            type="button"
+                            className="p-2 rounded-lg bg-amber-50 hover:bg-amber-100 border border-amber-200 min-w-0 cursor-pointer transition-colors text-left group"
+                            onClick={() => handleOpenPromotionModal(obj)}
+                            title="Klik untuk melihat eviden kegiatan promosi terintegrasi"
+                          >
+                            <span className="text-[8px] text-amber-700 font-bold uppercase font-mono flex items-center justify-between">
+                              <span>Realisasi</span>
+                              <Eye className="w-2.5 h-2.5 text-amber-600 group-hover:scale-110 transition-transform" />
+                            </span>
+                            <span className={`font-extrabold ${style.textColor} font-mono truncate block`} title={`${obj.achievement} ${obj.unit}`}>{obj.achievement} {obj.unit}</span>
+                          </button>
+                        ) : isCompetencyIndicator(obj) ? (
+                          <button
+                            type="button"
+                            className="p-2 rounded-lg bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 min-w-0 cursor-pointer transition-colors text-left group"
+                            onClick={() => handleOpenCompetencyModal(obj)}
+                            title="Klik untuk melihat eviden kepatuhan 40 jam pelatihan pegawai"
+                          >
+                            <span className="text-[8px] text-emerald-700 font-bold uppercase font-mono flex items-center justify-between">
+                              <span>Realisasi</span>
+                              <Eye className="w-2.5 h-2.5 text-emerald-600 group-hover:scale-110 transition-transform" />
+                            </span>
+                            <span className={`font-extrabold ${style.textColor} font-mono truncate block`} title={`${obj.achievement} ${obj.unit}`}>{obj.achievement} {obj.unit}</span>
+                          </button>
+                        ) : isEligibleNewsIndicator(obj) ? (
                           <button
                             type="button"
                             className="p-2 rounded-lg bg-indigo-50/80 hover:bg-indigo-100 border border-indigo-200/80 min-w-0 cursor-pointer transition-colors text-left group"
@@ -1368,7 +1477,7 @@ export default function DashboardBidangView({
                         ) : (
                           <div 
                             className="p-2 rounded-lg bg-slate-50 border border-slate-200/80 min-w-0 text-left"
-                            title="Eviden List aktif untuk indikator kuantitas Berita & Siaran (Berita Ringan LPU, Berita Radio, Berita KBRN, dan Konten Siaran)"
+                            title="Indikator target kinerja standar"
                           >
                             <span className="text-[8px] text-slate-400 font-bold uppercase font-mono block">Realisasi</span>
                             <span className={`font-extrabold ${style.textColor} font-mono truncate block`} title={`${obj.achievement} ${obj.unit}`}>{obj.achievement} {obj.unit}</span>
@@ -1940,6 +2049,35 @@ export default function DashboardBidangView({
         targetValue={newsModalConfig.targetValue}
         achievementValue={newsModalConfig.achievementValue}
         assignedToName={newsModalConfig.assignedToName}
+      />
+
+      {/* Promotion Detail Evidence Modal */}
+      <PromotionDetailModal
+        isOpen={promotionModalConfig.isOpen}
+        onClose={() => setPromotionModalConfig(prev => ({ ...prev, isOpen: false }))}
+        title={promotionModalConfig.title}
+        indicatorName={promotionModalConfig.indicatorName}
+        periodLabel={promotionModalConfig.periodLabel}
+        promotions={promotionModalConfig.promotions}
+        targetValue={promotionModalConfig.targetValue}
+        achievementValue={promotionModalConfig.achievementValue}
+        assignedToName={promotionModalConfig.assignedToName}
+        division={promotionModalConfig.division}
+      />
+
+      {/* Competency Detail Evidence Modal */}
+      <CompetencyDetailModal
+        isOpen={competencyModalConfig.isOpen}
+        onClose={() => setCompetencyModalConfig(prev => ({ ...prev, isOpen: false }))}
+        title={competencyModalConfig.title}
+        indicatorName={competencyModalConfig.indicatorName}
+        periodLabel={competencyModalConfig.periodLabel}
+        employees={employees}
+        targetValue={competencyModalConfig.targetValue}
+        achievementValue={competencyModalConfig.achievementValue}
+        assignedToName={competencyModalConfig.assignedToName}
+        division={competencyModalConfig.division}
+        selectedYear={2026}
       />
 
       {/* Quick Report & PDF Export Modal */}

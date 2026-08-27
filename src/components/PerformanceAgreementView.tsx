@@ -38,12 +38,16 @@ import {
   Download,
   FileSpreadsheet
 } from 'lucide-react';
-import { Employee, InstitutionalIdentity, PerformanceAgreement, PerformanceIndicator, AppSettings, CriticalNotification, NewsReport, CooperationContract, ReporterTarget, IndicatorComment } from '../types';
+import { Employee, InstitutionalIdentity, PerformanceAgreement, PerformanceIndicator, AppSettings, CriticalNotification, NewsReport, CooperationContract, ReporterTarget, IndicatorComment, PromotionActivity } from '../types';
 import SignaturePad from './SignaturePad';
 import IndicatorCommentsSection from './IndicatorCommentsSection';
 import NewsDetailModal from './NewsDetailModal';
+import PromotionDetailModal from './PromotionDetailModal';
+import CompetencyDetailModal from './CompetencyDetailModal';
 import QuickReportModal from './QuickReportModal';
 import { filterNewsForIndicator, isEligibleNewsIndicator } from '../utils/newsFilter';
+import { filterPromotionsForIndicator, isPromotionIndicator } from '../utils/syncPromotionAchievements';
+import { isCompetencyIndicator } from '../utils/syncCompetencyAchievements';
 
 // Helper to calculate indicator achievement percentage score based on periodType
 const getIndicatorScore = (obj: PerformanceIndicator) => {
@@ -131,6 +135,7 @@ interface PerformanceAgreementViewProps {
   newsReports?: NewsReport[];
   contracts?: CooperationContract[];
   reporterTargets?: ReporterTarget[];
+  promotions?: PromotionActivity[];
 }
 
 export default function PerformanceAgreementView({
@@ -143,7 +148,8 @@ export default function PerformanceAgreementView({
   currentUser,
   newsReports = [],
   contracts = [],
-  reporterTargets = []
+  reporterTargets = [],
+  promotions = []
 }: PerformanceAgreementViewProps) {
   const [selectedYear, setSelectedYear] = useState<number>(2026);
   const [activeTab, setActiveTab] = useState<'pohon' | 'evaluasi'>('pohon');
@@ -302,6 +308,42 @@ export default function PerformanceAgreementView({
     newsReports: []
   });
 
+  // Promotion detail modal state
+  const [promotionModalConfig, setPromotionModalConfig] = useState<{
+    isOpen: boolean;
+    title: string;
+    indicatorName: string;
+    periodLabel: string;
+    promotions: PromotionActivity[];
+    targetValue?: string | number;
+    achievementValue?: number;
+    assignedToName?: string;
+    division?: string;
+  }>({
+    isOpen: false,
+    title: '',
+    indicatorName: '',
+    periodLabel: '',
+    promotions: []
+  });
+
+  // Competency detail modal state
+  const [competencyModalConfig, setCompetencyModalConfig] = useState<{
+    isOpen: boolean;
+    title: string;
+    indicatorName: string;
+    periodLabel: string;
+    targetValue?: string | number;
+    achievementValue?: number;
+    assignedToName?: string;
+    division?: string;
+  }>({
+    isOpen: false,
+    title: '',
+    indicatorName: '',
+    periodLabel: ''
+  });
+
   const handleOpenNewsModal = (obj: any, agreement?: any) => {
     const { filteredReports, periodLabel, typeLabel, isEligible } = filterNewsForIndicator({
       indicator: obj,
@@ -324,6 +366,46 @@ export default function PerformanceAgreementView({
       targetValue: obj._scaledTargetString || obj.target,
       achievementValue: obj.achievement || 0,
       assignedToName: agreement?.assignedToName
+    });
+  };
+
+  const handleOpenPromotionModal = (obj: any, agreement?: any) => {
+    const { filteredPromotions, periodLabel, isEligible } = filterPromotionsForIndicator({
+      indicator: obj,
+      agreement: agreement,
+      promotions: promotions || [],
+      period: evalPeriod,
+      selectedYear: selectedYear,
+      division: agreement?.level !== 'Kepala Stasiun' ? agreement?.level : undefined
+    });
+
+    if (!isEligible) {
+      return;
+    }
+
+    setPromotionModalConfig({
+      isOpen: true,
+      title: 'Rincian Eviden Kegiatan Promosi',
+      indicatorName: obj.indicatorName,
+      periodLabel: periodLabel,
+      promotions: filteredPromotions,
+      targetValue: obj._scaledTargetString || obj.target,
+      achievementValue: obj.achievement || 0,
+      assignedToName: agreement?.assignedToName,
+      division: agreement?.level
+    });
+  };
+
+  const handleOpenCompetencyModal = (obj: any, agreement?: any) => {
+    setCompetencyModalConfig({
+      isOpen: true,
+      title: 'Rincian Eviden Kepatuhan 40 Jam Pelatihan Pegawai (ASN)',
+      indicatorName: obj.indicatorName,
+      periodLabel: `Tahun ${selectedYear}`,
+      targetValue: obj._scaledTargetString || obj.target || '100%',
+      achievementValue: obj.achievement || 0,
+      assignedToName: agreement?.assignedToName,
+      division: agreement?.level
     });
   };
 
@@ -2584,7 +2666,27 @@ export default function PerformanceAgreementView({
                                 <span>•</span>
                                 <span>
                                   Realisasi:{' '}
-                                  {isEligibleNewsIndicator(rootObj) ? (
+                                  {isPromotionIndicator(rootObj) ? (
+                                    <button
+                                      type="button"
+                                      onClick={() => handleOpenPromotionModal(rootObj, kepalaAg)}
+                                      className="inline-flex items-center gap-1 font-extrabold text-amber-700 hover:text-amber-900 bg-amber-50 hover:bg-amber-100 px-2 py-0.5 rounded-md transition-all cursor-pointer border border-amber-200 ml-1"
+                                      title="Klik untuk melihat eviden kegiatan promosi"
+                                    >
+                                      <Eye className="w-3 h-3 text-amber-600" />
+                                      {rootReal} {rootObj.unit}
+                                    </button>
+                                  ) : isCompetencyIndicator(rootObj) ? (
+                                    <button
+                                      type="button"
+                                      onClick={() => handleOpenCompetencyModal(rootObj, kepalaAg)}
+                                      className="inline-flex items-center gap-1 font-extrabold text-emerald-700 hover:text-emerald-900 bg-emerald-50 hover:bg-emerald-100 px-2 py-0.5 rounded-md transition-all cursor-pointer border border-emerald-200 ml-1"
+                                      title="Klik untuk melihat eviden kepatuhan 40 jam pelatihan"
+                                    >
+                                      <Eye className="w-3 h-3 text-emerald-600" />
+                                      {rootReal} {rootObj.unit}
+                                    </button>
+                                  ) : isEligibleNewsIndicator(rootObj) ? (
                                     <button
                                       type="button"
                                       onClick={() => handleOpenNewsModal(rootObj, kepalaAg)}
@@ -2685,7 +2787,27 @@ export default function PerformanceAgreementView({
                                             <span>•</span>
                                             <span>
                                               Realisasi:{' '}
-                                              {isEligibleNewsIndicator(l2Obj) ? (
+                                              {isPromotionIndicator(l2Obj) ? (
+                                                <button
+                                                  type="button"
+                                                  onClick={() => handleOpenPromotionModal(l2Obj, l2Ag)}
+                                                  className="inline-flex items-center gap-1 font-extrabold text-amber-700 hover:text-amber-900 bg-amber-50 hover:bg-amber-100 px-2 py-0.5 rounded-md transition-all cursor-pointer border border-amber-200 ml-1"
+                                                  title="Klik untuk melihat eviden kegiatan promosi"
+                                                >
+                                                  <Eye className="w-3 h-3 text-amber-600" />
+                                                  {l2Real} {l2Obj.unit}
+                                                </button>
+                                              ) : isCompetencyIndicator(l2Obj) ? (
+                                                <button
+                                                  type="button"
+                                                  onClick={() => handleOpenCompetencyModal(l2Obj, l2Ag)}
+                                                  className="inline-flex items-center gap-1 font-extrabold text-emerald-700 hover:text-emerald-900 bg-emerald-50 hover:bg-emerald-100 px-2 py-0.5 rounded-md transition-all cursor-pointer border border-emerald-200 ml-1"
+                                                  title="Klik untuk melihat eviden kepatuhan 40 jam pelatihan"
+                                                >
+                                                  <Eye className="w-3 h-3 text-emerald-600" />
+                                                  {l2Real} {l2Obj.unit}
+                                                </button>
+                                              ) : isEligibleNewsIndicator(l2Obj) ? (
                                                 <button
                                                   type="button"
                                                   onClick={() => handleOpenNewsModal(l2Obj, l2Ag)}
@@ -2744,7 +2866,27 @@ export default function PerformanceAgreementView({
                                                         <span>•</span>
                                                         <span>
                                                           Realisasi:{' '}
-                                                          {isEligibleNewsIndicator(l3Obj) ? (
+                                                          {isPromotionIndicator(l3Obj) ? (
+                                                            <button
+                                                              type="button"
+                                                              onClick={() => handleOpenPromotionModal(l3Obj, l3Ag)}
+                                                              className="inline-flex items-center gap-1 font-extrabold text-amber-700 hover:text-amber-900 bg-amber-50 hover:bg-amber-100 px-1.5 py-0.5 rounded-md transition-all cursor-pointer border border-amber-200 ml-1"
+                                                              title="Klik untuk melihat eviden kegiatan promosi"
+                                                            >
+                                                              <Eye className="w-3 h-3 text-amber-600" />
+                                                              {l3Real} {l3Obj.unit}
+                                                            </button>
+                                                          ) : isCompetencyIndicator(l3Obj) ? (
+                                                            <button
+                                                              type="button"
+                                                              onClick={() => handleOpenCompetencyModal(l3Obj, l3Ag)}
+                                                              className="inline-flex items-center gap-1 font-extrabold text-emerald-700 hover:text-emerald-900 bg-emerald-50 hover:bg-emerald-100 px-1.5 py-0.5 rounded-md transition-all cursor-pointer border border-emerald-200 ml-1"
+                                                              title="Klik untuk melihat eviden kepatuhan 40 jam pelatihan"
+                                                            >
+                                                              <Eye className="w-3 h-3 text-emerald-600" />
+                                                              {l3Real} {l3Obj.unit}
+                                                            </button>
+                                                          ) : isEligibleNewsIndicator(l3Obj) ? (
                                                             <button
                                                               type="button"
                                                               onClick={() => handleOpenNewsModal(l3Obj, l3Ag)}
@@ -4249,6 +4391,35 @@ ${tindakLanjut}
         targetValue={newsModalConfig.targetValue}
         achievementValue={newsModalConfig.achievementValue}
         assignedToName={newsModalConfig.assignedToName}
+      />
+
+      {/* Promotion Detail Evidence Modal */}
+      <PromotionDetailModal
+        isOpen={promotionModalConfig.isOpen}
+        onClose={() => setPromotionModalConfig(prev => ({ ...prev, isOpen: false }))}
+        title={promotionModalConfig.title}
+        indicatorName={promotionModalConfig.indicatorName}
+        periodLabel={promotionModalConfig.periodLabel}
+        promotions={promotionModalConfig.promotions}
+        targetValue={promotionModalConfig.targetValue}
+        achievementValue={promotionModalConfig.achievementValue}
+        assignedToName={promotionModalConfig.assignedToName}
+        division={promotionModalConfig.division}
+      />
+
+      {/* Competency Detail Evidence Modal */}
+      <CompetencyDetailModal
+        isOpen={competencyModalConfig.isOpen}
+        onClose={() => setCompetencyModalConfig(prev => ({ ...prev, isOpen: false }))}
+        title={competencyModalConfig.title}
+        indicatorName={competencyModalConfig.indicatorName}
+        periodLabel={competencyModalConfig.periodLabel}
+        employees={employees}
+        targetValue={competencyModalConfig.targetValue}
+        achievementValue={competencyModalConfig.achievementValue}
+        assignedToName={competencyModalConfig.assignedToName}
+        division={competencyModalConfig.division}
+        selectedYear={selectedYear}
       />
 
       {/* Quick Report & PDF Export Modal */}

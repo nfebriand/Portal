@@ -4,9 +4,10 @@ import { parseFlexibleDate } from './dateUtils';
 /**
  * Checks if a given indicator corresponds to "Jumlah Kegiatan Promosi" or promotional activities.
  */
-export function isPromotionIndicator(indicatorName?: string): boolean {
-  if (!indicatorName) return false;
-  const nameLower = indicatorName?.toLowerCase().trim();
+export function isPromotionIndicator(indicator?: string | { indicatorName?: string; id?: string; unit?: string }): boolean {
+  if (!indicator) return false;
+  const name = typeof indicator === 'string' ? indicator : indicator.indicatorName || '';
+  const nameLower = name.toLowerCase().trim();
   return (
     nameLower.includes('kegiatan promosi') ||
     nameLower.includes('jumlah kegiatan promosi') ||
@@ -14,7 +15,8 @@ export function isPromotionIndicator(indicatorName?: string): boolean {
     nameLower.includes('promosi siaran') ||
     nameLower.includes('promosi program') ||
     nameLower.includes('promosi media') ||
-    nameLower.includes('spot promosi')
+    nameLower.includes('spot promosi') ||
+    nameLower.includes('publikasi dan promosi')
   );
 }
 
@@ -274,3 +276,171 @@ export function syncPromotionAchievements(
 
   return updatedAgreements;
 }
+
+export interface FilterPromotionsOptions {
+  indicator?: {
+    id?: string;
+    indicatorName?: string;
+    unit?: string;
+  };
+  agreement?: {
+    level?: string;
+    assignedToEmployeeId?: string;
+    assignedToName?: string;
+  };
+  promotions: PromotionActivity[];
+  period?: string; // 'q1'|'q2'|'q3'|'q4'|'s1'|'s2'|'m0'..'m11'|'tahunan'|'Bulanan' etc.
+  selectedYear?: number;
+  selectedMonthIndex?: number;
+  division?: string;
+}
+
+export function filterPromotionsForIndicator({
+  indicator,
+  agreement,
+  promotions = [],
+  period = 'tahunan',
+  selectedYear = 2026,
+  selectedMonthIndex = 0,
+  division
+}: FilterPromotionsOptions): {
+  filteredPromotions: PromotionActivity[];
+  periodLabel: string;
+  isEligible: boolean;
+} {
+  const isEligible = isPromotionIndicator(indicator);
+
+  if (!isEligible) {
+    return {
+      filteredPromotions: [],
+      periodLabel: '',
+      isEligible: false
+    };
+  }
+
+  let periodLabel = `Tahunan (${selectedYear})`;
+  let matchesPeriod = (_p: PromotionActivity) => true;
+
+  const pLower = (period || '').toLowerCase().trim();
+  const monthNames = [
+    'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
+    'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
+  ];
+
+  if (pLower === 'bulanan' || (pLower.startsWith('m') && pLower.length <= 3)) {
+    let mIdx = selectedMonthIndex;
+    if (pLower.startsWith('m') && pLower.length > 1) {
+      const parsed = parseInt(pLower.substring(1), 10);
+      if (!isNaN(parsed) && parsed >= 0 && parsed <= 11) {
+        mIdx = parsed;
+      }
+    }
+    periodLabel = `Bulanan - ${monthNames[mIdx]} ${selectedYear}`;
+    matchesPeriod = (p: PromotionActivity) => {
+      const m = getPromotionMonthIndex(p);
+      return m === mIdx;
+    };
+  } else if (pLower === 'q1' || pLower === 'triwulan 1' || pLower === 'tw 1') {
+    periodLabel = `Triwulan I (Jan - Mar ${selectedYear})`;
+    matchesPeriod = (p: PromotionActivity) => {
+      const m = getPromotionMonthIndex(p);
+      return m >= 0 && m <= 2;
+    };
+  } else if (pLower === 'q2' || pLower === 'triwulan 2' || pLower === 'tw 2') {
+    periodLabel = `Triwulan II (Apr - Jun ${selectedYear})`;
+    matchesPeriod = (p: PromotionActivity) => {
+      const m = getPromotionMonthIndex(p);
+      return m >= 3 && m <= 5;
+    };
+  } else if (pLower === 'q3' || pLower === 'triwulan 3' || pLower === 'tw 3') {
+    periodLabel = `Triwulan III (Jul - Sep ${selectedYear})`;
+    matchesPeriod = (p: PromotionActivity) => {
+      const m = getPromotionMonthIndex(p);
+      return m >= 6 && m <= 8;
+    };
+  } else if (pLower === 'q4' || pLower === 'triwulan 4' || pLower === 'tw 4') {
+    periodLabel = `Triwulan IV (Okt - Des ${selectedYear})`;
+    matchesPeriod = (p: PromotionActivity) => {
+      const m = getPromotionMonthIndex(p);
+      return m >= 9 && m <= 11;
+    };
+  } else if (pLower === 's1' || pLower === 'semester 1') {
+    periodLabel = `Semester I (Jan - Jun ${selectedYear})`;
+    matchesPeriod = (p: PromotionActivity) => {
+      const m = getPromotionMonthIndex(p);
+      return m >= 0 && m <= 5;
+    };
+  } else if (pLower === 's2' || pLower === 'semester 2') {
+    periodLabel = `Semester II (Jul - Des ${selectedYear})`;
+    matchesPeriod = (p: PromotionActivity) => {
+      const m = getPromotionMonthIndex(p);
+      return m >= 6 && m <= 11;
+    };
+  } else {
+    const foundMonthIdx = monthNames.findIndex(m => m.toLowerCase() === pLower);
+    if (foundMonthIdx !== -1) {
+      periodLabel = `Bulanan - ${monthNames[foundMonthIdx]} ${selectedYear}`;
+      matchesPeriod = (p: PromotionActivity) => {
+        const m = getPromotionMonthIndex(p);
+        return m === foundMonthIdx;
+      };
+    } else {
+      periodLabel = `Tahunan (${selectedYear})`;
+      matchesPeriod = (_p: PromotionActivity) => true;
+    }
+  }
+
+  // Filter by year
+  const matchesYear = (p: PromotionActivity) => {
+    if (p.tanggal) {
+      const parsed = parseFlexibleDate(p.tanggal);
+      if (parsed.isValid && parsed.year) {
+        return parsed.year === selectedYear;
+      }
+    }
+    if (p.createdAt) {
+      const parsed = parseFlexibleDate(p.createdAt);
+      if (parsed.isValid && parsed.year) {
+        return parsed.year === selectedYear;
+      }
+    }
+    return true;
+  };
+
+  // Match division or employee
+  let matchesScope = (_p: PromotionActivity) => true;
+  if (agreement?.level === 'Pegawai' && (agreement.assignedToEmployeeId || agreement.assignedToName)) {
+    const empId = agreement.assignedToEmployeeId;
+    const empName = (agreement.assignedToName || '').toLowerCase().trim();
+    matchesScope = (p: PromotionActivity) => {
+      if (empId && p.creatorId === empId) return true;
+      if (empName) {
+        const cName = (p.creatorName || '').toLowerCase().trim();
+        if (cName && (cName.includes(empName) || empName.includes(cName))) return true;
+      }
+      return false;
+    };
+  } else if (division || (agreement?.level && agreement.level !== 'Kepala Stasiun')) {
+    const targetDiv = (division || agreement?.level || '').toLowerCase();
+    matchesScope = (p: PromotionActivity) => {
+      if (!p.divisi) return true;
+      const pDiv = p.divisi.toLowerCase();
+      if (targetDiv.includes('layanan') && (pDiv.includes('layanan') || pDiv.includes('lpu'))) return true;
+      if (targetDiv.includes('siaran') && pDiv.includes('siaran')) return true;
+      if (targetDiv.includes('pemberitaan') && pDiv.includes('pemberitaan')) return true;
+      if (targetDiv.includes('konten') && pDiv.includes('konten')) return true;
+      if (targetDiv.includes('tata usaha') && pDiv.includes('tata usaha')) return true;
+      if ((targetDiv.includes('teknik') || targetDiv.includes('teknologi')) && (pDiv.includes('teknik') || pDiv.includes('teknologi'))) return true;
+      return false;
+    };
+  }
+
+  const filteredPromotions = promotions.filter(p => matchesYear(p) && matchesPeriod(p) && matchesScope(p));
+
+  return {
+    filteredPromotions,
+    periodLabel,
+    isEligible: true
+  };
+}
+

@@ -4,11 +4,12 @@ import { computeEmployeeAnnualTrainings } from '../components/kepegawaian/Pelati
 /**
  * Checks if a given indicator corresponds to "Pengembangan Kompetensi Pegawai" / "Pelatihan 40 Jam"
  */
-export function isCompetencyIndicator(indicator?: { indicatorName?: string; id?: string; unit?: string }): boolean {
+export function isCompetencyIndicator(indicator?: { indicatorName?: string; id?: string; unit?: string } | string): boolean {
   if (!indicator) return false;
-  if (indicator.id === 'ind-tu-kompetensi') return true;
+  if (typeof indicator === 'object' && indicator.id === 'ind-tu-kompetensi') return true;
   
-  const nameLower = (indicator.indicatorName || '')?.toLowerCase();
+  const name = typeof indicator === 'string' ? indicator : indicator.indicatorName || '';
+  const nameLower = name.toLowerCase().trim();
   
   return (
     nameLower.includes('pengembangan kompetensi') ||

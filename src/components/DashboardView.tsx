@@ -52,9 +52,14 @@ import {
   FileSpreadsheet
 } from 'lucide-react';
 import NewsDetailModal from './NewsDetailModal';
+import PromotionDetailModal from './PromotionDetailModal';
+import CompetencyDetailModal from './CompetencyDetailModal';
 import RedFlagIndicatorsModal, { RedFlagIndicatorItem } from './RedFlagIndicatorsModal';
 import QuickReportModal from './QuickReportModal';
 import { filterNewsForIndicator, isEligibleNewsIndicator } from '../utils/newsFilter';
+import { filterPromotionsForIndicator, isPromotionIndicator } from '../utils/syncPromotionAchievements';
+import { isCompetencyIndicator } from '../utils/syncCompetencyAchievements';
+import { PromotionActivity } from '../types';
 
 interface DashboardViewProps {
   employees: Employee[];
@@ -65,6 +70,7 @@ interface DashboardViewProps {
   agreements?: PerformanceAgreement[];
   reporterTargets?: ReporterTarget[];
   newsReports?: NewsReport[];
+  promotions?: PromotionActivity[];
   identity?: InstitutionalIdentity;
   settings?: AppSettings;
 }
@@ -232,6 +238,7 @@ export default function DashboardView({
   agreements = [],
   reporterTargets = [],
   newsReports = [],
+  promotions = [],
   identity = {
     kepalaStasiunNama: 'Drs. H. Rozani, M.Si.',
     kepalaStasiunTtd: '',
@@ -287,6 +294,42 @@ export default function DashboardView({
     newsReports: []
   });
 
+  // Promotion detail modal state for evidence review
+  const [promotionModalConfig, setPromotionModalConfig] = useState<{
+    isOpen: boolean;
+    title: string;
+    indicatorName: string;
+    periodLabel: string;
+    promotions: PromotionActivity[];
+    targetValue?: string | number;
+    achievementValue?: number;
+    assignedToName?: string;
+    division?: string;
+  }>({
+    isOpen: false,
+    title: '',
+    indicatorName: '',
+    periodLabel: '',
+    promotions: []
+  });
+
+  // Competency detail modal state for evidence review
+  const [competencyModalConfig, setCompetencyModalConfig] = useState<{
+    isOpen: boolean;
+    title: string;
+    indicatorName: string;
+    periodLabel: string;
+    targetValue?: string | number;
+    achievementValue?: number;
+    assignedToName?: string;
+    division?: string;
+  }>({
+    isOpen: false,
+    title: '',
+    indicatorName: '',
+    periodLabel: ''
+  });
+
   // State for Red Flag / Lagging indicators list modal
   const [isRedFlagModalOpen, setIsRedFlagModalOpen] = useState<boolean>(false);
   const [isLegendExpanded, setIsLegendExpanded] = useState<boolean>(true);
@@ -313,6 +356,46 @@ export default function DashboardView({
       targetValue: obj.target,
       achievementValue: obj.achievement || 0,
       assignedToName: agreement?.assignedToName || 'Penanggung Jawab'
+    });
+  };
+
+  const handleOpenPromotionModal = (obj: any, agreement?: any) => {
+    const { filteredPromotions, periodLabel, isEligible } = filterPromotionsForIndicator({
+      indicator: obj,
+      agreement: agreement,
+      promotions: promotions || [],
+      period: 'tahunan',
+      selectedYear: new Date().getFullYear(),
+      division: agreement?.level !== 'Kepala Stasiun' ? agreement?.level : undefined
+    });
+
+    if (!isEligible) {
+      return;
+    }
+
+    setPromotionModalConfig({
+      isOpen: true,
+      title: 'Rincian Eviden Kegiatan Promosi',
+      indicatorName: obj.indicatorName,
+      periodLabel: periodLabel,
+      promotions: filteredPromotions,
+      targetValue: obj.target,
+      achievementValue: obj.achievement || 0,
+      assignedToName: agreement?.assignedToName || 'Penanggung Jawab',
+      division: agreement?.level
+    });
+  };
+
+  const handleOpenCompetencyModal = (obj: any, agreement?: any) => {
+    setCompetencyModalConfig({
+      isOpen: true,
+      title: 'Rincian Eviden Kepatuhan 40 Jam Pelatihan Pegawai (ASN)',
+      indicatorName: obj.indicatorName,
+      periodLabel: `Tahun ${new Date().getFullYear()}`,
+      targetValue: obj.target || '100%',
+      achievementValue: obj.achievement || 0,
+      assignedToName: agreement?.assignedToName || 'Penanggung Jawab',
+      division: agreement?.level
     });
   };
 
@@ -2224,7 +2307,27 @@ export default function DashboardView({
                           <div className="min-w-0">
                             <span className="text-[8px] text-slate-400 block font-mono">TARGET: <strong className="text-slate-700">{obj.target}</strong></span>
                           </div>
-                          {isEligibleNewsIndicator(obj) ? (
+                          {isPromotionIndicator(obj) ? (
+                            <button
+                              type="button"
+                              onClick={() => handleOpenPromotionModal(obj, obj.originAgreement || selectedDivData?.agreement)}
+                              className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-amber-50 hover:bg-amber-100 text-amber-700 font-extrabold rounded-lg border border-amber-200 transition-all cursor-pointer font-mono"
+                              title="Klik untuk melihat bukti rilis / eviden kegiatan promosi"
+                            >
+                              <Eye className="w-3 h-3 text-amber-600" />
+                              <span>Realisasi: {obj.achievement} {obj.unit}</span>
+                            </button>
+                          ) : isCompetencyIndicator(obj) ? (
+                            <button
+                              type="button"
+                              onClick={() => handleOpenCompetencyModal(obj, obj.originAgreement || selectedDivData?.agreement)}
+                              className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-extrabold rounded-lg border border-emerald-200 transition-all cursor-pointer font-mono"
+                              title="Klik untuk melihat rincian eviden kepatuhan 40 jam pelatihan"
+                            >
+                              <Eye className="w-3 h-3 text-emerald-600" />
+                              <span>Realisasi: {obj.achievement} {obj.unit}</span>
+                            </button>
+                          ) : isEligibleNewsIndicator(obj) ? (
                             <button
                               type="button"
                               onClick={() => handleOpenNewsModal(obj, obj.originAgreement || selectedDivData?.agreement)}
@@ -2237,7 +2340,7 @@ export default function DashboardView({
                           ) : (
                             <span 
                               className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-slate-50 text-slate-600 font-extrabold rounded-lg border border-slate-200 font-mono" 
-                              title="Eviden List aktif untuk indikator kuantitas Berita & Siaran (Berita Ringan LPU, Berita Radio, Berita KBRN, dan Konten Siaran)"
+                              title="Indikator target kinerja standar"
                             >
                               <span>Realisasi: {obj.achievement} {obj.unit}</span>
                             </span>
@@ -2275,6 +2378,35 @@ export default function DashboardView({
         targetValue={newsModalConfig.targetValue}
         achievementValue={newsModalConfig.achievementValue}
         assignedToName={newsModalConfig.assignedToName}
+      />
+
+      {/* Evidence Promotion Detail Modal */}
+      <PromotionDetailModal
+        isOpen={promotionModalConfig.isOpen}
+        onClose={() => setPromotionModalConfig(prev => ({ ...prev, isOpen: false }))}
+        title={promotionModalConfig.title}
+        indicatorName={promotionModalConfig.indicatorName}
+        periodLabel={promotionModalConfig.periodLabel}
+        promotions={promotionModalConfig.promotions}
+        targetValue={promotionModalConfig.targetValue}
+        achievementValue={promotionModalConfig.achievementValue}
+        assignedToName={promotionModalConfig.assignedToName}
+        division={promotionModalConfig.division}
+      />
+
+      {/* Evidence Competency Detail Modal */}
+      <CompetencyDetailModal
+        isOpen={competencyModalConfig.isOpen}
+        onClose={() => setCompetencyModalConfig(prev => ({ ...prev, isOpen: false }))}
+        title={competencyModalConfig.title}
+        indicatorName={competencyModalConfig.indicatorName}
+        periodLabel={competencyModalConfig.periodLabel}
+        employees={employees}
+        targetValue={competencyModalConfig.targetValue}
+        achievementValue={competencyModalConfig.achievementValue}
+        assignedToName={competencyModalConfig.assignedToName}
+        division={competencyModalConfig.division}
+        selectedYear={new Date().getFullYear()}
       />
 
       {/* Red-Flag Lagging Indicators Detail Modal */}
