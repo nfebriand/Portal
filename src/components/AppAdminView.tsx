@@ -6,7 +6,8 @@ import {
   Building, Award, PenTool, Check, FileText, Phone, MapPin, Printer, 
   Database, Download, Upload, Radio, FileSpreadsheet, AlertCircle, 
   Clock, UserCheck, RefreshCw, Layers, Share2, Search, Plus, 
-  Trash2, Edit3, Save, FileJson, X, ShieldAlert, Megaphone 
+  Trash2, Edit3, Save, FileJson, X, ShieldAlert, Megaphone,
+  CheckCircle2, Loader2, Sparkles, ArrowRight
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { parseFlexibleDate } from '../utils/dateUtils';
@@ -28,7 +29,7 @@ interface AppAdminViewProps {
   onUpdateReporterTargets?: (targets: ReporterTarget[]) => void;
   onResetToProductionMode?: () => void;
   onExportDatabase?: () => void;
-  onImportDatabase?: (jsonData: string) => Promise<boolean>;
+  onImportDatabase?: (jsonData: string, onProgress?: (percent: number, message: string, step?: string) => void) => Promise<boolean>;
   currentUser?: {
     id: string;
     name: string;
@@ -111,6 +112,11 @@ export default function AppAdminView({
   // Database Backup/Restore local state and references
   const [isDragging, setIsDragging] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
+  const [importProgress, setImportProgress] = useState(0);
+  const [importStatusMessage, setImportStatusMessage] = useState('');
+  const [importCurrentStep, setImportCurrentStep] = useState('');
+  const [importSuccessBanner, setImportSuccessBanner] = useState<{ message: string; timestamp: string } | null>(null);
+  const [importErrorBanner, setImportErrorBanner] = useState<string | null>(null);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
 
   const handleDragOver = (e: React.DragEvent) => {
@@ -152,22 +158,41 @@ export default function AppAdminView({
     }
 
     setIsImporting(true);
+    setImportProgress(2);
+    setImportStatusMessage(`Membaca file "${file.name}"...`);
+    setImportCurrentStep("Validasi");
+    setImportErrorBanner(null);
+    setImportSuccessBanner(null);
+
     const reader = new FileReader();
     reader.onload = async (event) => {
       try {
         const text = event.target?.result as string;
         if (onImportDatabase) {
-          await onImportDatabase(text);
+          const success = await onImportDatabase(text, (percent, msg, step) => {
+            setImportProgress(percent);
+            setImportStatusMessage(msg);
+            if (step) setImportCurrentStep(step);
+          });
+          if (success) {
+            setImportProgress(100);
+            setImportStatusMessage("Seluruh data database berhasil dipulihkan secara menyeluruh!");
+            setImportCurrentStep("Selesai");
+            setImportSuccessBanner({
+              message: `File cadangan "${file.name}" berhasil dipulihkan ke database Firestore dan disinkronkan ke seluruh sistem!`,
+              timestamp: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })
+            });
+          }
         }
-      } catch (err) {
+      } catch (err: any) {
         console.error("Gagal membaca file:", err);
-        alert("Gagal membaca file.");
+        setImportErrorBanner("Gagal membaca file cadangan: " + (err.message || err));
       } finally {
         setIsImporting(false);
       }
     };
     reader.onerror = () => {
-      alert("Gagal membaca file.");
+      setImportErrorBanner("Gagal membaca file cadangan dari perangkat.");
       setIsImporting(false);
     };
     reader.readAsText(file);
@@ -182,6 +207,9 @@ export default function AppAdminView({
   const newsFileInputRef = React.useRef<HTMLInputElement>(null);
   const [isNewsDragging, setIsNewsDragging] = useState(false);
   const [isImportingNews, setIsImportingNews] = useState(false);
+  const [isSavingNews, setIsSavingNews] = useState(false);
+  const [newsSaveProgress, setNewsSaveProgress] = useState(0);
+  const [newsSaveStatus, setNewsSaveStatus] = useState('');
 
   const handleNewsDragOver = (e: React.DragEvent) => {
     e.preventDefault();
@@ -427,17 +455,35 @@ export default function AppAdminView({
     }
 
     try {
+      setIsSavingNews(true);
+      setNewsSaveProgress(15);
+      setNewsSaveStatus(`Menyiapkan ${parsedNews.length} data berita baru...`);
+      await new Promise(r => setTimeout(r, 200));
+
       // Append parsed news as additional data to existing news reports
       const existingIds = new Set(newsReports.map(r => r.id));
       const newItems = parsedNews.filter(r => !existingIds.has(r.id));
+      
+      setNewsSaveProgress(50);
+      setNewsSaveStatus(`Menyinkronkan ${newItems.length} data berita ke database Firestore...`);
+      await new Promise(r => setTimeout(r, 200));
+
       const updatedReports = [...newItems, ...newsReports];
       await onUpdateNewsReports(updatedReports);
+      
+      setNewsSaveProgress(100);
+      setNewsSaveStatus("Berhasil disimpan ke Firestore!");
+      await new Promise(r => setTimeout(r, 300));
+
       setImportSuccess(`Berhasil menambahkan ${newItems.length} data berita baru ke database Firestore! (Total data berita: ${updatedReports.length})`);
       setParsedNews([]);
       setNewsImportText('');
-    } catch (error) {
+    } catch (error: any) {
       console.error(error);
-      setImportError("Gagal menyimpan ke database Firestore.");
+      setImportError("Gagal menyimpan ke database Firestore: " + (error?.message || error));
+    } finally {
+      setIsSavingNews(false);
+      setNewsSaveProgress(0);
     }
   };
 
@@ -1143,35 +1189,180 @@ export default function AppAdminView({
                 )}
               </div>
 
-              {/* Import section with drag & drop */}
+              {/* Import section with drag & drop or Active Progress Bar */}
               <div className="space-y-2.5">
                 <span className="text-[11px] font-extrabold text-slate-500 uppercase tracking-wider block">Impor & Pulihkan</span>
-                <div
-                  onDragOver={handleDragOver}
-                  onDragLeave={handleDragLeave}
-                  onDrop={handleDrop}
-                  onClick={() => fileInputRef.current?.click()}
-                  className={`border-2 border-dashed rounded-xl p-4 text-center cursor-pointer transition-all flex flex-col items-center justify-center gap-1.5 min-h-[110px] ${
-                    isDragging
-                      ? "border-slate-800 bg-slate-50 text-slate-800"
-                      : "border-slate-200 hover:border-slate-300 text-slate-500 bg-slate-50/30"
-                  }`}
-                >
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept=".json"
-                    onChange={handleFileChange}
-                    className="hidden"
-                  />
-                  <Upload className="w-5 h-5 text-slate-400" />
-                  <div className="text-[11px] font-semibold">
-                    {isDragging ? "Lepaskan file di sini" : "Klik atau seret file .json ke sini"}
+                
+                {isImporting ? (
+                  /* Active Progress Bar Display */
+                  <div className="border border-indigo-200 bg-indigo-50/50 rounded-xl p-4 space-y-3 shadow-xs">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <div className="p-1.5 bg-indigo-600 text-white rounded-lg">
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                        </div>
+                        <div>
+                          <span className="text-xs font-black text-slate-800 block">Memulihkan Database</span>
+                          <span className="text-[10px] font-bold text-indigo-600">Tahap: {importCurrentStep || 'Memproses...'}</span>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <span className="text-sm font-black font-mono text-indigo-700">{importProgress}%</span>
+                      </div>
+                    </div>
+
+                    {/* Progress Bar Track */}
+                    <div className="w-full bg-slate-200/90 rounded-full h-3 overflow-hidden p-0.5 shadow-inner">
+                      <div 
+                        className="bg-gradient-to-r from-blue-600 via-indigo-600 to-emerald-500 h-full rounded-full transition-all duration-300 ease-out shadow-xs"
+                        style={{ width: `${Math.min(100, Math.max(5, importProgress))}%` }}
+                      />
+                    </div>
+
+                    {/* Real-time Status Details */}
+                    <div className="flex items-center justify-between text-[10px] text-slate-600 font-medium pt-0.5">
+                      <span className="truncate max-w-[240px]">{importStatusMessage || 'Sedang menulis ke Firestore...'}</span>
+                      <span className="font-mono text-slate-400 font-bold shrink-0">{importProgress}/100</span>
+                    </div>
+
+                    {/* Step Pipeline Chips */}
+                    <div className="flex flex-wrap gap-1 pt-1">
+                      {['Validasi', 'Pegawai', 'Pengaturan', 'Notifikasi', 'Kontrak', 'Berita', 'Promosi', 'PK SAKIP'].map((step, idx) => {
+                        const stepOrder = ['Validasi', 'Pegawai', 'Pengaturan', 'Notifikasi', 'Kontrak', 'Berita', 'Promosi', 'PK SAKIP'];
+                        const currentIdx = stepOrder.indexOf(importCurrentStep);
+                        const isDone = currentIdx > idx || importProgress === 100;
+                        const isCurrent = importCurrentStep === step;
+
+                        return (
+                          <span 
+                            key={step} 
+                            className={`text-[8px] font-extrabold px-1.5 py-0.5 rounded-md transition-all ${
+                              isDone 
+                                ? 'bg-emerald-100 text-emerald-800 border border-emerald-200' 
+                                : isCurrent 
+                                ? 'bg-indigo-600 text-white font-black animate-pulse shadow-xs' 
+                                : 'bg-slate-100 text-slate-400 border border-slate-200/60'
+                            }`}
+                          >
+                            {isDone ? '✓ ' : ''}{step}
+                          </span>
+                        );
+                      })}
+                    </div>
                   </div>
-                  <div className="text-[9px] text-slate-400">
-                    Mendukung file cadangan .json dari portal Swara
+                ) : importSuccessBanner ? (
+                  /* Success Banner State */
+                  <div className="border border-emerald-200 bg-emerald-50/80 rounded-xl p-4 space-y-2.5 shadow-xs">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex items-center gap-2">
+                        <div className="p-1.5 bg-emerald-600 text-white rounded-lg">
+                          <CheckCircle2 className="w-4 h-4" />
+                        </div>
+                        <div>
+                          <span className="text-xs font-black text-emerald-950 block">Impor Database Berhasil!</span>
+                          <span className="text-[10px] text-emerald-700 font-medium">Pukul {importSuccessBanner.timestamp} WIB</span>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setImportSuccessBanner(null)}
+                        className="text-slate-400 hover:text-slate-600 p-1 cursor-pointer"
+                        title="Tutup"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+
+                    <p className="text-[11px] text-emerald-900 leading-relaxed font-medium">
+                      {importSuccessBanner.message}
+                    </p>
+
+                    <div className="flex gap-2 pt-1">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setImportSuccessBanner(null);
+                          fileInputRef.current?.click();
+                        }}
+                        className="text-[10px] font-bold text-emerald-800 hover:text-emerald-950 bg-emerald-100/80 hover:bg-emerald-200 px-2.5 py-1.5 rounded-lg transition-all cursor-pointer"
+                      >
+                        Impor File Lain
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setImportSuccessBanner(null)}
+                        className="text-[10px] font-bold text-slate-600 hover:text-slate-800 bg-white border border-slate-200 px-2.5 py-1.5 rounded-lg transition-all cursor-pointer ml-auto"
+                      >
+                        Tutup
+                      </button>
+                    </div>
                   </div>
-                </div>
+                ) : importErrorBanner ? (
+                  /* Error Banner State */
+                  <div className="border border-rose-200 bg-rose-50/80 rounded-xl p-4 space-y-2.5 shadow-xs">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex items-center gap-2">
+                        <div className="p-1.5 bg-rose-600 text-white rounded-lg">
+                          <AlertCircle className="w-4 h-4" />
+                        </div>
+                        <div>
+                          <span className="text-xs font-black text-rose-950 block">Gagal Mengimpor Database</span>
+                          <span className="text-[10px] text-rose-600 font-medium">Periksa format file cadangan</span>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setImportErrorBanner(null)}
+                        className="text-slate-400 hover:text-slate-600 p-1 cursor-pointer"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+
+                    <p className="text-[11px] text-rose-900 leading-relaxed font-medium">
+                      {importErrorBanner}
+                    </p>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setImportErrorBanner(null);
+                        fileInputRef.current?.click();
+                      }}
+                      className="text-[10px] font-bold text-white bg-rose-600 hover:bg-rose-700 px-3 py-1.5 rounded-lg transition-all cursor-pointer shadow-xs"
+                    >
+                      Coba Unggah Ulang
+                    </button>
+                  </div>
+                ) : (
+                  /* Standard Drag & Drop Area */
+                  <div
+                    onDragOver={handleDragOver}
+                    onDragLeave={handleDragLeave}
+                    onDrop={handleDrop}
+                    onClick={() => fileInputRef.current?.click()}
+                    className={`border-2 border-dashed rounded-xl p-4 text-center cursor-pointer transition-all flex flex-col items-center justify-center gap-1.5 min-h-[110px] ${
+                      isDragging
+                        ? "border-slate-800 bg-slate-50 text-slate-800"
+                        : "border-slate-200 hover:border-slate-300 text-slate-500 bg-slate-50/30"
+                    }`}
+                  >
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept=".json"
+                      onChange={handleFileChange}
+                      className="hidden"
+                    />
+                    <Upload className="w-5 h-5 text-slate-400" />
+                    <div className="text-[11px] font-semibold">
+                      {isDragging ? "Lepaskan file di sini" : "Klik atau seret file .json ke sini"}
+                    </div>
+                    <div className="text-[9px] text-slate-400">
+                      Mendukung file cadangan .json dari portal Swara
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -1452,20 +1643,47 @@ export default function AppAdminView({
                     </div>
                   </div>
 
+                  {isSavingNews && (
+                    <div className="p-3.5 bg-indigo-50 border border-indigo-200 rounded-xl space-y-2">
+                      <div className="flex justify-between items-center text-xs">
+                        <span className="font-bold text-indigo-900 flex items-center gap-1.5">
+                          <Loader2 className="w-3.5 h-3.5 animate-spin text-indigo-600" />
+                          {newsSaveStatus || 'Menyimpan data berita...'}
+                        </span>
+                        <span className="font-mono font-bold text-indigo-600">{newsSaveProgress}%</span>
+                      </div>
+                      <div className="w-full bg-slate-200 rounded-full h-2.5 overflow-hidden p-0.5 shadow-inner">
+                        <div 
+                          className="bg-indigo-600 h-full rounded-full transition-all duration-300 ease-out"
+                          style={{ width: `${newsSaveProgress}%` }}
+                        />
+                      </div>
+                    </div>
+                  )}
+
                   <div className="flex justify-end gap-2 pt-1">
                     <button
                       type="button"
+                      disabled={isSavingNews}
                       onClick={() => setParsedNews([])}
-                      className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl transition-all cursor-pointer active:scale-98"
+                      className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl transition-all cursor-pointer active:scale-98 disabled:opacity-50"
                     >
                       Batalkan
                     </button>
                     <button
                       type="button"
+                      disabled={isSavingNews}
                       onClick={handleSaveImportedNews}
-                      className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-black rounded-xl shadow-md shadow-indigo-600/10 transition-all cursor-pointer active:scale-98"
+                      className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-black rounded-xl shadow-md shadow-indigo-600/10 transition-all cursor-pointer active:scale-98 disabled:opacity-50 flex items-center gap-1.5"
                     >
-                      Simpan & Terapkan Laporan
+                      {isSavingNews ? (
+                        <>
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                          <span>Menyimpan ({newsSaveProgress}%)...</span>
+                        </>
+                      ) : (
+                        <span>Simpan & Terapkan Laporan</span>
+                      )}
                     </button>
                   </div>
                 </div>

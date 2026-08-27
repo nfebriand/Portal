@@ -641,8 +641,12 @@ export default function App() {
     }
   };
 
-  const handleImportDatabase = async (jsonString: string): Promise<boolean> => {
+  const handleImportDatabase = async (
+    jsonString: string,
+    onProgress?: (progress: number, message: string, step?: string) => void
+  ): Promise<boolean> => {
     try {
+      if (onProgress) onProgress(5, "Membaca dan memvalidasi file cadangan...", "Validasi");
       const parsed = JSON.parse(jsonString);
       
       if (!parsed || parsed.version !== 1 || !parsed.data) {
@@ -671,18 +675,47 @@ export default function App() {
       );
       if (!confirmRestore) return false;
 
-      // Begin importing. Write to Firestore first:
+      // Helper to simulate smooth progress transitions
+      const delay = (ms: number) => new Promise(res => setTimeout(res, ms));
+
+      // 1. Pegawai
+      if (onProgress) onProgress(15, `Menyimpan ${data.employees.length} data Pegawai ke Firestore...`, "Pegawai");
       await saveCollectionList('employees', data.employees);
+      await delay(150);
+
+      // 2. Settings & Identity
+      if (onProgress) onProgress(30, "Menyimpan Pengaturan & Profil Identitas Instansi...", "Pengaturan");
       await saveDocument('settings', 'current', data.settings);
       await saveDocument('identity', 'current', data.identity);
+      await delay(150);
+
+      // 3. Notifikasi
+      if (onProgress) onProgress(45, `Menyimpan ${data.notifications.length} data Notifikasi Sistem...`, "Notifikasi");
       await saveCollectionList('notifications', data.notifications);
+      await delay(150);
+
+      // 4. Kontrak & PNBP
+      if (onProgress) onProgress(60, `Menyimpan ${data.contracts.length} data Kontrak Kerja Sama PNBP...`, "Kontrak");
       await saveCollectionList('contracts', data.contracts);
+      await delay(150);
+
+      // 5. Target & Laporan Berita
+      if (onProgress) onProgress(75, `Menyimpan ${data.newsReports.length} data Laporan Berita & Media Baru...`, "Berita");
       await saveCollectionList('reporterTargets', data.reporterTargets);
       await saveCollectionList('newsReports', data.newsReports);
+      await delay(150);
+
+      // 6. Promosi
       if (Array.isArray(data.promotions)) {
+        if (onProgress) onProgress(85, `Menyimpan ${data.promotions.length} data Kegiatan Promosi...`, "Promosi");
         await saveCollectionList('promotions', data.promotions);
+        await delay(150);
       }
+
+      // 7. Perjanjian Kinerja
+      if (onProgress) onProgress(95, `Menyimpan ${data.agreements.length} data Perjanjian Kinerja SAKIP...`, "PK SAKIP");
       await saveCollectionList('agreements', data.agreements);
+      await delay(150);
       
       if (data.systemSeeded) {
         await markSystemSeeded();
@@ -701,7 +734,8 @@ export default function App() {
       }
       setAgreements(data.agreements);
 
-      // Save to localStorage backups
+      if (onProgress) onProgress(100, "Sinkronisasi selesai! Data berhasil dipulihkan.", "Selesai");
+      await delay(300);
 
       // Check current session user
       const currentLoggedIn = localStorage.getItem('swara_current_user');
@@ -717,7 +751,6 @@ export default function App() {
         }
       }
 
-      alert("Data berhasil dipulihkan dari file cadangan!");
       return true;
     } catch (error) {
       console.error("Gagal mengimpor database:", error);
