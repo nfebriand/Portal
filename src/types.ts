@@ -78,6 +78,15 @@ export interface AppSettings {
   namaInstansi: string;
   alamat: string;
   noTelp: string;
+  appLogoUrl?: string; // Logo kecil aplikasi (header / sidebar / mobile)
+  appLogoDriveId?: string;
+  appLogoDriveLink?: string;
+  loginLogoUrl?: string; // Logo halaman login
+  loginLogoDriveId?: string;
+  loginLogoDriveLink?: string;
+  splashLogoUrl?: string; // Logo / gambar splash screen
+  splashLogoDriveId?: string;
+  splashLogoDriveLink?: string;
 }
 
 export interface InstitutionalIdentity {
