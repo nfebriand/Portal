@@ -899,27 +899,13 @@ export default function App() {
         {/* Central Splash Container */}
         <div className="w-full max-w-xl text-center space-y-7 z-10 px-2">
           
-          {/* Official Peta Komando RRI Logo with subtle pulse */}
-          {settings.splashLogoUrl ? (
-            <div className="flex justify-center transition-transform hover:scale-[1.02] duration-300">
-              <div className="w-full max-w-[560px] p-2 sm:p-3 rounded-2xl bg-slate-900/60 border border-slate-800/80 shadow-2xl backdrop-blur-md relative group flex items-center justify-center min-h-[140px]">
-                <div className="absolute inset-0 bg-linear-to-r from-cyan-500/10 via-transparent to-indigo-500/10 rounded-2xl animate-pulse" />
-                <img 
-                  src={settings.splashLogoUrl} 
-                  alt="Peta Komando Splash Screen" 
-                  className="relative z-10 max-h-44 max-w-full w-auto h-auto object-contain drop-shadow-2xl rounded-xl"
-                  onError={(e) => { (e.target as HTMLElement).style.display = 'none'; }}
-                />
-              </div>
+          {/* Official Peta Komando RRI Logo with subtle pulse (Preserves exact 600x200 proportions without clipping) */}
+          <div className="flex justify-center transition-transform hover:scale-[1.02] duration-300">
+            <div className="w-full max-w-[560px] p-2 sm:p-3 rounded-2xl bg-slate-900/60 border border-slate-800/80 shadow-2xl backdrop-blur-md relative group">
+              <div className="absolute inset-0 bg-linear-to-r from-cyan-500/10 via-transparent to-indigo-500/10 rounded-2xl animate-pulse" />
+              <PetaKomandoLogo size="xl" className="relative z-10" />
             </div>
-          ) : (
-            <div className="flex justify-center transition-transform hover:scale-[1.02] duration-300">
-              <div className="w-full max-w-[560px] p-2 sm:p-3 rounded-2xl bg-slate-900/60 border border-slate-800/80 shadow-2xl backdrop-blur-md relative group">
-                <div className="absolute inset-0 bg-linear-to-r from-cyan-500/10 via-transparent to-indigo-500/10 rounded-2xl animate-pulse" />
-                <PetaKomandoLogo size="xl" className="relative z-10" />
-              </div>
-            </div>
-          )}
+          </div>
 
           {/* Database Connection Status with Blinking Dots */}
           <div className="space-y-3">
@@ -963,8 +949,6 @@ export default function App() {
         kepalaStasiunUsername={identity.kepalaStasiunUsername || 'kepala'}
         kepalaStasiunPassword={identity.kepalaStasiunPassword || 'kepala'}
         kepalaStasiunNama={identity.kepalaStasiunNama}
-        loginLogoUrl={settings.loginLogoUrl}
-        appLogoUrl={settings.appLogoUrl}
       />
     );
   }
@@ -996,17 +980,8 @@ export default function App() {
         
         {/* Brand Header */}
         <div className="p-4 border-b border-slate-800 flex items-center gap-3">
-          <div className="shrink-0 p-1 bg-slate-950 rounded-xl border border-cyan-500/40 shadow-lg shadow-cyan-500/10 flex items-center justify-center w-11 h-11 overflow-hidden">
-            {settings.appLogoUrl ? (
-              <img 
-                src={settings.appLogoUrl} 
-                alt="App Logo" 
-                className="w-9 h-9 object-contain rounded-lg"
-                onError={(e) => { (e.target as HTMLElement).style.display = 'none'; }}
-              />
-            ) : (
-              <PetaKomandoIcon size={38} className="animate-pulse" />
-            )}
+          <div className="shrink-0 p-1 bg-slate-950 rounded-xl border border-cyan-500/40 shadow-lg shadow-cyan-500/10">
+            <PetaKomandoIcon size={38} className="animate-pulse" />
           </div>
           <div className="min-w-0 flex-1">
             <h1 className="text-xs font-black uppercase tracking-wider text-cyan-400 font-mono">Peta Komando</h1>
@@ -1201,17 +1176,8 @@ export default function App() {
       {/* Navigation Bar - Mobile */}
       <header className="md:hidden bg-slate-900 text-white p-4 flex justify-between items-center shadow-md shrink-0 select-none">
         <div className="flex items-center gap-2.5">
-          <div className="shrink-0 p-1 bg-slate-950 rounded-lg border border-cyan-500/30 flex items-center justify-center w-8 h-8 overflow-hidden">
-            {settings.appLogoUrl ? (
-              <img 
-                src={settings.appLogoUrl} 
-                alt="App Logo" 
-                className="w-6 h-6 object-contain rounded"
-                onError={(e) => { (e.target as HTMLElement).style.display = 'none'; }}
-              />
-            ) : (
-              <PetaKomandoIcon size={28} />
-            )}
+          <div className="shrink-0 p-1 bg-slate-950 rounded-lg border border-cyan-500/30">
+            <PetaKomandoIcon size={28} />
           </div>
           <div>
             <h1 className="text-[11px] font-black uppercase tracking-wider text-cyan-400 font-mono">Peta Komando</h1>

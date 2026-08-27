@@ -12,20 +12,9 @@ interface LoginViewProps {
   kepalaStasiunUsername?: string;
   kepalaStasiunPassword?: string;
   kepalaStasiunNama?: string;
-  loginLogoUrl?: string;
-  appLogoUrl?: string;
 }
 
-export default function LoginView({ 
-  employees, 
-  onLogin, 
-  namaInstansi, 
-  kepalaStasiunUsername, 
-  kepalaStasiunPassword, 
-  kepalaStasiunNama,
-  loginLogoUrl,
-  appLogoUrl
-}: LoginViewProps) {
+export default function LoginView({ employees, onLogin, namaInstansi, kepalaStasiunUsername, kepalaStasiunPassword, kepalaStasiunNama }: LoginViewProps) {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -119,34 +108,7 @@ export default function LoginView({
         
         {/* Brand Header */}
         <div className="flex flex-col items-center text-center space-y-2">
-          {loginLogoUrl ? (
-            <img 
-              src={loginLogoUrl} 
-              alt="Logo Peta Komando" 
-              className="max-h-20 max-w-[280px] w-auto h-auto object-contain drop-shadow-md mx-auto"
-              onError={(e) => {
-                // If custom image fails to load, gracefully hide it and let container look neat
-                (e.target as HTMLElement).style.display = 'none';
-              }}
-            />
-          ) : appLogoUrl ? (
-            <div className="flex items-center justify-center gap-3">
-              <img 
-                src={appLogoUrl} 
-                alt="Logo Peta Komando" 
-                className="w-12 h-12 object-contain drop-shadow-md"
-                onError={(e) => {
-                  (e.target as HTMLElement).style.display = 'none';
-                }}
-              />
-              <div className="text-left">
-                <h1 className="text-lg font-black uppercase tracking-wider text-cyan-400 font-mono leading-none">PETA KOMANDO</h1>
-                <p className="text-[10px] font-bold text-slate-300 tracking-tight">RRI BANDAR LAMPUNG</p>
-              </div>
-            </div>
-          ) : (
-            <PetaKomandoLogo size="md" className="max-w-[280px]" />
-          )}
+          <PetaKomandoLogo size="md" className="max-w-[280px]" />
           <p className="text-[11px] text-slate-400 font-medium">Sistem Monitoring & Evaluasi Kinerja Terpadu</p>
         </div>
 

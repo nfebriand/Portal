@@ -6,8 +6,7 @@ import firebaseConfig from '../../firebase-applet-config.json';
 const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
 
 // Initialize Firestore database instance
-const databaseId = (firebaseConfig as any).firestoreDatabaseId;
-export const db = databaseId ? getFirestore(app, databaseId) : getFirestore(app);
+export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
 
 /**
  * Validate connection to Firestore backend.

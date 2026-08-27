@@ -128,15 +128,6 @@ export const appSettings = pgTable('app_settings', {
   namaInstansi: text('nama_instansi'),
   alamat: text('alamat'),
   noTelp: text('no_telp'),
-  appLogoUrl: text('app_logo_url'),
-  appLogoDriveId: text('app_logo_drive_id'),
-  appLogoDriveLink: text('app_logo_drive_link'),
-  loginLogoUrl: text('login_logo_url'),
-  loginLogoDriveId: text('login_logo_drive_id'),
-  loginLogoDriveLink: text('login_logo_drive_link'),
-  splashLogoUrl: text('splash_logo_url'),
-  splashLogoDriveId: text('splash_logo_drive_id'),
-  splashLogoDriveLink: text('splash_logo_drive_link'),
 });
 
 export const institutionalIdentity = pgTable('institutional_identity', {

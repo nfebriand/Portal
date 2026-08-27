@@ -2,13 +2,12 @@ import React, { useState } from 'react';
 import { AppSettings, InstitutionalIdentity, Employee, NewsReport, CriticalNotification, PerformanceAgreement, CooperationContract, ReporterTarget, PromotionActivity } from '../types';
 import SignaturePad from './SignaturePad';
 import DatabaseExplorer from './DatabaseExplorer';
-import BrandingSettingsView from './BrandingSettingsView';
 import { 
   Building, Award, PenTool, Check, FileText, Phone, MapPin, Printer, 
   Database, Download, Upload, Radio, FileSpreadsheet, AlertCircle, 
   Clock, UserCheck, RefreshCw, Layers, Share2, Search, Plus, 
   Trash2, Edit3, Save, FileJson, X, ShieldAlert, Megaphone,
-  CheckCircle2, Loader2, Sparkles, ArrowRight, Cloud
+  CheckCircle2, Loader2, Sparkles, ArrowRight
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { parseFlexibleDate } from '../utils/dateUtils';
@@ -75,7 +74,7 @@ export default function AppAdminView({
     return full;
   };
 
-  const [activeMainTab, setActiveMainTab] = useState<'settings' | 'branding' | 'explorer'>('settings');
+  const [activeMainTab, setActiveMainTab] = useState<'settings' | 'explorer'>('settings');
 
   // General Settings Local State
   const [instansiNama, setInstansiNama] = useState(settings.namaInstansi);
@@ -650,46 +649,32 @@ export default function AppAdminView({
             <p className="text-xs text-slate-400">Konfigurasi stasiun, kelola tanda tangan pejabat, dan jelajahi seluruh database utama Swara.</p>
           </div>
         </div>
-        <div className="flex p-1 bg-slate-100 rounded-xl flex-wrap gap-1">
+        <div className="flex p-1 bg-slate-100 rounded-xl">
           <button
-            id="tab-btn-settings"
             onClick={() => setActiveMainTab('settings')}
-            className={`flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${
               activeMainTab === 'settings'
                 ? 'bg-white text-slate-800 shadow-xs font-bold'
                 : 'text-slate-500 hover:text-slate-800 font-medium'
             }`}
           >
             <Building className="w-3.5 h-3.5" />
-            Pengaturan & TTD
+            Pengaturan Aplikasi & TTD
           </button>
           <button
-            id="tab-btn-branding"
-            onClick={() => setActiveMainTab('branding')}
-            className={`flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer relative ${
-              activeMainTab === 'branding'
-                ? 'bg-white text-indigo-700 shadow-xs font-bold'
-                : 'text-slate-500 hover:text-indigo-600 font-medium'
-            }`}
-          >
-            <Cloud className="w-3.5 h-3.5 text-cyan-500" />
-            Logo & Branding (Google Drive)
-            <span className="flex h-2 w-2">
-              <span className="animate-ping absolute inline-flex h-2 w-2 rounded-full bg-cyan-400 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-cyan-500"></span>
-            </span>
-          </button>
-          <button
-            id="tab-btn-explorer"
             onClick={() => setActiveMainTab('explorer')}
-            className={`flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer relative ${
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer relative ${
               activeMainTab === 'explorer'
                 ? 'bg-white text-slate-800 shadow-xs font-bold'
                 : 'text-slate-500 hover:text-slate-800 font-medium'
             }`}
           >
             <Database className="w-3.5 h-3.5" />
-            Penjelajah DB
+            Penjelajah & Pengelola DB
+            <span className="absolute -top-1 -right-1 flex h-2 w-2">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+            </span>
           </button>
         </div>
       </div>
@@ -1746,11 +1731,6 @@ export default function AppAdminView({
           </div>
         )}
       </div>
-      ) : activeMainTab === 'branding' ? (
-        <BrandingSettingsView
-          settings={settings}
-          onUpdateSettings={onUpdateSettings}
-        />
       ) : (
         <div className="bg-white border border-slate-200 rounded-3xl p-6 shadow-xs">
           <div className="flex items-center gap-2.5 border-b border-slate-100 pb-3 mb-6">
